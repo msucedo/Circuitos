@@ -112,6 +112,8 @@ test('a failing Probar says how many pass and marks the wrong outputs', async ({
   await expect(page.getByText('Pasan 0 de 2 pruebas. Estas fallan:')).toBeVisible()
   await expect(page.locator('.result td.bad')).toHaveCount(2)
   await page.screenshot({ path: `${SHOTS}/probar-fail.png` })
+  await page.getByRole('button', { name: 'Cerrar resultado' }).click()
+  await expect(page.locator('.result')).toHaveCount(0)
 })
 
 test('the level header, locked levels and the empty canvas explain themselves', async ({ page }) => {

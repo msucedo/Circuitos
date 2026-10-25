@@ -368,6 +368,9 @@ export default function App() {
 
         {result && level && (
           <section className={`result ${result.passed ? 'pass' : 'fail'}`} aria-live="polite">
+            <button type="button" className="close" aria-label="Cerrar resultado" onClick={() => setResult(undefined)}>
+              ×
+            </button>
             {result.passed ? (
               <p>
                 ¡Funciona!{' '}

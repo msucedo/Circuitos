@@ -116,6 +116,8 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
   font-size: 14px;
 }
 .result p { margin: 0 0 6px; }
+/* Sticky so it stays reachable while scrolling a long list of failures. */
+.result .close { position: sticky; top: 0; float: right; margin-left: 12px; padding: 0 8px; }
 .result.pass { color: var(--on); }
 .result.fail { color: var(--bad); }
 .result table { border-collapse: collapse; color: var(--text); font-family: ui-monospace, monospace; }
