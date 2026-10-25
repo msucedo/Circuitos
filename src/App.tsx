@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Editor } from './editor/Editor.tsx'
-import { LEVELS, isUnlocked, levelById, levelCircuit, levelLibrary } from './levels/levels.ts'
+import { LEVELS, firstOpenLevel, isUnlocked, levelById, levelCircuit, levelLibrary, levelPalette } from './levels/levels.ts'
 import type { Level } from './levels/levels.ts'
 import { chipIdFor, chipUsers, exportProject, importProject } from './project.ts'
 import { flatten } from './sim/flatten.ts'
@@ -19,10 +19,6 @@ const SAVE_DELAY_MS = 400
 const SHOWN_FAILURES = 12
 
 type Notice = { kind: 'info' | 'error'; text: string }
-
-function firstOpenLevel(solved: ReadonlySet<string>) {
-  return (LEVELS.find((l) => !solved.has(l.id) && isUnlocked(l, solved)) ?? LEVELS[0]).id
-}
 
 function download(name: string, text: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
@@ -54,8 +50,8 @@ export default function App() {
   )
   const circuit: Circuit = level ? (save.drafts.get(level.id) ?? levelCircuit(level)) : save.sandbox
   const palette = level
-    ? ['NAND', ...library.keys()]
-    : ['INPUT', 'OUTPUT', 'SPLIT', 'JOIN', 'CLOCK', 'NAND', ...LEVELS.filter((l) => fullLibrary.has(l.id)).map((l) => l.id), ...save.chips.filter((c) => !levelById(c.id)).map((c) => c.id)]
+    ? levelPalette(level, library)
+    : ['INPUT', 'OUTPUT', 'SPLIT', 'JOIN', 'CLOCK', 'NAND', 'VCC', 'RELAY', 'RELAY_NC', ...LEVELS.filter((l) => fullLibrary.has(l.id)).map((l) => l.id), ...save.chips.filter((c) => !levelById(c.id)).map((c) => c.id)]
   const locked = useMemo(() => new Set(level ? [...level.spec.inputs, ...level.spec.outputs] : []), [level])
 
   useEffect(() => {
@@ -63,7 +59,13 @@ export default function App() {
       const problem = writeSave(save)
       if (problem) setNotice({ kind: 'error', text: problem })
     }, SAVE_DELAY_MS)
-    return () => clearTimeout(timer)
+    // Leaving or reloading before the delay runs out must not lose the last change.
+    const flush = () => writeSave(save)
+    window.addEventListener('pagehide', flush)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('pagehide', flush)
+    }
   }, [save])
 
   const onChange = useCallback(
@@ -87,7 +89,7 @@ export default function App() {
     setSave((s) => ({
       ...s,
       solved: s.solved.includes(lvl.id) ? s.solved : [...s.solved, lvl.id],
-      chips: [...s.chips.filter((c) => c.id !== lvl.id), { id: lvl.id, name: lvl.name, circuit }],
+      chips: lvl.chip === false ? s.chips : [...s.chips.filter((c) => c.id !== lvl.id), { id: lvl.id, name: lvl.name, circuit }],
     }))
   }
 
@@ -175,7 +177,10 @@ export default function App() {
                   aria-current={workspace === l.id}
                   onClick={() => open(l.id)}
                 >
-                  <span>{l.name}</span>
+                  <span>
+                    {l.name}
+                    {l.optional && <small className="optional"> opcional</small>}
+                  </span>
                   <span className="mark" aria-label={solved.has(l.id) ? 'resuelto' : unlocked ? '' : 'bloqueado'}>
                     {solved.has(l.id) ? '✓' : unlocked ? '' : '🔒'}
                   </span>
@@ -270,23 +275,33 @@ export default function App() {
           <section className={`result ${result.passed ? 'pass' : 'fail'}`} aria-live="polite">
             {result.passed ? (
               <p>
-                ¡Funciona! <strong>{level.name}</strong> ya está en tu paleta.
+                ¡Funciona!{' '}
+                {level.chip === false ? (
+                  'Nivel resuelto.'
+                ) : (
+                  <>
+                    <strong>{level.name}</strong> ya está en tu paleta.
+                  </>
+                )}
               </p>
             ) : result.error ? (
               <p>{result.error}</p>
             ) : (
               <>
                 <p>
-                  Fallan {failures.length} de {result.steps.length} pruebas:
+                  Pasan {result.steps.length - failures.length} de {result.steps.length} pruebas. Estas fallan:
                 </p>
                 <table>
                   <thead>
+                    <tr className="groups">
+                      <th colSpan={level.spec.inputs.length}>entradas</th>
+                      <th colSpan={level.spec.outputs.length}>esperado</th>
+                      <th colSpan={level.spec.outputs.length}>tu circuito</th>
+                    </tr>
                     <tr>
-                      {level.spec.inputs.map((id) => (
-                        <th key={id}>{id}</th>
+                      {[...level.spec.inputs, ...level.spec.outputs, ...level.spec.outputs].map((id, i) => (
+                        <th key={i}>{id}</th>
                       ))}
-                      <th>esperado</th>
-                      <th>obtenido</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -295,15 +310,24 @@ export default function App() {
                         {level.spec.inputs.map((id) => (
                           <td key={id}>{f.step.set[id] ?? '·'}</td>
                         ))}
-                        <td>{level.spec.outputs.map((id) => f.step.expect[id] ?? '·').join(' ')}</td>
-                        <td>
-                          {level.spec.outputs.map((id) => f.actual[id]).join(' ')}
-                          {f.status === 'oscillating' ? ' (oscila)' : ''}
-                        </td>
+                        {level.spec.outputs.map((id) => (
+                          <td key={id}>{f.step.expect[id] ?? '·'}</td>
+                        ))}
+                        {level.spec.outputs.map((id) => {
+                          const want = f.step.expect[id]
+                          const bad = f.status === 'oscillating' || (want !== undefined && want !== f.actual[id])
+                          return (
+                            <td key={id} className={bad ? 'bad' : ''}>
+                              {f.status === 'oscillating' ? '~' : f.actual[id]}
+                            </td>
+                          )
+                        })}
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {failures.some((f) => f.status === 'oscillating') && <p className="hint">~ = el circuito oscila: nunca se estabiliza.</p>}
+                {failures.length > SHOWN_FAILURES && <p className="hint">…y {failures.length - SHOWN_FAILURES} más.</p>}
               </>
             )}
           </section>

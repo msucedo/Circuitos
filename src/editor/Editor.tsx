@@ -1,5 +1,5 @@
 import { Background, Controls, ReactFlow, ReactFlowProvider, addEdge, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
-import type { Connection, Edge, EdgeTypes, NodeTypes, OnBeforeDelete } from '@xyflow/react'
+import type { Connection, Edge, EdgeTypes, NodeTypes, OnBeforeDelete, XYPosition } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent } from 'react'
@@ -50,6 +50,16 @@ export function Editor(props: EditorProps) {
 
 const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+
+const CASCADE = 24
+
+/** Clicking a piece several times shouldn't stack the copies exactly on top of each other. */
+function freeSpot(at: XYPosition, nodes: ChipFlowNode[]): XYPosition {
+  const taken = (p: XYPosition) => nodes.some((n) => Math.abs(n.position.x - p.x) < 1 && Math.abs(n.position.y - p.y) < 1)
+  let spot = at
+  while (taken(spot)) spot = { x: spot.x + CASCADE, y: spot.y + CASCADE }
+  return spot
+}
 
 function Canvas({ initial, library, palette, locked, spec, renamePins = false, onChange }: EditorProps) {
   const [start] = useState(() => toFlow(initial, locked))
@@ -142,7 +152,7 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
       {
         id: nextId(kind, new Set(ns.map((n) => n.id))),
         type: 'chip',
-        position: screenToFlowPosition(point),
+        position: freeSpot(screenToFlowPosition(point), ns),
         data: sized && width > 1 ? { kind, width } : { kind },
       },
     ])
@@ -194,6 +204,7 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
     () => ({
       library,
       signals,
+      incoming: (node: string, pin: string) => wires.find((w) => w.target === node && w.targetHandle === pin)?.data?.value ?? 0,
       inputs,
       setInput: (id: string, value: number) => setInputs((m) => new Map(m).set(id, value)),
       rename: renamePins ? rename : undefined,

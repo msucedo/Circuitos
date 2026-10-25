@@ -1,11 +1,15 @@
+import { BUILTINS } from './builtins.ts'
 import { CircuitError, bitNode, isPrimitive, widthOf } from './types.ts'
-import type { ChipLibrary, Circuit, CircuitNode, Endpoint, Pin, Pins, Wire } from './types.ts'
+import type { ChipDef, ChipLibrary, Circuit, CircuitNode, Endpoint, Pin, Pins, Wire } from './types.ts'
 
 export const MAX_DEPTH = 16
 export const MAX_FLAT_NODES = 200_000
 
 const one = (name: string): Pin => ({ name, width: 1 })
 const range = (n: number) => Array.from({ length: n }, (_, i) => i)
+
+/** Builtins first: the schema already keeps user chips from taking a builtin's id. */
+const chipOf = (kind: string, library: ChipLibrary): ChipDef | undefined => BUILTINS.get(kind) ?? library.get(kind)
 
 /** Pins of a chip: its INPUT/OUTPUT nodes, in order, with their widths. */
 export function chipPins(circuit: Circuit): Pins {
@@ -32,7 +36,7 @@ export function nodePins(node: Pick<CircuitNode, 'kind' | 'width'>, library: Chi
     case 'JOIN':
       return { inputs: bits, outputs: [{ name: 'out', width }] }
   }
-  const chip = library.get(node.kind)
+  const chip = chipOf(node.kind, library)
   if (!chip) throw new CircuitError(`Tipo desconocido: "${node.kind}"`)
   return chipPins(chip.circuit)
 }
@@ -109,7 +113,7 @@ export function flatten(circuit: Circuit, library: ChipLibrary): FlatCircuit {
           for (const i of range(width)) aliases.add(bitNode(id, i, width))
           continue
       }
-      const chip = library.get(node.kind)
+      const chip = chipOf(node.kind, library)
       if (!chip) throw new CircuitError(`Tipo desconocido: "${node.kind}"`)
       if (chain.includes(node.kind)) throw new CircuitError(`El chip "${chip.name}" se contiene a sí mismo`)
       if (chain.length >= MAX_DEPTH) throw new CircuitError(`Más de ${MAX_DEPTH} niveles de chips anidados`)

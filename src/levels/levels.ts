@@ -10,11 +10,31 @@ export interface Level {
   goal: string
   hint?: string
   spec: Spec
+  /** Primitive pieces offered besides the unlocked chips; NAND when missing. */
+  parts?: string[]
+  /** Optional levels never lock the ones after them, so adding one keeps old progress playable. */
+  optional?: boolean
+  /** False when solving the level adds no chip (its circuit is already a primitive). */
+  chip?: boolean
 }
 
-const level = (id: string, name: string, goal: string, hint?: string): Level => ({ id, name, goal, hint, spec: SPECS.get(id)! })
+const level = (id: string, name: string, goal: string, hint?: string, extra?: Partial<Level>): Level => ({
+  id,
+  name,
+  goal,
+  hint,
+  spec: SPECS.get(id)!,
+  ...extra,
+})
 
 export const LEVELS: Level[] = [
+  level(
+    'RELAY_NAND',
+    'Relés',
+    'Nivel 0 (opcional): arma la NAND con relés. Un relé deja pasar su entrada in solo mientras su bobina c está en 1; el inverso, solo mientras está en 0.',
+    'Dos relés en serie desde la fuente dan a AND b; un relé inverso, también desde la fuente, lo invierte.',
+    { parts: ['VCC', 'RELAY', 'RELAY_NC'], optional: true, chip: false },
+  ),
   level('NOT', 'NOT', 'Saca lo contrario de la entrada: 0 → 1 y 1 → 0.', 'NAND da 0 solo cuando sus dos entradas son 1.'),
   level('AND', 'AND', 'La salida es 1 solo si a y b son 1.', 'Es lo contrario de un NAND.'),
   level('OR', 'OR', 'La salida es 1 si a, b o ambas son 1.', 'Invierte las dos entradas antes de un NAND.'),
@@ -34,17 +54,29 @@ export const LEVELS: Level[] = [
 
 export const levelById = (id: string) => LEVELS.find((l) => l.id === id)
 
+/** Unlocked once the closest earlier level that isn't optional is solved. */
 export function isUnlocked(level: Level, solved: ReadonlySet<string>): boolean {
-  const index = LEVELS.indexOf(level)
-  return index === 0 || solved.has(LEVELS[index - 1].id)
+  const before = LEVELS.slice(0, LEVELS.indexOf(level)).findLast((l) => !l.optional)
+  return before === undefined || solved.has(before.id)
 }
+
+/** Where to start: the first open, unsolved level that isn't optional. */
+export function firstOpenLevel(solved: ReadonlySet<string>): string {
+  return (LEVELS.find((l) => !l.optional && !solved.has(l.id) && isUnlocked(l, solved)) ?? LEVELS[0]).id
+}
+
+export const levelPalette = (level: Level, library: ChipLibrary) => [...(level.parts ?? ['NAND']), ...library.keys()]
 
 /**
  * Chips usable inside a level: only those from earlier, solved levels. This
  * keeps level chips ordered, so a solution can never end up containing itself.
  */
 export function levelLibrary(level: Level, solved: ReadonlySet<string>, chips: ChipDef[]): ChipLibrary {
-  const earlier = new Set(LEVELS.slice(0, LEVELS.indexOf(level)).map((l) => l.id))
+  const earlier = new Set(
+    LEVELS.slice(0, LEVELS.indexOf(level))
+      .filter((l) => l.chip !== false)
+      .map((l) => l.id),
+  )
   return toLibrary(chips.filter((c) => earlier.has(c.id) && solved.has(c.id)))
 }
 

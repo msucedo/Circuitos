@@ -81,9 +81,23 @@ button.primary { background: #2d4a8a; border-color: var(--accent); }
 .result table { border-collapse: collapse; color: var(--text); font-family: ui-monospace, monospace; }
 .result th, .result td { padding: 2px 10px; border-bottom: 1px solid var(--line); text-align: center; }
 .result th { color: var(--muted); font-weight: 500; }
+.result tr.groups th { font-size: 11px; border-bottom: 0; }
+.result td.bad { background: #3a1f24; color: var(--bad); font-weight: 700; }
+.optional { color: var(--muted); font-size: 11px; }
 
 @media (max-width: 720px) {
   .app { flex-direction: column; }
+  .app .editor { flex-direction: column; min-height: 70vh; }
+  .app .palette {
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .app .palette button { flex: none; }
+  .app .width-picker { flex: none; }
   .levels { width: auto; max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--line); }
 }
 

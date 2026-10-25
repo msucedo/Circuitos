@@ -1,6 +1,18 @@
 import { build, nand } from './build.ts'
 import { toLibrary } from './types.ts'
 
+/** Level 0: two relays in series give a AND b; a normally closed relay inverts it. */
+export const RELAY_NAND = build({
+  inputs: ['a', 'b'],
+  parts: {
+    vcc: { kind: 'VCC', in: {} },
+    ra: { kind: 'RELAY', in: { c: 'a', in: 'vcc' } },
+    rb: { kind: 'RELAY', in: { c: 'b', in: 'ra' } },
+    inv: { kind: 'RELAY_NC', in: { c: 'rb', in: 'vcc' } },
+  },
+  outputs: { out: 'inv' },
+})
+
 /** Reference circuits made only of NAND gates. */
 
 export const NOT = build({

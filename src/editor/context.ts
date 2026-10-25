@@ -5,6 +5,8 @@ import type { Signals } from './useSimulation.ts'
 export interface EditorState {
   library: ChipLibrary
   signals: Signals
+  /** Value arriving at an input pin through its wire; 0 when unconnected. */
+  incoming: (node: string, pin: string) => number
   inputs: ReadonlyMap<string, number>
   setInput: (id: string, value: number) => void
   /** Undefined when pins can't be renamed (levels); otherwise returns an error message or undefined. */
@@ -26,6 +28,9 @@ export const KIND_NAMES: Record<string, string> = {
   NAND: 'NAND',
   SPLIT: 'Separar',
   JOIN: 'Juntar',
+  VCC: 'Fuente',
+  RELAY: 'Relé',
+  RELAY_NC: 'Relé inverso',
 }
 
 export const kindName = (kind: string, library: ChipLibrary) => KIND_NAMES[kind] ?? library.get(kind)?.name ?? kind

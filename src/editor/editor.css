@@ -169,7 +169,12 @@
 .truth-table th, .truth-table td { padding: 2px 10px; text-align: center; border-bottom: 1px solid var(--line); }
 .truth-table th { color: var(--muted); font-weight: 500; }
 .truth-table .out { color: var(--on); }
-.truth-table tr.wrong td { background: #3a1f24; }
+.truth-table thead { position: sticky; top: -8px; background: var(--panel); }
+.truth-table tr.groups th { padding-top: 0; font-size: 11px; border-bottom: 0; }
+.truth-table .want { color: var(--muted); }
+.truth-table td.bad { background: #3a1f24; color: var(--bad); font-weight: 700; }
+.truth-table .verdict { color: var(--on); }
+.truth-table tr.wrong .verdict { color: var(--bad); }
 .table-note { margin: 0; max-width: 220px; color: var(--muted); font-size: 13px; }
 
 /* Buses */

@@ -3,8 +3,12 @@ export type Bit = 0 | 1
 /** Kinds the simulator runs directly; everything else is flattened into these. */
 export type GateKind = 'NAND' | 'INPUT' | 'OUTPUT' | 'CLOCK'
 
-/** Built-in kinds: gates plus SPLIT/JOIN, which only rearrange the bits of a bus. */
-export type PrimitiveKind = GateKind | 'SPLIT' | 'JOIN'
+/** Pieces below NAND (a power source and relays); `builtins.ts` defines them in NAND. */
+export const BUILTIN_KINDS = ['VCC', 'RELAY', 'RELAY_NC'] as const
+export type BuiltinKind = (typeof BUILTIN_KINDS)[number]
+
+/** Built-in kinds: gates, SPLIT/JOIN (which only rearrange the bits of a bus) and the builtins. */
+export type PrimitiveKind = GateKind | 'SPLIT' | 'JOIN' | BuiltinKind
 
 export const MAX_WIDTH = 16
 
@@ -68,7 +72,7 @@ export function isGate(kind: string): kind is GateKind {
 }
 
 export function isPrimitive(kind: string): kind is PrimitiveKind {
-  return isGate(kind) || kind === 'SPLIT' || kind === 'JOIN'
+  return isGate(kind) || kind === 'SPLIT' || kind === 'JOIN' || (BUILTIN_KINDS as readonly string[]).includes(kind)
 }
 
 export const widthOf = (node: Pick<CircuitNode, 'width'>) => node.width ?? 1

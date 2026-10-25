@@ -7,6 +7,7 @@ const toNumber = (bits: Bit[]) => bits.reduce<number>((n, b) => n * 2 + b, 0)
 
 /** What each level checks, by the id of the chip it unlocks. */
 export const SPECS = new Map<string, Spec>([
+  ['RELAY_NAND', tableSpec(['a', 'b'], ['out'], (a, b) => [bit(!(a && b))])],
   ['NOT', tableSpec(['a'], ['out'], (a) => [bit(!a)])],
   ['AND', tableSpec(['a', 'b'], ['out'], (a, b) => [bit(a && b)])],
   ['OR', tableSpec(['a', 'b'], ['out'], (a, b) => [bit(a || b)])],

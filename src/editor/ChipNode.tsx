@@ -55,7 +55,7 @@ function PinName({ id, locked }: { id: string; locked: boolean }) {
 }
 
 export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNode>) {
-  const { library, signals, inputs, setInput } = useEditor()
+  const { library, signals, incoming, inputs, setInput } = useEditor()
   const known = isPrimitive(data.kind) || library.has(data.kind)
   const pins = known ? nodePins(data, library) : NO_PINS
   const width = widthOf(data)
@@ -127,7 +127,7 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
         <div className="pins-in">
           {pins.inputs.map((pin) => (
             <div className="pin" key={pin.name}>
-              <Handle type="target" position={Position.Left} id={pin.name} className={handleClass(pin, false)} />
+              <Handle type="target" position={Position.Left} id={pin.name} className={handleClass(pin, incoming(id, pin.name) > 0)} />
               {showNames(pins.inputs) ? pin.name : ''}
             </div>
           ))}

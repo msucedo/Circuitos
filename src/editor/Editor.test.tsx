@@ -116,8 +116,10 @@ describe('Editor', () => {
     setup({ nodes: NOT.nodes.filter((n) => n.kind !== 'NAND'), wires: [wire] }, { spec: SPECS.get('NOT') })
     fireEvent.click(button('Tabla'))
     const rows = [...screen.getByRole('table').querySelectorAll('tbody tr')]
-    expect(rows.map((r) => r.textContent)).toEqual(['001', '110'])
+    // a | tu circuito: out | esperado: out | ✓/✗
+    expect(rows.map((r) => r.textContent)).toEqual(['001✗', '110✗'])
     expect(rows.map((r) => r.className)).toEqual(['wrong', 'wrong'])
+    expect(rows.map((r) => r.querySelector('td.bad')?.textContent)).toEqual(['0', '1'])
   })
 
   it('renames a pin with a double click when allowed', () => {

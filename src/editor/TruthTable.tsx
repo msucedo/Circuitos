@@ -20,9 +20,18 @@ export function TruthTable({ circuit, library, spec }: { circuit: Circuit; libra
     return step && table.outputs.map((p) => step.expect[p.name])
   }
 
+  const checked = spec?.combinational === true
+  const group = (label: string, span: number) => span > 0 && <th colSpan={span}>{label}</th>
+
   return (
     <table className="truth-table">
       <thead>
+        <tr className="groups">
+          {group('entradas', table.inputs.length)}
+          {group(checked ? 'tu circuito' : 'salidas', table.outputs.length)}
+          {checked && group('esperado', table.outputs.length)}
+          {checked && <th />}
+        </tr>
         <tr>
           {table.inputs.map((p) => (
             <th key={p.name}>{p.name}</th>
@@ -32,24 +41,41 @@ export function TruthTable({ circuit, library, spec }: { circuit: Circuit; libra
               {p.name}
             </th>
           ))}
-          {spec?.combinational && <th>esperado</th>}
+          {checked &&
+            table.outputs.map((p) => (
+              <th key={p.name} className="want">
+                {p.name}
+              </th>
+            ))}
+          {checked && <th />}
         </tr>
       </thead>
       <tbody>
         {table.rows.map((row, r) => {
           const want = expected(row.inputs)
-          const wrong = want !== undefined && want.some((v, i) => v !== row.outputs[i])
+          const oscillating = row.status === 'oscillating'
+          const bad = (i: number) => oscillating || (want !== undefined && want[i] !== row.outputs[i])
+          const wrong = table.outputs.some((_, i) => bad(i))
           return (
-            <tr key={r} className={wrong || row.status === 'oscillating' ? 'wrong' : ''}>
+            <tr key={r} className={wrong ? 'wrong' : ''}>
               {row.inputs.map((v, i) => (
                 <td key={i}>{v}</td>
               ))}
               {row.outputs.map((v, i) => (
-                <td key={i} className="out">
-                  {row.status === 'oscillating' ? '~' : v}
+                <td key={i} className={`out${bad(i) ? ' bad' : ''}`}>
+                  {oscillating ? '~' : v}
                 </td>
               ))}
-              {want && <td>{want.join(' ')}</td>}
+              {want?.map((v, i) => (
+                <td key={i} className="want">
+                  {v}
+                </td>
+              ))}
+              {checked && (
+                <td className="verdict" aria-label={wrong ? 'mal' : 'bien'}>
+                  {wrong ? '✗' : '✓'}
+                </td>
+              )}
             </tr>
           )
         })}

@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "circuit": {
+    "nodes": [
+      {
+        "id": "a",
+        "kind": "INPUT"
+      },
+      {
+        "id": "b",
+        "kind": "INPUT"
+      },
+      {
+        "id": "vcc",
+        "kind": "VCC"
+      },
+      {
+        "id": "ra",
+        "kind": "RELAY"
+      },
+      {
+        "id": "rb",
+        "kind": "RELAY"
+      },
+      {
+        "id": "inv",
+        "kind": "RELAY_NC"
+      },
+      {
+        "id": "out",
+        "kind": "OUTPUT"
+      }
+    ],
+    "wires": [
+      {
+        "from": {
+          "node": "a",
+          "pin": "out"
+        },
+        "to": {
+          "node": "ra",
+          "pin": "c"
+        }
+      },
+      {
+        "from": {
+          "node": "vcc",
+          "pin": "out"
+        },
+        "to": {
+          "node": "ra",
+          "pin": "in"
+        }
+      },
+      {
+        "from": {
+          "node": "b",
+          "pin": "out"
+        },
+        "to": {
+          "node": "rb",
+          "pin": "c"
+        }
+      },
+      {
+        "from": {
+          "node": "ra",
+          "pin": "out"
+        },
+        "to": {
+          "node": "rb",
+          "pin": "in"
+        }
+      },
+      {
+        "from": {
+          "node": "rb",
+          "pin": "out"
+        },
+        "to": {
+          "node": "inv",
+          "pin": "c"
+        }
+      },
+      {
+        "from": {
+          "node": "vcc",
+          "pin": "out"
+        },
+        "to": {
+          "node": "inv",
+          "pin": "in"
+        }
+      },
+      {
+        "from": {
+          "node": "inv",
+          "pin": "out"
+        },
+        "to": {
+          "node": "out",
+          "pin": "in"
+        }
+      }
+    ]
+  },
+  "chips": []
+}
