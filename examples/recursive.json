@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "circuit": {
+    "nodes": [
+      {
+        "id": "x",
+        "kind": "LOOP"
+      }
+    ],
+    "wires": []
+  },
+  "chips": [
+    {
+      "id": "LOOP",
+      "name": "Bucle",
+      "circuit": {
+        "nodes": [
+          {
+            "id": "y",
+            "kind": "LOOP"
+          }
+        ],
+        "wires": []
+      }
+    }
+  ]
+}

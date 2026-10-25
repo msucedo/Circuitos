@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "circuit": {
+    "nodes": [
+      {
+        "id": "a",
+        "kind": "INPUT"
+      },
+      {
+        "id": "b",
+        "kind": "INPUT"
+      },
+      {
+        "id": "n",
+        "kind": "NAND"
+      },
+      {
+        "id": "x",
+        "kind": "NAND"
+      },
+      {
+        "id": "y",
+        "kind": "NAND"
+      },
+      {
+        "id": "z",
+        "kind": "NAND"
+      },
+      {
+        "id": "out",
+        "kind": "OUTPUT"
+      }
+    ],
+    "wires": [
+      {
+        "from": {
+          "node": "a",
+          "pin": "out"
+        },
+        "to": {
+          "node": "n",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "b",
+          "pin": "out"
+        },
+        "to": {
+          "node": "n",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "a",
+          "pin": "out"
+        },
+        "to": {
+          "node": "x",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "n",
+          "pin": "out"
+        },
+        "to": {
+          "node": "x",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "b",
+          "pin": "out"
+        },
+        "to": {
+          "node": "y",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "n",
+          "pin": "out"
+        },
+        "to": {
+          "node": "y",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "x",
+          "pin": "out"
+        },
+        "to": {
+          "node": "z",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "y",
+          "pin": "out"
+        },
+        "to": {
+          "node": "z",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "z",
+          "pin": "out"
+        },
+        "to": {
+          "node": "out",
+          "pin": "in"
+        }
+      }
+    ]
+  },
+  "chips": []
+}

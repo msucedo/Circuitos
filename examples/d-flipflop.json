@@ -1,0 +1,827 @@
+{
+  "version": 1,
+  "circuit": {
+    "nodes": [
+      {
+        "id": "d",
+        "kind": "INPUT"
+      },
+      {
+        "id": "clk",
+        "kind": "INPUT"
+      },
+      {
+        "id": "nclk",
+        "kind": "NOT"
+      },
+      {
+        "id": "master",
+        "kind": "D_LATCH"
+      },
+      {
+        "id": "slave",
+        "kind": "D_LATCH"
+      },
+      {
+        "id": "q",
+        "kind": "OUTPUT"
+      }
+    ],
+    "wires": [
+      {
+        "from": {
+          "node": "clk",
+          "pin": "out"
+        },
+        "to": {
+          "node": "nclk",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "d",
+          "pin": "out"
+        },
+        "to": {
+          "node": "master",
+          "pin": "d"
+        }
+      },
+      {
+        "from": {
+          "node": "nclk",
+          "pin": "out"
+        },
+        "to": {
+          "node": "master",
+          "pin": "en"
+        }
+      },
+      {
+        "from": {
+          "node": "master",
+          "pin": "q"
+        },
+        "to": {
+          "node": "slave",
+          "pin": "d"
+        }
+      },
+      {
+        "from": {
+          "node": "clk",
+          "pin": "out"
+        },
+        "to": {
+          "node": "slave",
+          "pin": "en"
+        }
+      },
+      {
+        "from": {
+          "node": "slave",
+          "pin": "q"
+        },
+        "to": {
+          "node": "q",
+          "pin": "in"
+        }
+      }
+    ]
+  },
+  "chips": [
+    {
+      "id": "NOT",
+      "name": "NOT",
+      "circuit": {
+        "nodes": [
+          {
+            "id": "a",
+            "kind": "INPUT"
+          },
+          {
+            "id": "n",
+            "kind": "NAND"
+          },
+          {
+            "id": "out",
+            "kind": "OUTPUT"
+          }
+        ],
+        "wires": [
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "n",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "n",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "n",
+              "pin": "out"
+            },
+            "to": {
+              "node": "out",
+              "pin": "in"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "AND",
+      "name": "AND",
+      "circuit": {
+        "nodes": [
+          {
+            "id": "a",
+            "kind": "INPUT"
+          },
+          {
+            "id": "b",
+            "kind": "INPUT"
+          },
+          {
+            "id": "n",
+            "kind": "NAND"
+          },
+          {
+            "id": "inv",
+            "kind": "NAND"
+          },
+          {
+            "id": "out",
+            "kind": "OUTPUT"
+          }
+        ],
+        "wires": [
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "n",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "b",
+              "pin": "out"
+            },
+            "to": {
+              "node": "n",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "n",
+              "pin": "out"
+            },
+            "to": {
+              "node": "inv",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "n",
+              "pin": "out"
+            },
+            "to": {
+              "node": "inv",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "inv",
+              "pin": "out"
+            },
+            "to": {
+              "node": "out",
+              "pin": "in"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "OR",
+      "name": "OR",
+      "circuit": {
+        "nodes": [
+          {
+            "id": "a",
+            "kind": "INPUT"
+          },
+          {
+            "id": "b",
+            "kind": "INPUT"
+          },
+          {
+            "id": "na",
+            "kind": "NAND"
+          },
+          {
+            "id": "nb",
+            "kind": "NAND"
+          },
+          {
+            "id": "n",
+            "kind": "NAND"
+          },
+          {
+            "id": "out",
+            "kind": "OUTPUT"
+          }
+        ],
+        "wires": [
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "na",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "na",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "b",
+              "pin": "out"
+            },
+            "to": {
+              "node": "nb",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "b",
+              "pin": "out"
+            },
+            "to": {
+              "node": "nb",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "na",
+              "pin": "out"
+            },
+            "to": {
+              "node": "n",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "nb",
+              "pin": "out"
+            },
+            "to": {
+              "node": "n",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "n",
+              "pin": "out"
+            },
+            "to": {
+              "node": "out",
+              "pin": "in"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "XOR",
+      "name": "XOR",
+      "circuit": {
+        "nodes": [
+          {
+            "id": "a",
+            "kind": "INPUT"
+          },
+          {
+            "id": "b",
+            "kind": "INPUT"
+          },
+          {
+            "id": "n",
+            "kind": "NAND"
+          },
+          {
+            "id": "x",
+            "kind": "NAND"
+          },
+          {
+            "id": "y",
+            "kind": "NAND"
+          },
+          {
+            "id": "z",
+            "kind": "NAND"
+          },
+          {
+            "id": "out",
+            "kind": "OUTPUT"
+          }
+        ],
+        "wires": [
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "n",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "b",
+              "pin": "out"
+            },
+            "to": {
+              "node": "n",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "x",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "n",
+              "pin": "out"
+            },
+            "to": {
+              "node": "x",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "b",
+              "pin": "out"
+            },
+            "to": {
+              "node": "y",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "n",
+              "pin": "out"
+            },
+            "to": {
+              "node": "y",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "x",
+              "pin": "out"
+            },
+            "to": {
+              "node": "z",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "y",
+              "pin": "out"
+            },
+            "to": {
+              "node": "z",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "z",
+              "pin": "out"
+            },
+            "to": {
+              "node": "out",
+              "pin": "in"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "HALF_ADDER",
+      "name": "HALF_ADDER",
+      "circuit": {
+        "nodes": [
+          {
+            "id": "a",
+            "kind": "INPUT"
+          },
+          {
+            "id": "b",
+            "kind": "INPUT"
+          },
+          {
+            "id": "x",
+            "kind": "XOR"
+          },
+          {
+            "id": "c",
+            "kind": "AND"
+          },
+          {
+            "id": "sum",
+            "kind": "OUTPUT"
+          },
+          {
+            "id": "carry",
+            "kind": "OUTPUT"
+          }
+        ],
+        "wires": [
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "x",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "b",
+              "pin": "out"
+            },
+            "to": {
+              "node": "x",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "c",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "b",
+              "pin": "out"
+            },
+            "to": {
+              "node": "c",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "x",
+              "pin": "out"
+            },
+            "to": {
+              "node": "sum",
+              "pin": "in"
+            }
+          },
+          {
+            "from": {
+              "node": "c",
+              "pin": "out"
+            },
+            "to": {
+              "node": "carry",
+              "pin": "in"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FULL_ADDER",
+      "name": "FULL_ADDER",
+      "circuit": {
+        "nodes": [
+          {
+            "id": "a",
+            "kind": "INPUT"
+          },
+          {
+            "id": "b",
+            "kind": "INPUT"
+          },
+          {
+            "id": "cin",
+            "kind": "INPUT"
+          },
+          {
+            "id": "h1",
+            "kind": "HALF_ADDER"
+          },
+          {
+            "id": "h2",
+            "kind": "HALF_ADDER"
+          },
+          {
+            "id": "o",
+            "kind": "OR"
+          },
+          {
+            "id": "sum",
+            "kind": "OUTPUT"
+          },
+          {
+            "id": "cout",
+            "kind": "OUTPUT"
+          }
+        ],
+        "wires": [
+          {
+            "from": {
+              "node": "a",
+              "pin": "out"
+            },
+            "to": {
+              "node": "h1",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "b",
+              "pin": "out"
+            },
+            "to": {
+              "node": "h1",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "h1",
+              "pin": "sum"
+            },
+            "to": {
+              "node": "h2",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "cin",
+              "pin": "out"
+            },
+            "to": {
+              "node": "h2",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "h1",
+              "pin": "carry"
+            },
+            "to": {
+              "node": "o",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "h2",
+              "pin": "carry"
+            },
+            "to": {
+              "node": "o",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "h2",
+              "pin": "sum"
+            },
+            "to": {
+              "node": "sum",
+              "pin": "in"
+            }
+          },
+          {
+            "from": {
+              "node": "o",
+              "pin": "out"
+            },
+            "to": {
+              "node": "cout",
+              "pin": "in"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "D_LATCH",
+      "name": "D_LATCH",
+      "circuit": {
+        "nodes": [
+          {
+            "id": "d",
+            "kind": "INPUT"
+          },
+          {
+            "id": "en",
+            "kind": "INPUT"
+          },
+          {
+            "id": "nd",
+            "kind": "NAND"
+          },
+          {
+            "id": "s",
+            "kind": "NAND"
+          },
+          {
+            "id": "r",
+            "kind": "NAND"
+          },
+          {
+            "id": "lq",
+            "kind": "NAND"
+          },
+          {
+            "id": "lqb",
+            "kind": "NAND"
+          },
+          {
+            "id": "q",
+            "kind": "OUTPUT"
+          }
+        ],
+        "wires": [
+          {
+            "from": {
+              "node": "d",
+              "pin": "out"
+            },
+            "to": {
+              "node": "nd",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "d",
+              "pin": "out"
+            },
+            "to": {
+              "node": "nd",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "d",
+              "pin": "out"
+            },
+            "to": {
+              "node": "s",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "en",
+              "pin": "out"
+            },
+            "to": {
+              "node": "s",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "nd",
+              "pin": "out"
+            },
+            "to": {
+              "node": "r",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "en",
+              "pin": "out"
+            },
+            "to": {
+              "node": "r",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "s",
+              "pin": "out"
+            },
+            "to": {
+              "node": "lq",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "lqb",
+              "pin": "out"
+            },
+            "to": {
+              "node": "lq",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "r",
+              "pin": "out"
+            },
+            "to": {
+              "node": "lqb",
+              "pin": "a"
+            }
+          },
+          {
+            "from": {
+              "node": "lq",
+              "pin": "out"
+            },
+            "to": {
+              "node": "lqb",
+              "pin": "b"
+            }
+          },
+          {
+            "from": {
+              "node": "lq",
+              "pin": "out"
+            },
+            "to": {
+              "node": "q",
+              "pin": "in"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

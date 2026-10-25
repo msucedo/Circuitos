@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "circuit": {
+    "nodes": [
+      {
+        "id": "a",
+        "kind": "INPUT"
+      },
+      {
+        "id": "b",
+        "kind": "INPUT"
+      },
+      {
+        "id": "na",
+        "kind": "NAND"
+      },
+      {
+        "id": "nb",
+        "kind": "NAND"
+      },
+      {
+        "id": "n",
+        "kind": "NAND"
+      },
+      {
+        "id": "out",
+        "kind": "OUTPUT"
+      }
+    ],
+    "wires": [
+      {
+        "from": {
+          "node": "a",
+          "pin": "out"
+        },
+        "to": {
+          "node": "na",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "a",
+          "pin": "out"
+        },
+        "to": {
+          "node": "na",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "b",
+          "pin": "out"
+        },
+        "to": {
+          "node": "nb",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "b",
+          "pin": "out"
+        },
+        "to": {
+          "node": "nb",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "na",
+          "pin": "out"
+        },
+        "to": {
+          "node": "n",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "nb",
+          "pin": "out"
+        },
+        "to": {
+          "node": "n",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "n",
+          "pin": "out"
+        },
+        "to": {
+          "node": "out",
+          "pin": "in"
+        }
+      }
+    ]
+  },
+  "chips": []
+}

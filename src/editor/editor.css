@@ -1,0 +1,121 @@
+.editor {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 132px;
+  padding: 10px;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.palette button {
+  cursor: grab;
+  text-align: left;
+}
+
+.canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.status {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  pointer-events: none;
+}
+.status.error { color: var(--bad); border-color: var(--bad); }
+.status.warn { color: var(--warn); border-color: var(--warn); }
+
+/* Nodes */
+.chip {
+  min-width: 64px;
+  padding: 6px 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--chip);
+  color: var(--text);
+  font-size: 12px;
+}
+.chip.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.chip.kind-nand { background: var(--chip-nand); }
+.chip.kind-missing { border-color: var(--bad); color: var(--bad); }
+.chip.kind-input,
+.chip.kind-output {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 20px;
+}
+
+.chip-title {
+  padding: 0 10px 4px;
+  font-weight: 600;
+  text-align: center;
+}
+.chip-pins {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pins-in,
+.pins-out {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 4px;
+}
+.pin {
+  position: relative;
+  min-height: 14px;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.pins-out .pin { text-align: right; }
+
+.switch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  font-weight: 700;
+}
+.switch.on { background: var(--on); color: #0b1a10; border-color: var(--on); }
+
+.led {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--off);
+  border: 1px solid var(--line-strong);
+}
+.led.on { background: var(--on); box-shadow: 0 0 10px var(--on); }
+
+.pin-name { font-weight: 600; }
+
+/* Handles and wires */
+.react-flow__handle {
+  width: 10px;
+  height: 10px;
+  background: var(--off);
+  border: 1px solid var(--line-strong);
+}
+.react-flow__handle.on { background: var(--on); }
+.react-flow__edge.wire .react-flow__edge-path { stroke: var(--off-wire); stroke-width: 2; }
+.react-flow__edge.wire.on .react-flow__edge-path { stroke: var(--on); }
+.react-flow__edge.selected .react-flow__edge-path { stroke-dasharray: 5 3; }
