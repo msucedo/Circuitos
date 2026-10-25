@@ -5,13 +5,14 @@ import { LEVELS, firstOpenLevel, isUnlocked, levelById, levelCircuit, levelLibra
 import type { Level } from './levels/levels.ts'
 import { chipIdFor, chipUsers, exportProject, importProject } from './project.ts'
 import { flatten } from './sim/flatten.ts'
-import { LIMITS } from './sim/schema.ts'
+import { LIMITS, emptySave } from './sim/schema.ts'
 import type { SaveData } from './sim/schema.ts'
 import { CircuitError, toLibrary } from './sim/types.ts'
 import type { Circuit } from './sim/types.ts'
 import { verify } from './sim/verify.ts'
 import type { VerifyResult } from './sim/verify.ts'
-import { loadSave, writeSave } from './storage.ts'
+import { backupSave, loadSave, markWelcomeSeen, welcomeSeen, writeSave } from './storage.ts'
+import { Credit, Welcome } from './Welcome.tsx'
 import './app.css'
 
 const SANDBOX = 'sandbox'
@@ -39,6 +40,7 @@ export default function App() {
   const [result, setResult] = useState<VerifyResult>()
   const [chipName, setChipName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string>()
+  const [welcome, setWelcome] = useState(() => !welcomeSeen())
   const customChips = save.chips.filter((c) => !levelById(c.id))
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -158,12 +160,39 @@ export default function App() {
     }
   }
 
+  const closeWelcome = () => {
+    markWelcomeSeen()
+    setWelcome(false)
+  }
+
+  const resetAll = () => {
+    const problem = backupSave(save)
+    if (problem) return setNotice({ kind: 'error', text: problem })
+    setSave(emptySave())
+    setWorkspace(firstOpenLevel(new Set()))
+    setResult(undefined)
+    setGeneration((g) => g + 1)
+    closeWelcome()
+    setNotice({ kind: 'info', text: 'Progreso borrado. Se guardó una copia en el navegador.' })
+  }
+
+  // Opening a level stores its pins as a draft, so only drafts with pieces or wires count.
+  const hasProgress =
+    save.solved.length > 0 ||
+    save.chips.length > 0 ||
+    save.sandbox.nodes.length > 0 ||
+    [...save.drafts.values()].some((c) => c.wires.length > 0 || c.nodes.some((n) => n.kind !== 'INPUT' && n.kind !== 'OUTPUT'))
   const failures = result?.steps.filter((s) => !s.ok) ?? []
 
   return (
     <div className="app">
       <nav className="levels" aria-label="Niveles">
-        <h1>Circuitos</h1>
+        <div className="title">
+          <h1>Circuitos</h1>
+          <button type="button" aria-label="Acerca de Circuitos" onClick={() => setWelcome(true)}>
+            ?
+          </button>
+        </div>
         <p className="tagline">De NAND a computadora</p>
         <ol>
           {LEVELS.map((l) => {
@@ -192,7 +221,10 @@ export default function App() {
         <button type="button" className={workspace === SANDBOX ? 'current' : ''} onClick={() => open(SANDBOX)}>
           Modo libre
         </button>
+        <Credit className="credit" />
       </nav>
+
+      <Welcome open={welcome} hasProgress={hasProgress} onClose={closeWelcome} onResetAll={resetAll} />
 
       <main>
         <section className="brief">

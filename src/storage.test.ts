@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { emptySave } from './sim/schema.ts'
+import { emptySave, serializeSave } from './sim/schema.ts'
 import { LIBRARY, NOT } from './sim/examples.ts'
-import { STORAGE_KEY, loadSave, writeSave } from './storage.ts'
+import { STORAGE_KEY, WELCOME_KEY, backupSave, loadSave, markWelcomeSeen, welcomeSeen, writeSave } from './storage.ts'
 
 class MemoryStorage {
   items = new Map<string, string>()
@@ -43,6 +43,35 @@ describe('storage', () => {
     } as unknown as Storage
     expect(loadSave(blocked).warning).toMatch(/no deja guardar/)
     expect(writeSave(emptySave(), blocked)).toMatch(/No se pudo guardar/)
+  })
+
+  it('remembers that the welcome was seen', () => {
+    const store = memory()
+    expect(welcomeSeen(store)).toBe(false)
+    markWelcomeSeen(store)
+    expect(welcomeSeen(store)).toBe(true)
+    expect(store.items.get(WELCOME_KEY)).toBe('1')
+  })
+
+  it('skips the welcome when storage is blocked', () => {
+    const blocked = {
+      getItem: () => {
+        throw new DOMException('denied', 'SecurityError')
+      },
+      setItem: () => {
+        throw new DOMException('denied', 'SecurityError')
+      },
+    } as unknown as Storage
+    expect(welcomeSeen(blocked)).toBe(true)
+    expect(() => markWelcomeSeen(blocked)).not.toThrow()
+    expect(backupSave(emptySave(), blocked)).toMatch(/no se borró/)
+  })
+
+  it('keeps a copy of the progress before wiping it', () => {
+    const store = memory()
+    const data = { ...emptySave(), solved: ['NOT'], sandbox: NOT }
+    expect(backupSave(data, store)).toBeUndefined()
+    expect(store.items.get(`${STORAGE_KEY}:respaldo`)).toBe(serializeSave(data))
   })
 
   it('refuses to write progress bigger than the load limit', () => {

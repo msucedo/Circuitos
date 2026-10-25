@@ -121,3 +121,26 @@ button.primary { background: #2d4a8a; border-color: var(--accent); }
 }
 .my-chips button { padding: 0 8px; }
 button.danger { border-color: var(--bad); color: var(--bad); }
+
+.levels .title { display: flex; justify-content: space-between; align-items: center; }
+.levels .title button { width: auto; padding: 2px 9px; border-radius: 50%; }
+.credit { margin: auto 0 0; padding-top: 8px; color: var(--muted); font-size: 12px; }
+.credit a, .welcome a { color: var(--accent); }
+
+.welcome {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 20px 24px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  line-height: 1.5;
+}
+.welcome::backdrop { background: rgb(0 0 0 / 0.6); }
+.welcome h2 { margin: 0 0 4px; font-size: 22px; }
+.welcome h3 { margin: 16px 0 4px; font-size: 15px; color: var(--muted); font-weight: 600; }
+.welcome p, .welcome ol { margin: 0 0 6px; }
+.welcome ol { padding-left: 20px; }
+.welcome .actions { margin-top: 16px; }
+.welcome .credit { margin-top: 16px; }

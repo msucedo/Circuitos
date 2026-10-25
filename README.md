@@ -19,6 +19,8 @@ Nivel 0 (opcional): armar la NAND con relés (Fuente, Relé, Relé inverso). Esa
 - `src/levels/`: niveles y lo que prueba cada uno.
 - `src/storage.ts`, `src/project.ts`: progreso en localStorage, exportar e importar.
 
+No hay cuentas: el progreso vive solo en el localStorage del navegador (`circuitos:v1`). La bienvenida sale en la primera visita (`circuitos:bienvenida`) y se reabre con "?". Desde ahí, "Borrar mi progreso" deja una copia en `circuitos:v1:respaldo` antes de empezar de cero.
+
 ## Editor
 
 - Buses de 1 a 16 bits: elige "Bits" en la paleta antes de agregar Entrada, Salida, Separar o Juntar. Un cable solo conecta pines del mismo ancho.

@@ -44,3 +44,31 @@ export function writeSave(data: SaveData, store = browserStorage()): string | un
     return 'No se pudo guardar tu progreso en el navegador.'
   }
 }
+
+/** Before wiping the progress, keep one copy of it next to the save. */
+export function backupSave(data: SaveData, store = browserStorage()): string | undefined {
+  try {
+    store?.setItem(`${STORAGE_KEY}:respaldo`, serializeSave(data))
+  } catch {
+    return 'No se pudo guardar una copia de tu progreso, así que no se borró.'
+  }
+}
+
+export const WELCOME_KEY = 'circuitos:bienvenida'
+
+/** When storage is blocked, treat the welcome as seen so it does not pop up on every load. */
+export function welcomeSeen(store = browserStorage()): boolean {
+  try {
+    return !store || store.getItem(WELCOME_KEY) !== null
+  } catch {
+    return true
+  }
+}
+
+export function markWelcomeSeen(store = browserStorage()) {
+  try {
+    store?.setItem(WELCOME_KEY, '1')
+  } catch {
+    /* it shows again next time, which is harmless */
+  }
+}
