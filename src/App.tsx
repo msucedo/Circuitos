@@ -3,7 +3,7 @@ import type { ChangeEvent } from 'react'
 import { Editor } from './editor/Editor.tsx'
 import { LEVELS, isUnlocked, levelById, levelCircuit, levelLibrary } from './levels/levels.ts'
 import type { Level } from './levels/levels.ts'
-import { chipIdFor, exportProject, importProject } from './project.ts'
+import { chipIdFor, chipUsers, exportProject, importProject } from './project.ts'
 import { flatten } from './sim/flatten.ts'
 import { LIMITS } from './sim/schema.ts'
 import type { SaveData } from './sim/schema.ts'
@@ -42,6 +42,8 @@ export default function App() {
   const [generation, setGeneration] = useState(0)
   const [result, setResult] = useState<VerifyResult>()
   const [chipName, setChipName] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<string>()
+  const customChips = save.chips.filter((c) => !levelById(c.id))
   const fileInput = useRef<HTMLInputElement>(null)
 
   const level = workspace === SANDBOX ? undefined : levelById(workspace)
@@ -53,7 +55,7 @@ export default function App() {
   const circuit: Circuit = level ? (save.drafts.get(level.id) ?? levelCircuit(level)) : save.sandbox
   const palette = level
     ? ['NAND', ...library.keys()]
-    : ['INPUT', 'OUTPUT', 'CLOCK', 'NAND', ...LEVELS.filter((l) => fullLibrary.has(l.id)).map((l) => l.id), ...save.chips.filter((c) => !levelById(c.id)).map((c) => c.id)]
+    : ['INPUT', 'OUTPUT', 'SPLIT', 'JOIN', 'CLOCK', 'NAND', ...LEVELS.filter((l) => fullLibrary.has(l.id)).map((l) => l.id), ...save.chips.filter((c) => !levelById(c.id)).map((c) => c.id)]
   const locked = useMemo(() => new Set(level ? [...level.spec.inputs, ...level.spec.outputs] : []), [level])
 
   useEffect(() => {
@@ -117,6 +119,18 @@ export default function App() {
     setSave((s) => ({ ...s, chips: [...s.chips, { id, name, circuit }] }))
     setChipName('')
     setNotice({ kind: 'info', text: `Chip "${name}" guardado: ya está en la paleta.` })
+  }
+
+  const deleteChip = (id: string) => {
+    const users = chipUsers(id, save.chips, save.sandbox)
+    if (users.length > 0) {
+      setConfirmDelete(undefined)
+      return setNotice({ kind: 'error', text: `No se puede borrar: lo usa ${users.join(', ')}.` })
+    }
+    if (confirmDelete !== id) return setConfirmDelete(id)
+    setSave((s) => ({ ...s, chips: s.chips.filter((c) => c.id !== id) }))
+    setConfirmDelete(undefined)
+    setNotice({ kind: 'info', text: 'Chip borrado.' })
   }
 
   const exportCurrent = () => {
@@ -222,6 +236,23 @@ export default function App() {
                 </button>
                 <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={importFile} />
               </div>
+              {customChips.length > 0 && (
+                <ul className="my-chips" aria-label="Mis chips">
+                  {customChips.map((c) => (
+                    <li key={c.id}>
+                      <span>{c.name}</span>
+                      <button
+                        type="button"
+                        className={confirmDelete === c.id ? 'danger' : ''}
+                        aria-label={confirmDelete === c.id ? `Confirmar borrar ${c.name}` : `Borrar ${c.name}`}
+                        onClick={() => deleteChip(c.id)}
+                      >
+                        {confirmDelete === c.id ? '¿Borrar?' : '×'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </>
           )}
         </section>
@@ -284,6 +315,8 @@ export default function App() {
           library={library}
           palette={palette}
           locked={locked}
+          spec={level?.spec}
+          renamePins={!level}
           onChange={onChange}
         />
       </main>

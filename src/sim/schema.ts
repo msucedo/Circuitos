@@ -1,5 +1,5 @@
 import { checkLibrary } from './flatten.ts'
-import { CircuitError, isPrimitive, toLibrary } from './types.ts'
+import { CircuitError, MAX_WIDTH, isPrimitive, toLibrary } from './types.ts'
 import type { ChipDef, Circuit, CircuitNode, Endpoint, Wire } from './types.ts'
 
 /**
@@ -9,7 +9,7 @@ import type { ChipDef, Circuit, CircuitNode, Endpoint, Wire } from './types.ts'
 
 export const LIMITS = { bytes: 2 * 1024 * 1024, nodes: 5000, wires: 20_000, chips: 200, text: 40, levels: 100 }
 
-const ID = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
+export const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
 
 export interface Project {
   version: 1
@@ -34,7 +34,7 @@ function array(value: unknown, path: string, max: number): unknown[] {
 }
 
 function id(value: unknown, path: string): string {
-  if (typeof value !== 'string' || !ID.test(value)) fail(path, 'id inválido (letras, números, "_" o "-")')
+  if (typeof value !== 'string' || !ID_PATTERN.test(value)) fail(path, 'id inválido (letras, números, "_" o "-")')
   return value as string
 }
 
@@ -47,6 +47,13 @@ function text(value: unknown, path: string): string {
 
 function coordinate(value: unknown, path: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) fail(path, 'debe ser un número')
+  return value as number
+}
+
+function width(value: unknown, path: string): number {
+  if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > MAX_WIDTH) {
+    fail(path, `debe ser un entero de 1 a ${MAX_WIDTH}`)
+  }
   return value as number
 }
 
@@ -65,6 +72,7 @@ export function parseCircuit(value: unknown, path = 'circuit'): Circuit {
     if (ids.has(node.id)) fail(`${at}.id`, `repetido ("${node.id}")`)
     ids.add(node.id)
     if (n.label !== undefined) node.label = text(n.label, `${at}.label`)
+    if (n.width !== undefined) node.width = width(n.width, `${at}.width`)
     if (n.x !== undefined) node.x = coordinate(n.x, `${at}.x`)
     if (n.y !== undefined) node.y = coordinate(n.y, `${at}.y`)
     return node

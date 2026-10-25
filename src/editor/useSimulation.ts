@@ -1,56 +1,70 @@
-import { useMemo } from 'react'
-import { flatten, pinKey } from '../sim/flatten.ts'
-import { Simulator, compile } from '../sim/simulate.ts'
-import { CircuitError } from '../sim/types.ts'
+import { useCallback, useMemo, useState } from 'react'
+import type { Harness } from '../sim/harness.ts'
+import { tryHarness } from '../sim/verify.ts'
 import type { Bit, ChipLibrary, Circuit } from '../sim/types.ts'
 
 export interface Signals {
   error?: string
   oscillating: boolean
   hasClock: boolean
-  /** Value on a source pin (what its wires carry), or on an OUTPUT node. */
-  pin: (node: string, pin: string) => Bit
+  /** Step mode only: the last step changed nothing. */
+  settled: boolean
+  /** Value on a source pin (what its wires carry), or received by an OUTPUT node (pin `in`). */
+  pin: (node: string, pin: string) => number
 }
 
-const OFF: Signals['pin'] = () => 0
+export interface Simulation {
+  signals: Signals
+  /** Step mode: advance one gate delay. */
+  step: () => void
+}
+
+const OFF: Signals = { oscillating: false, hasClock: false, settled: true, pin: () => 0 }
 
 /**
  * Recompiles only when the structure changes (not when nodes move), and keeps
- * one simulator per structure so latches remember their state between toggles.
+ * one harness per structure so latches remember their state between toggles.
+ * In step mode inputs are applied but the circuit only advances on `step()`.
  */
-export function useSimulation(circuit: Circuit, library: ChipLibrary, inputs: ReadonlyMap<string, Bit>, clock: Bit): Signals {
-  const structure = JSON.stringify([circuit.nodes.map((n) => [n.id, n.kind]), circuit.wires])
+export function useSimulation(
+  circuit: Circuit,
+  library: ChipLibrary,
+  inputs: ReadonlyMap<string, number>,
+  clock: Bit,
+  stepMode: boolean,
+): Simulation {
+  const structure = JSON.stringify([circuit.nodes.map((n) => [n.id, n.kind, n.width]), circuit.wires])
   // Keyed on `structure`, not `circuit`: moving a node must not reset the simulator.
-  const build = useMemo(() => {
-    try {
-      const flat = flatten(circuit, library)
-      return { flat, sim: new Simulator(compile(flat)) }
-    } catch (error) {
-      if (error instanceof CircuitError) return { error: error.message }
-      throw error
-    }
-  }, [structure, library]) // eslint-disable-line react-hooks/exhaustive-deps
+  const harness = useMemo(() => tryHarness(circuit, library), [structure, library]) // eslint-disable-line react-hooks/exhaustive-deps
+  // A new token whenever inputs, clock or structure change: there is something to propagate again.
+  const token = useMemo(() => ({}), [harness, inputs, clock]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [last, setLast] = useState<{ token: object; settled: boolean }>()
+  const settled = last?.token === token && last.settled
 
-  return useMemo((): Signals => {
-    if (!('sim' in build) || !build.sim) return { error: build.error, oscillating: false, hasClock: false, pin: OFF }
-    const { sim, flat } = build
-    for (const id of sim.compiled.inputIds) sim.setInput(id, inputs.get(id) ?? 0)
-    sim.setClock(clock)
-    const { status } = sim.settle()
-    const values = sim.values.slice()
-    const { signalOf } = sim.compiled
-    const valueOf = (node: string) => {
-      const signal = signalOf.get(node)
-      return (signal === undefined ? 0 : values[signal]) as Bit
-    }
+  const signals = useMemo((): Signals => {
+    if (typeof harness === 'string') return { ...OFF, error: harness }
+    for (const pin of harness.inputs) harness.set(pin.name, inputs.get(pin.name) ?? 0)
+    harness.sim.setClock(clock)
+    const oscillating = stepMode ? false : harness.sim.settle().status === 'oscillating'
     return {
-      oscillating: status === 'oscillating',
-      hasClock: sim.compiled.clockSignals.length > 0,
-      pin: (node, pin) => {
-        if (pin === 'in') return valueOf(node)
-        const probe = flat.probes.get(pinKey(node, pin))
-        return probe ? valueOf(probe.node) : 0
-      },
+      oscillating,
+      hasClock: harness.sim.compiled.clockSignals.length > 0,
+      settled,
+      pin: (node, pin) => read(harness, node, pin),
     }
-  }, [build, inputs, clock])
+    // `last` changes on every step: the simulator was mutated, so the values must be read again.
+  }, [harness, inputs, clock, stepMode, settled, last]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const step = useCallback(() => {
+    if (typeof harness === 'string') return
+    const changed = harness.sim.step()
+    setLast({ token, settled: !changed })
+  }, [harness, token])
+
+  return { signals, step }
+}
+
+function read(harness: Harness, node: string, pin: string): number {
+  if (pin === 'in') return harness.outputs.some((p) => p.name === node) ? harness.read(node) : 0
+  return harness.probe(node, pin)
 }

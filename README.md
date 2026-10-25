@@ -14,3 +14,12 @@ npm run sim:verify -- examples/xor.json XOR
 - `src/editor/`: editor con React Flow.
 - `src/levels/`: niveles y lo que prueba cada uno.
 - `src/storage.ts`, `src/project.ts`: progreso en localStorage, exportar e importar.
+
+## Editor
+
+- Buses de 1 a 16 bits: elige "Bits" en la paleta antes de agregar Entrada, Salida, Separar o Juntar. Un cable solo conecta pines del mismo ancho.
+- Ctrl/⌘ + Z deshacer, Ctrl/⌘ + Shift + Z (o Ctrl + Y) rehacer, Ctrl/⌘ + C / V copiar y pegar (también entre niveles).
+- Doble clic en el nombre de una entrada o salida (modo libre) para renombrarla.
+- "Tabla": tabla de verdad en vivo (hasta 6 bits de entrada); en los niveles marca las filas incorrectas.
+- "Paso a paso": la señal avanza una compuerta por clic con "Avanzar".
+- Cada cambio de valor manda un paquete por el cable (se desactiva con "reducir movimiento" del sistema).

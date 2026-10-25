@@ -93,9 +93,9 @@ describe('probes', () => {
       outputs: { out: 'w.o', dangling: 'open.o' },
     })
     const { probes } = flatten(circuit, new Map([...LIBRARY, ...library]))
-    expect(probes.get('a\0out')).toEqual({ node: 'a', pin: 'out' })
-    expect(probes.get('n\0out')).toEqual({ node: 'n/n', pin: 'out' })
-    expect(probes.get('w\0o')).toEqual({ node: 'n/n', pin: 'out' })
-    expect(probes.get('open\0o')).toBeUndefined()
+    expect(probes.get('a\0out')).toEqual([{ node: 'a', pin: 'out' }])
+    expect(probes.get('n\0out')).toEqual([{ node: 'n/n', pin: 'out' }])
+    expect(probes.get('w\0o')).toEqual([{ node: 'n/n', pin: 'out' }])
+    expect(probes.get('open\0o')).toEqual([undefined])
   })
 })

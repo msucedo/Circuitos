@@ -1,5 +1,5 @@
-import { CircuitError, PRIMITIVE_PINS, isPrimitive } from './types.ts'
-import type { Bit, Circuit, PrimitiveKind } from './types.ts'
+import { CircuitError, GATE_PINS, isGate } from './types.ts'
+import type { Bit, Circuit, GateKind } from './types.ts'
 
 /** Signal 0 is a constant 0; unconnected inputs read from it. */
 const ZERO = 0
@@ -26,17 +26,17 @@ export interface SettleResult {
 
 /** Turns a circuit made only of primitives into flat arrays ready to simulate. */
 export function compile(circuit: Circuit): Compiled {
-  const kinds = new Map<string, PrimitiveKind>()
+  const kinds = new Map<string, GateKind>()
   for (const node of circuit.nodes) {
     if (kinds.has(node.id)) throw new CircuitError(`Id repetido: "${node.id}"`)
-    if (!isPrimitive(node.kind)) throw new CircuitError(`Tipo desconocido: "${node.kind}"`)
+    if (!isGate(node.kind)) throw new CircuitError(`Tipo desconocido: "${node.kind}"`)
     kinds.set(node.id, node.kind)
   }
 
   const signalOf = new Map<string, number>()
   let signalCount = 1
   for (const node of circuit.nodes) {
-    if (PRIMITIVE_PINS[node.kind as PrimitiveKind].outputs.length > 0) signalOf.set(node.id, signalCount++)
+    if (GATE_PINS[node.kind as GateKind].outputs.length > 0) signalOf.set(node.id, signalCount++)
   }
 
   const driver = new Map<string, number>()
@@ -46,10 +46,10 @@ export function compile(circuit: Circuit): Compiled {
     if (fromKind === undefined || toKind === undefined) {
       throw new CircuitError(`Cable a un nodo que no existe: "${fromKind ? to.node : from.node}"`)
     }
-    if (!PRIMITIVE_PINS[fromKind].outputs.includes(from.pin)) {
+    if (!GATE_PINS[fromKind].outputs.includes(from.pin)) {
       throw new CircuitError(`"${from.node}" no tiene salida "${from.pin}"`)
     }
-    if (!PRIMITIVE_PINS[toKind].inputs.includes(to.pin)) {
+    if (!GATE_PINS[toKind].inputs.includes(to.pin)) {
       throw new CircuitError(`"${to.node}" no tiene entrada "${to.pin}"`)
     }
     const key = `${to.node}\0${to.pin}`
@@ -158,6 +158,25 @@ export class Simulator {
       if (!changed) return { status: 'stable', passes: pass }
     }
     return { status: 'oscillating', passes: maxPasses }
+  }
+
+  /**
+   * One gate delay: every gate reads the values from before the step, so a
+   * signal moves forward one gate at a time. Returns whether anything changed.
+   */
+  step(): boolean {
+    const { gateA, gateB, gateOut } = this.compiled
+    const v = this.values
+    const next = new Uint8Array(gateOut.length)
+    for (let i = 0; i < gateOut.length; i++) next[i] = 1 - (v[gateA[i]] & v[gateB[i]])
+    let changed = false
+    for (let i = 0; i < gateOut.length; i++) {
+      if (v[gateOut[i]] !== next[i]) {
+        v[gateOut[i]] = next[i]
+        changed = true
+      }
+    }
+    return changed
   }
 
   /** Current value of a node: what an INPUT/NAND emits or what an OUTPUT receives. */

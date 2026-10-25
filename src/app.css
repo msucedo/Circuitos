@@ -86,3 +86,24 @@ button.primary { background: #2d4a8a; border-color: var(--accent); }
   .app { flex-direction: column; }
   .levels { width: auto; max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--line); }
 }
+
+.my-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.my-chips li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 2px 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.my-chips button { padding: 0 8px; }
+button.danger { border-color: var(--bad); color: var(--bad); }

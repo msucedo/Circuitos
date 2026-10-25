@@ -116,6 +116,88 @@
   border: 1px solid var(--line-strong);
 }
 .react-flow__handle.on { background: var(--on); }
-.react-flow__edge.wire .react-flow__edge-path { stroke: var(--off-wire); stroke-width: 2; }
-.react-flow__edge.wire.on .react-flow__edge-path { stroke: var(--on); }
-.react-flow__edge.selected .react-flow__edge-path { stroke-dasharray: 5 3; }
+.react-flow__edge-path.wire { stroke: var(--off-wire); stroke-width: 2; }
+.react-flow__edge-path.wire.on { stroke: var(--on); }
+.react-flow__edge-path.wire.selected { stroke-dasharray: 5 3; }
+
+/* Toolbar and panels */
+.toolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: none;
+}
+.toolbar > * { pointer-events: auto; }
+.toolbar button[aria-pressed='true'] { border-color: var(--accent); background: #26304a; }
+.separator { width: 1px; background: var(--line-strong); margin: 2px 4px; }
+
+.width-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.width-picker select,
+.bus-value input {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.table-panel {
+  position: absolute;
+  top: 52px;
+  right: 10px;
+  z-index: 5;
+  max-height: calc(100% - 110px);
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.truth-table { border-collapse: collapse; font-family: ui-monospace, monospace; font-size: 13px; }
+.truth-table th, .truth-table td { padding: 2px 10px; text-align: center; border-bottom: 1px solid var(--line); }
+.truth-table th { color: var(--muted); font-weight: 500; }
+.truth-table .out { color: var(--on); }
+.truth-table tr.wrong td { background: #3a1f24; }
+.table-note { margin: 0; max-width: 220px; color: var(--muted); font-size: 13px; }
+
+/* Buses */
+.bus-value { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.bus-value input { width: 64px; padding: 2px 4px; }
+.bus-value small { color: var(--muted); font-family: ui-monospace, monospace; font-size: 10px; }
+.react-flow__handle.bus { width: 12px; height: 12px; border-radius: 3px; }
+.react-flow__edge-path.wire.bus { stroke-width: 4; }
+.bus-label {
+  position: absolute;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+/* Rename */
+.renamable { cursor: text; }
+.rename { display: flex; flex-direction: column; }
+.rename input { width: 90px; padding: 2px 4px; border: 1px solid var(--accent); border-radius: 4px; background: var(--bg); color: var(--text); font: inherit; }
+.rename-error { color: var(--bad); font-size: 11px; max-width: 160px; }
+
+/* Packets travelling along wires */
+.packet { fill: var(--off-wire); pointer-events: none; }
+.packet.on { fill: var(--on); filter: drop-shadow(0 0 4px var(--on)); }
+@media (prefers-reduced-motion: reduce) {
+  .packet { display: none; }
+}

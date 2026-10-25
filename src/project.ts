@@ -56,3 +56,11 @@ export function chipIdFor(name: string, taken: ReadonlySet<string>): string {
   while (taken.has(`${base}_${i}`)) i++
   return `${base}_${i}`
 }
+
+/** Who uses a chip: other chips (by name) and the sandbox circuit. Empty means it can be deleted. */
+export function chipUsers(id: string, chips: ChipDef[], sandbox: Circuit): string[] {
+  const uses = (c: Circuit) => c.nodes.some((n) => n.kind === id)
+  const users = chips.filter((c) => c.id !== id && uses(c.circuit)).map((c) => `"${c.name}"`)
+  if (uses(sandbox)) users.push('el circuito del modo libre')
+  return users
+}
