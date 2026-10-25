@@ -2,13 +2,14 @@ import { Background, Controls, ReactFlow, ReactFlowProvider, addEdge, useEdgesSt
 import type { Connection, Edge, EdgeTypes, NodeTypes, OnBeforeDelete, XYPosition } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DragEvent } from 'react'
+import type { DragEvent, ReactNode } from 'react'
 import type { Bit, ChipLibrary, Circuit } from '../sim/types.ts'
 import type { Spec } from '../sim/verify.ts'
 import { ChipNode } from './ChipNode.tsx'
 import { canConnect, copySelection, edgeId, nextId, pasteCircuit, pinWidth, renameNode, toCircuit, toFlow } from './convert.ts'
 import type { ChipFlowNode } from './convert.ts'
-import { EditorContext, SIZED_KINDS, kindName } from './context.ts'
+import { EditorContext, KIND_NAMES, SIZED_KINDS, kindName } from './context.ts'
+import { CopyIcon, PasteIcon, RedoIcon, StepIcon, TableIcon, TrashIcon, UndoIcon } from '../icons.tsx'
 import { History } from './history.ts'
 import { TruthTable } from './TruthTable.tsx'
 import { useSimulation } from './useSimulation.ts'
@@ -48,6 +49,33 @@ export function Editor(props: EditorProps) {
   )
 }
 
+interface ToolButtonProps {
+  label: string
+  icon: ReactNode
+  onClick: () => void
+  keys?: string
+  disabled?: boolean
+  pressed?: boolean
+}
+
+/** Icon plus text; on a phone only the icon shows, and the label stays as the accessible name. */
+function ToolButton({ label, icon, onClick, keys, disabled, pressed }: ToolButtonProps) {
+  return (
+    <button
+      type="button"
+      className="tool"
+      aria-label={label}
+      aria-pressed={pressed}
+      title={keys ? `${label} (${keys})` : label}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {icon}
+      <span className="tool-label">{label}</span>
+    </button>
+  )
+}
+
 const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
 
@@ -74,7 +102,7 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
   const [history] = useState(() => new History<Circuit>())
   const [, setHistoryVersion] = useState(0)
   const canvas = useRef<HTMLDivElement>(null)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, deleteElements } = useReactFlow()
 
   const circuit = useMemo(() => toCircuit(nodes, edges), [nodes, edges])
   const { signals, step } = useSimulation(circuit, library, inputs, clock, stepMode)
@@ -169,6 +197,12 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
     return true
   }
 
+  // Same path as the Delete key: locked pins stay and the change goes into the history.
+  const selectedNodes = nodes.filter((n) => n.selected && n.deletable !== false)
+  const selectedEdges = edges.filter((e) => e.selected)
+  const canDelete = selectedNodes.length > 0 || selectedEdges.length > 0
+  const deleteSelection = () => void deleteElements({ nodes: selectedNodes, edges: selectedEdges })
+
   const rename = (from: string, to: string) => {
     const result = renameNode(nodes, edges, from, to)
     if (typeof result === 'string') return result
@@ -214,16 +248,51 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
   )
 
   const status = signals.error
-    ? { cls: 'error', text: signals.error }
+    ? { cls: 'error', text: signals.error, help: 'El circuito tiene un problema y no se puede simular.' }
     : signals.oscillating
-      ? { cls: 'warn', text: 'El circuito oscila: nunca se estabiliza' }
+      ? { cls: 'warn', text: 'El circuito oscila: nunca se estabiliza', help: 'Alguna señal cambia sin parar, como un NOT conectado a sí mismo.' }
       : stepMode
-        ? { cls: 'ok', text: signals.settled ? 'Paso a paso: estable' : 'Paso a paso: la señal sigue avanzando' }
-        : { cls: 'ok', text: signals.hasClock ? `Reloj: ${clock}` : 'Listo' }
+        ? {
+            cls: 'ok',
+            text: signals.settled ? 'Paso a paso: estable' : 'Paso a paso: la señal sigue avanzando',
+            help: 'Pulsa Avanzar para mover la señal una compuerta.',
+          }
+        : signals.hasClock
+          ? { cls: 'ok', text: `Reloj: ${clock}`, help: 'El reloj cambia de 0 a 1 solo; páusalo para avanzar con Tic.' }
+          : { cls: 'ok', text: 'Estable', help: 'Las salidas ya no cambian con las entradas actuales.' }
+
+  const blank = edges.length === 0 && nodes.every((n) => n.data.kind === 'INPUT' || n.data.kind === 'OUTPUT')
+  const pieceButton = (kind: string) => {
+    const needsBus = (kind === 'SPLIT' || kind === 'JOIN') && width < 2
+    return (
+      <button
+        key={kind}
+        type="button"
+        draggable={!needsBus}
+        disabled={needsBus}
+        onDragStart={(e) => {
+          e.dataTransfer.setData(DRAG_TYPE, kind)
+          e.dataTransfer.effectAllowed = 'move'
+        }}
+        onClick={() => addNode(kind)}
+        title={needsBus ? 'Elige 2 o más bits' : 'Arrastra al lienzo o haz clic para agregar'}
+      >
+        {kindName(kind, library)}
+        {SIZED_KINDS.has(kind) && width > 1 ? ` ${width}` : ''}
+      </button>
+    )
+  }
+  const basics = palette.filter((k) => k in KIND_NAMES)
+  const chips = palette.filter((k) => !(k in KIND_NAMES))
 
   return (
     <div className="editor">
-      <aside className="palette" aria-label="Piezas">
+      <aside className="palette" aria-labelledby="palette-title">
+        <h2 id="palette-title" className="palette-title">
+          Piezas
+        </h2>
+        <p className="palette-help">Arrastra o haz clic para agregar.</p>
+        <h3>Básicas</h3>
         {palette.some((k) => SIZED_KINDS.has(k)) && (
           <label className="width-picker">
             Bits
@@ -236,48 +305,20 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
             </select>
           </label>
         )}
-        {palette.map((kind) => {
-          const needsBus = (kind === 'SPLIT' || kind === 'JOIN') && width < 2
-          return (
-            <button
-              key={kind}
-              type="button"
-              draggable={!needsBus}
-              disabled={needsBus}
-              onDragStart={(e) => {
-                e.dataTransfer.setData(DRAG_TYPE, kind)
-                e.dataTransfer.effectAllowed = 'move'
-              }}
-              onClick={() => addNode(kind)}
-              title={needsBus ? 'Elige 2 o más bits' : 'Arrastra al lienzo o haz clic para agregar'}
-            >
-              {kindName(kind, library)}
-              {SIZED_KINDS.has(kind) && width > 1 ? ` ${width}` : ''}
-            </button>
-          )
-        })}
+        {basics.map(pieceButton)}
+        <h3>Tus chips</h3>
+        {chips.length > 0 ? chips.map(pieceButton) : <p className="palette-help">Resuelve niveles para sumar chips aquí.</p>}
       </aside>
       <div className="canvas" ref={canvas} onDrop={onDrop} onDragOver={(e) => e.preventDefault()}>
         <div className="toolbar" role="toolbar" aria-label="Herramientas">
-          <button type="button" onClick={undo} disabled={!history.canUndo} title="Ctrl/⌘ + Z">
-            Deshacer
-          </button>
-          <button type="button" onClick={redo} disabled={!history.canRedo} title="Ctrl/⌘ + Shift + Z">
-            Rehacer
-          </button>
-          <button type="button" onClick={copy} title="Ctrl/⌘ + C">
-            Copiar
-          </button>
-          <button type="button" onClick={paste} title="Ctrl/⌘ + V">
-            Pegar
-          </button>
+          <ToolButton label="Deshacer" icon={<UndoIcon />} keys="Ctrl/⌘ + Z" onClick={undo} disabled={!history.canUndo} />
+          <ToolButton label="Rehacer" icon={<RedoIcon />} keys="Ctrl/⌘ + Shift + Z" onClick={redo} disabled={!history.canRedo} />
+          <ToolButton label="Copiar" icon={<CopyIcon />} keys="Ctrl/⌘ + C" onClick={copy} />
+          <ToolButton label="Pegar" icon={<PasteIcon />} keys="Ctrl/⌘ + V" onClick={paste} />
+          <ToolButton label="Borrar" icon={<TrashIcon />} keys="Supr o Backspace" onClick={deleteSelection} disabled={!canDelete} />
           <span className="separator" />
-          <button type="button" aria-pressed={showTable} onClick={() => setShowTable((v) => !v)}>
-            Tabla
-          </button>
-          <button type="button" aria-pressed={stepMode} onClick={() => setStepMode((v) => !v)}>
-            Paso a paso
-          </button>
+          <ToolButton label="Tabla" icon={<TableIcon />} pressed={showTable} onClick={() => setShowTable((v) => !v)} />
+          <ToolButton label="Paso a paso" icon={<StepIcon />} pressed={stepMode} onClick={() => setStepMode((v) => !v)} />
           {stepMode && (
             <button type="button" className="primary" onClick={step} disabled={signals.settled}>
               Avanzar
@@ -323,7 +364,12 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
             <TruthTable circuit={circuit} library={library} spec={spec} />
           </aside>
         )}
-        <div className={`status ${status.cls}`} role="status">
+        {blank && (
+          <p className="canvas-guide">
+            Agrega piezas desde Piezas y une los pines arrastrando de un punto a otro.
+          </p>
+        )}
+        <div className={`status ${status.cls}`} role="status" title={status.help}>
           {status.text}
         </div>
       </div>

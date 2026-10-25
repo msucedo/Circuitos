@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Editor } from './editor/Editor.tsx'
-import { LEVELS, firstOpenLevel, isUnlocked, levelById, levelCircuit, levelLibrary, levelPalette } from './levels/levels.ts'
+import {
+  LEVELS,
+  MAIN_LEVELS,
+  firstOpenLevel,
+  isUnlocked,
+  levelById,
+  levelCircuit,
+  levelLibrary,
+  levelNumber,
+  levelPalette,
+  nextLevel,
+  unlockedBy,
+} from './levels/levels.ts'
 import type { Level } from './levels/levels.ts'
 import { chipIdFor, chipUsers, exportProject, importProject } from './project.ts'
 import { flatten } from './sim/flatten.ts'
@@ -12,6 +24,7 @@ import type { Circuit } from './sim/types.ts'
 import { verify } from './sim/verify.ts'
 import type { VerifyResult } from './sim/verify.ts'
 import { backupSave, loadSave, markWelcomeSeen, welcomeSeen, writeSave } from './storage.ts'
+import { CheckIcon, LockIcon, Logo } from './icons.tsx'
 import { Credit, Welcome } from './Welcome.tsx'
 import './app.css'
 
@@ -28,6 +41,19 @@ function download(name: string, text: string) {
   a.download = name
   a.click()
   URL.revokeObjectURL(url)
+}
+
+function Pins({ label, ids, widths }: { label: string; ids: string[]; widths?: Record<string, number> }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>
+        {ids.map((id) => (
+          <code key={id}>{widths?.[id] ? `${id}[${widths[id]}]` : id}</code>
+        ))}
+      </dd>
+    </div>
+  )
 }
 
 export default function App() {
@@ -182,43 +208,72 @@ export default function App() {
     save.chips.length > 0 ||
     save.sandbox.nodes.length > 0 ||
     [...save.drafts.values()].some((c) => c.wires.length > 0 || c.nodes.some((n) => n.kind !== 'INPUT' && n.kind !== 'OUTPUT'))
+  const solvedCount = MAIN_LEVELS.filter((l) => solved.has(l.id)).length
+  const next = level && nextLevel(level)
   const failures = result?.steps.filter((s) => !s.ok) ?? []
 
   return (
     <div className="app">
       <nav className="levels" aria-label="Niveles">
         <div className="title">
+          <Logo />
           <h1>Circuitos</h1>
           <button type="button" aria-label="Acerca de Circuitos" onClick={() => setWelcome(true)}>
             ?
           </button>
         </div>
         <p className="tagline">De NAND a computadora</p>
+        <div className="progress">
+          <span>
+            {solvedCount} de {MAIN_LEVELS.length} resueltos
+          </span>
+          <progress value={solvedCount} max={MAIN_LEVELS.length} aria-label="Niveles resueltos" />
+        </div>
+        {/* Shown instead of the list on a phone. */}
+        <div className="level-picker">
+          <label htmlFor="level-picker">Nivel</label>
+          <select id="level-picker" value={workspace} onChange={(e) => open(e.target.value)}>
+            {LEVELS.map((l) => (
+              <option key={l.id} value={l.id} disabled={!isUnlocked(l, solved)}>
+                {l.name}
+                {l.optional ? ' (opcional)' : ''}
+                {solved.has(l.id) ? ' (resuelto)' : isUnlocked(l, solved) ? '' : ' (bloqueado)'}
+              </option>
+            ))}
+            <option value={SANDBOX}>Modo libre</option>
+          </select>
+        </div>
         <ol>
           {LEVELS.map((l) => {
             const unlocked = isUnlocked(l, solved)
+            const needs = unlockedBy(l)
             return (
               <li key={l.id}>
                 <button
                   type="button"
                   className={workspace === l.id ? 'current' : ''}
-                  disabled={!unlocked}
+                  aria-disabled={!unlocked}
                   aria-current={workspace === l.id}
-                  onClick={() => open(l.id)}
+                  title={unlocked || !needs ? undefined : `Resuelve ${needs.name} para desbloquearlo`}
+                  onClick={() =>
+                    unlocked
+                      ? open(l.id)
+                      : setNotice({ kind: 'info', text: `${l.name} está bloqueado: resuelve ${needs?.name} para desbloquearlo.` })
+                  }
                 >
                   <span>
                     {l.name}
                     {l.optional && <small className="optional"> opcional</small>}
                   </span>
                   <span className="mark" aria-label={solved.has(l.id) ? 'resuelto' : unlocked ? '' : 'bloqueado'}>
-                    {solved.has(l.id) ? '✓' : unlocked ? '' : '🔒'}
+                    {solved.has(l.id) ? <CheckIcon /> : unlocked ? null : <LockIcon />}
                   </span>
                 </button>
               </li>
             )
           })}
         </ol>
-        <button type="button" className={workspace === SANDBOX ? 'current' : ''} onClick={() => open(SANDBOX)}>
+        <button type="button" className={`sandbox${workspace === SANDBOX ? ' current' : ''}`} onClick={() => open(SANDBOX)}>
           Modo libre
         </button>
         <Credit className="credit" />
@@ -230,26 +285,34 @@ export default function App() {
         <section className="brief">
           {level ? (
             <>
-              <div>
+              <div className="brief-text">
+                <p className="eyebrow">
+                  {levelNumber(level) ? `Nivel ${levelNumber(level)} de ${MAIN_LEVELS.length}` : 'Nivel opcional'}
+                </p>
                 <h2>{level.name}</h2>
                 <p>{level.goal}</p>
+                <dl className="pins">
+                  <Pins label="Entradas" ids={level.spec.inputs} widths={level.spec.widths} />
+                  <Pins label="Salidas" ids={level.spec.outputs} widths={level.spec.widths} />
+                </dl>
                 {level.hint && <p className="hint">Pista: {level.hint}</p>}
               </div>
               <div className="actions">
-                <button type="button" className="primary" onClick={() => test(level)}>
-                  Probar
-                </button>
                 <button type="button" onClick={() => reset(level)}>
                   Reiniciar
                 </button>
                 <button type="button" onClick={exportCurrent}>
                   Exportar
                 </button>
+                <button type="button" className="primary big" onClick={() => test(level)}>
+                  Probar
+                </button>
               </div>
             </>
           ) : (
             <>
-              <div>
+              <div className="brief-text">
+                <p className="eyebrow">Banco de pruebas</p>
                 <h2>Modo libre</h2>
                 <p>Arma lo que quieras con las piezas que has desbloqueado y guárdalo como chip.</p>
               </div>
@@ -313,6 +376,19 @@ export default function App() {
                 ) : (
                   <>
                     <strong>{level.name}</strong> ya está en tu paleta.
+                  </>
+                )}
+                {next ? (
+                  <button type="button" className="primary" onClick={() => open(next.id)}>
+                    Siguiente: {next.name}
+                  </button>
+                ) : (
+                  <>
+                    {' '}
+                    Terminaste todos los niveles.{' '}
+                    <button type="button" className="primary" onClick={() => open(SANDBOX)}>
+                      Ir al Modo libre
+                    </button>
                   </>
                 )}
               </p>

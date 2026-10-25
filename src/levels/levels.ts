@@ -54,11 +54,22 @@ export const LEVELS: Level[] = [
 
 export const levelById = (id: string) => LEVELS.find((l) => l.id === id)
 
-/** Unlocked once the closest earlier level that isn't optional is solved. */
+/** The level that has to be solved first: the closest earlier one that isn't optional. */
+export const unlockedBy = (level: Level) => LEVELS.slice(0, LEVELS.indexOf(level)).findLast((l) => !l.optional)
+
 export function isUnlocked(level: Level, solved: ReadonlySet<string>): boolean {
-  const before = LEVELS.slice(0, LEVELS.indexOf(level)).findLast((l) => !l.optional)
+  const before = unlockedBy(level)
   return before === undefined || solved.has(before.id)
 }
+
+/** The levels that count for progress; optional ones are extras. */
+export const MAIN_LEVELS = LEVELS.filter((l) => !l.optional)
+
+/** Position among the main levels, from 1; undefined for optional levels. */
+export const levelNumber = (level: Level) => (level.optional ? undefined : MAIN_LEVELS.indexOf(level) + 1)
+
+/** The main level that solving this one opens; undefined after the last. */
+export const nextLevel = (level: Level) => LEVELS.slice(LEVELS.indexOf(level) + 1).find((l) => !l.optional)
 
 /** Where to start: the first open, unsolved level that isn't optional. */
 export function firstOpenLevel(solved: ReadonlySet<string>): string {

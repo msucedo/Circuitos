@@ -1,4 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
+import { Logo } from './icons.tsx'
+
+const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
+
+const SHORTCUTS: [keys: string[], action: string][] = [
+  [[MOD, 'Z'], 'Deshacer'],
+  [[MOD, 'Shift', 'Z'], 'Rehacer'],
+  [[MOD, 'C'], 'Copiar lo seleccionado'],
+  [[MOD, 'V'], 'Pegar (también en otro nivel)'],
+  [['Supr'], 'Borrar lo seleccionado (o Backspace)'],
+  [[MOD, 'clic'], 'Seleccionar varias piezas'],
+  [['Shift', 'arrastrar'], 'Seleccionar con un recuadro'],
+  [['Doble clic'], 'Renombrar una entrada o salida (Modo libre)'],
+]
 
 export const AUTHOR_URL = 'https://github.com/msucedo'
 
@@ -42,7 +56,10 @@ export function Welcome({ open, hasProgress, onClose, onResetAll }: Props) {
         onClose()
       }}
     >
-      <h2 id="welcome-title">Circuitos</h2>
+      <div className="welcome-title">
+        <Logo size={36} />
+        <h2 id="welcome-title">Circuitos</h2>
+      </div>
       <p>Arma una computadora empezando por una sola compuerta NAND.</p>
 
       <h3>Cómo se juega</h3>
@@ -58,6 +75,20 @@ export function Welcome({ open, hasProgress, onClose, onResetAll }: Props) {
         No necesitas cuenta. Todo se guarda solo en este navegador. Si borras los datos del sitio o cambias de navegador o
         de equipo, empiezas de cero. Para llevarte un circuito usa Exportar.
       </p>
+
+      <h3>Atajos</h3>
+      <dl className="shortcuts">
+        {SHORTCUTS.map(([keys, action]) => (
+          <div key={action}>
+            <dt>
+              {keys.map((k) => (
+                <kbd key={k}>{k}</kbd>
+              ))}
+            </dt>
+            <dd>{action}</dd>
+          </div>
+        ))}
+      </dl>
 
       <div className="actions">
         <button type="button" className="primary" autoFocus onClick={onClose}>

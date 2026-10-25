@@ -60,16 +60,23 @@ test('NOT by hand: the LED follows the input, Probar unlocks AND, and progress s
 
   await page.getByRole('button', { name: 'Probar' }).click()
   await expect(page.getByText('ya está en tu paleta')).toBeVisible()
+  await expect(page.getByText('1 de 10 resueltos')).toBeVisible()
   const nav = page.getByRole('navigation', { name: 'Niveles' })
   await expect(nav.getByRole('button', { name: 'AND', exact: true })).toBeEnabled()
   await page.screenshot({ path: `${SHOTS}/not-solved.png` })
 
   await page.reload()
-  await expect(nav.getByRole('button', { name: /^NOT/ })).toContainText('✓')
+  await expect(nav.getByRole('button', { name: 'NOT resuelto' })).toBeVisible()
   await openLevel(page, 'NOT')
   await expect(node(page, 'nand1')).toBeVisible()
-  await openLevel(page, 'AND')
-  await expect(page.getByRole('complementary', { name: 'Piezas' }).getByRole('button')).toHaveText(['NAND', 'NOT'])
+  // "Siguiente" opens the next level; NOT now sits under "Tus chips".
+  await page.getByRole('button', { name: 'Probar' }).click()
+  await page.getByRole('button', { name: 'Siguiente: AND' }).click()
+  await expect(page.getByRole('heading', { level: 2, name: 'AND' })).toBeVisible()
+  const palette = page.getByRole('complementary', { name: 'Piezas' })
+  await expect(palette.getByRole('button')).toHaveText(['NAND', 'NOT'])
+  await expect(palette.getByRole('heading')).toHaveText(['Piezas', 'Básicas', 'Tus chips'])
+  await expect(palette.locator('h3:has-text("Tus chips") ~ button')).toHaveText(['NOT'])
   expect(errors).toEqual([])
 })
 
@@ -105,4 +112,41 @@ test('a failing Probar says how many pass and marks the wrong outputs', async ({
   await expect(page.getByText('Pasan 0 de 2 pruebas. Estas fallan:')).toBeVisible()
   await expect(page.locator('.result td.bad')).toHaveCount(2)
   await page.screenshot({ path: `${SHOTS}/probar-fail.png` })
+})
+
+test('the level header, locked levels and the empty canvas explain themselves', async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto('/')
+  const brief = page.locator('.brief')
+  await expect(brief.getByText('Nivel 1 de 10')).toBeVisible()
+  await expect(brief.locator('.pins code')).toHaveText(['a', 'out'])
+  await expect(page.getByText('0 de 10 resueltos')).toBeVisible()
+  await expect(page.getByText('Agrega piezas desde Piezas')).toBeVisible()
+
+  const and = page.getByRole('navigation', { name: 'Niveles' }).getByRole('button', { name: 'AND bloqueado' })
+  await expect(and).toHaveAttribute('title', 'Resuelve NOT para desbloquearlo')
+  await and.click({ force: true }) // aria-disabled: Playwright waits for it to be enabled, a person can click it
+  await expect(page.getByText('AND está bloqueado: resuelve NOT para desbloquearlo.')).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'NOT' })).toBeVisible()
+
+  await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
+  await expect(page.getByText('Agrega piezas desde Piezas')).toBeHidden()
+  // The visible Borrar button removes the selected piece, and undo brings it back.
+  const erase = page.getByRole('toolbar', { name: 'Herramientas' }).getByRole('button', { name: 'Borrar' })
+  // Dragging leaves the piece selected; clicking the empty canvas clears it.
+  await page.locator('.react-flow__pane').click({ position: { x: 40, y: 300 } })
+  await expect(erase).toBeDisabled()
+  await node(page, 'nand1').click()
+  await erase.click()
+  await expect(node(page, 'nand1')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Deshacer' }).click()
+  await expect(node(page, 'nand1')).toBeVisible()
+  // The level's own pins can't be deleted.
+  await node(page, 'a').click()
+  await expect(erase).toBeDisabled()
+
+  await page.screenshot({ path: `${SHOTS}/level-header.png` })
+  const emoji = await page.evaluate(() => /\p{Extended_Pictographic}/u.test(document.body.innerText))
+  expect(emoji).toBe(false)
+  expect(errors).toEqual([])
 })

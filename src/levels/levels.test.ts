@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as examples from '../sim/examples.ts'
 import { verify } from '../sim/verify.ts'
 import type { ChipDef } from '../sim/types.ts'
-import { LEVELS, firstOpenLevel, isUnlocked, levelCircuit, levelLibrary, levelPalette } from './levels.ts'
+import { LEVELS, MAIN_LEVELS, firstOpenLevel, isUnlocked, levelById, levelCircuit, levelLibrary, levelNumber, levelPalette, nextLevel, unlockedBy } from './levels.ts'
 
 const solution = (id: string) => examples[id as keyof typeof examples] as typeof examples.NOT
 
@@ -23,6 +23,16 @@ describe('levels', () => {
   it('locks every level until the previous required one is solved; the optional level 0 locks nothing', () => {
     expect(LEVELS.filter((l) => isUnlocked(l, new Set())).map((l) => l.id)).toEqual(['RELAY_NAND', 'NOT'])
     expect(isUnlocked(LEVELS.find((l) => l.id === 'AND')!, new Set(['NOT']))).toBe(true)
+  })
+
+  it('numbers the main levels, says what unlocks each one and which comes next', () => {
+    const at = (id: string) => levelById(id)!
+    expect(MAIN_LEVELS).toHaveLength(LEVELS.length - 1)
+    expect([levelNumber(at('RELAY_NAND')), levelNumber(at('NOT')), levelNumber(at('AND'))]).toEqual([undefined, 1, 2])
+    expect([unlockedBy(at('RELAY_NAND')), unlockedBy(at('NOT'))]).toEqual([undefined, undefined])
+    expect(unlockedBy(at('AND'))?.id).toBe('NOT')
+    expect([nextLevel(at('RELAY_NAND'))?.id, nextLevel(at('NOT'))?.id]).toEqual(['NOT', 'AND'])
+    expect(nextLevel(LEVELS.at(-1)!)).toBeUndefined()
   })
 
   it('keeps old progress (saved before level 0 existed) where it was', () => {

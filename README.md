@@ -24,6 +24,7 @@ No hay cuentas: el progreso vive solo en el localStorage del navegador (`circuit
 ## Editor
 
 - Buses de 1 a 16 bits: elige "Bits" en la paleta antes de agregar Entrada, Salida, Separar o Juntar. Un cable solo conecta pines del mismo ancho.
+- Borrar: botón en la barra o Supr/Backspace (los pines del nivel no se borran). Los atajos están en la ventana "?".
 - Ctrl/⌘ + Z deshacer, Ctrl/⌘ + Shift + Z (o Ctrl + Y) rehacer, Ctrl/⌘ + C / V copiar y pegar (también entre niveles).
 - Doble clic en el nombre de una entrada o salida (modo libre) para renombrarla.
 - "Tabla": tabla de verdad en vivo (hasta 6 bits de entrada); en los niveles pone al lado lo esperado por salida y marca en rojo cada valor incorrecto.

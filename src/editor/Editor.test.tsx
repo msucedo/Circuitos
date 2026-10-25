@@ -60,6 +60,22 @@ describe('Editor', () => {
     expect(nandIds(last())).toEqual(['n'])
   })
 
+  it('guides an empty level until the first piece is added', () => {
+    const pins = { nodes: NOT.nodes.filter((n) => n.kind !== 'NAND'), wires: [] }
+    setup(pins)
+    expect(screen.queryByText(/Agrega piezas desde Piezas/)).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe('Estable')
+    expect(button('Borrar').hasAttribute('disabled')).toBe(true)
+    fireEvent.click(button('NAND'))
+    expect(screen.queryByText(/Agrega piezas desde Piezas/)).toBeNull()
+  })
+
+  it('splits the palette into basic pieces and your chips', () => {
+    setup(NOT, { palette: ['NAND', 'NOT'], library: new Map([['NOT', { id: 'NOT', name: 'NOT', circuit: NOT }]]) })
+    const palette = screen.getByRole('complementary', { name: 'Piezas' })
+    expect([...palette.querySelectorAll('h3, button')].map((e) => e.textContent)).toEqual(['Básicas', 'NAND', 'Tus chips', 'NOT'])
+  })
+
   it('shows structural problems in the status bar', () => {
     setup({ nodes: [{ id: 'x', kind: 'MISSING' }], wires: [] })
     expect(screen.getByRole('status').textContent).toMatch(/Tipo desconocido/)

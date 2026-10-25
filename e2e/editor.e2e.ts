@@ -58,7 +58,13 @@ test('importing an invalid file shows an error; exporting downloads valid JSON',
 
 test('phone width: no horizontal scroll and the palette still works', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await sandbox(page)
+  await page.goto('/')
+  // On a phone the levels are a compact picker, so the canvas shows without scrolling.
+  await expect(page.getByRole('navigation', { name: 'Niveles' }).getByRole('list')).toBeHidden()
+  const canvas = await page.locator('.react-flow').boundingBox()
+  expect(canvas && canvas.y < 844).toBe(true)
+  await page.getByLabel('Nivel', { exact: true }).selectOption('sandbox')
+  await expect(page.getByRole('heading', { level: 2, name: 'Modo libre' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   const nand = page.getByRole('complementary', { name: 'Piezas' }).getByRole('button', { name: 'NAND', exact: true })
   await nand.click()
@@ -76,4 +82,19 @@ test('reduced motion: no packets travel along the wires', async ({ page }) => {
   await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
   await wire(page, ['nand1', 'out'], ['out', 'in'])
   await expect(page.locator('circle.packet').first()).toBeHidden()
+})
+
+test('the status badge does not cover the zoom controls', async ({ page }) => {
+  const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/')
+    const status = await page.locator('.editor .status').boundingBox()
+    for (const button of await page.locator('.react-flow__controls-button').all()) {
+      const box = await button.boundingBox()
+      expect(box && status && overlaps(box, status), `${viewport.width}px`).toBe(false)
+    }
+  }
+  await page.getByRole('button', { name: 'Fit View' }).click()
 })
