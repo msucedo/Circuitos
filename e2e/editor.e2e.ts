@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { SHOTS, addPiece, node, seedSolved, watchErrors, wire } from './helpers.ts'
+import { addPiece, node, seedSolved, SHOTS, start, watchErrors, wire } from './helpers.ts'
 
 const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
 
 async function sandbox(page: Page) {
-  await page.goto('/')
+  await start(page)
   await page.getByRole('button', { name: 'Modo libre' }).click()
   await expect(page.getByRole('heading', { level: 2, name: 'Modo libre' })).toBeVisible()
 }
@@ -58,7 +58,7 @@ test('importing an invalid file shows an error; exporting downloads valid JSON',
 
 test('phone width: no horizontal scroll and the palette still works', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/')
+  await start(page)
   // On a phone the levels are a compact picker, so the canvas shows without scrolling.
   await expect(page.getByRole('navigation', { name: 'Niveles' }).getByRole('list')).toBeHidden()
   const canvas = await page.locator('.react-flow').boundingBox()
@@ -78,7 +78,7 @@ test('phone width: no horizontal scroll and the palette still works', async ({ p
 
 test('reduced motion: no packets travel along the wires', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/')
+  await start(page)
   await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
   await wire(page, ['nand1', 'out'], ['out', 'in'])
   await expect(page.locator('circle.packet').first()).toBeHidden()
@@ -89,7 +89,7 @@ test('the status badge does not cover the zoom controls', async ({ page }) => {
     a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
   for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport)
-    await page.goto('/')
+    await start(page)
     const status = await page.locator('.editor .status').boundingBox()
     for (const button of await page.locator('.react-flow__controls-button').all()) {
       const box = await button.boundingBox()
@@ -134,7 +134,7 @@ test('dragging on the empty canvas draws a selection box', async ({ page }) => {
 })
 
 test('packets move at the same speed on short and long wires', async ({ page }) => {
-  await page.goto('/')
+  await start(page)
   await addPiece(page, 'NAND', 'nand1', { x: 200, y: 280 })
   await wire(page, ['a', 'out'], ['nand1', 'a'])
   await wire(page, ['nand1', 'out'], ['out', 'in'])

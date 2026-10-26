@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { SHOTS, addPiece, handle, node, openLevel, seedSolved, watchErrors, wire } from './helpers.ts'
+import { addPiece, handle, node, openLevel, restart, seedSolved, SHOTS, start, watchErrors, wire } from './helpers.ts'
 
 test('loads the built app with no console errors or CSP violations', async ({ page }) => {
   const errors = watchErrors(page)
-  await page.goto('/')
+  await start(page)
   await expect(page.getByRole('heading', { level: 1, name: 'Circuitos' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 2, name: 'NOT' })).toBeVisible()
   await page.screenshot({ path: `${SHOTS}/start.png` })
@@ -12,7 +12,7 @@ test('loads the built app with no console errors or CSP violations', async ({ pa
 
 test('level 0: a NAND made of relays passes', async ({ page }) => {
   const errors = watchErrors(page)
-  await page.goto('/')
+  await start(page)
   await openLevel(page, 'Relés')
   const palette = page.getByRole('complementary', { name: 'Piezas' })
   await expect(palette.getByRole('button')).toHaveText(['Fuente', 'Relé', 'Relé inverso'])
@@ -49,7 +49,7 @@ test('level 0: a NAND made of relays passes', async ({ page }) => {
 
 test('NOT by hand: the LED follows the input, Probar unlocks AND, and progress survives a reload', async ({ page }) => {
   const errors = watchErrors(page)
-  await page.goto('/')
+  await start(page)
   await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
   await wire(page, ['a', 'out'], ['nand1', 'a'])
   await wire(page, ['a', 'out'], ['nand1', 'b'])
@@ -63,9 +63,11 @@ test('NOT by hand: the LED follows the input, Probar unlocks AND, and progress s
   await expect(page.getByText('1 de 10 resueltos')).toBeVisible()
   const nav = page.getByRole('navigation', { name: 'Niveles' })
   await expect(nav.getByRole('button', { name: 'AND', exact: true })).toBeEnabled()
+  await expect(nav.getByRole('button', { name: 'AND', exact: true })).toHaveClass(/fresh/)
+  await expect(page.getByRole('progressbar', { name: 'Niveles resueltos' })).toHaveAttribute('aria-valuenow', '1')
   await page.screenshot({ path: `${SHOTS}/not-solved.png` })
 
-  await page.reload()
+  await restart(page)
   await expect(nav.getByRole('button', { name: 'NOT resuelto' })).toBeVisible()
   await openLevel(page, 'NOT')
   await expect(node(page, 'nand1')).toBeVisible()
@@ -73,6 +75,7 @@ test('NOT by hand: the LED follows the input, Probar unlocks AND, and progress s
   await page.getByRole('button', { name: 'Probar' }).click()
   await page.getByRole('button', { name: 'Siguiente: AND' }).click()
   await expect(page.getByRole('heading', { level: 2, name: 'AND' })).toBeVisible()
+  await expect(nav.getByRole('button', { name: 'AND', exact: true })).not.toHaveClass(/fresh/)
   const palette = page.getByRole('complementary', { name: 'Piezas' })
   await expect(palette.getByRole('button')).toHaveText(['NAND', 'NOT'])
   await expect(palette.getByRole('heading')).toHaveText(['Piezas', 'Básicas', 'Tus chips'])
@@ -82,7 +85,7 @@ test('NOT by hand: the LED follows the input, Probar unlocks AND, and progress s
 
 test('the live table of the half adder shows 1 + 1 = carry 1, sum 0', async ({ page }) => {
   await seedSolved(page, ['NOT', 'AND', 'OR', 'XOR'])
-  await page.goto('/')
+  await start(page)
   await expect(page.getByRole('heading', { level: 2, name: 'Medio sumador' })).toBeVisible()
   await addPiece(page, 'XOR', 'xor1', { x: 380, y: 200 })
   await addPiece(page, 'AND', 'and1', { x: 380, y: 420 })
@@ -102,7 +105,7 @@ test('the live table of the half adder shows 1 + 1 = carry 1, sum 0', async ({ p
 })
 
 test('a failing Probar says how many pass and marks the wrong outputs', async ({ page }) => {
-  await page.goto('/')
+  await start(page)
   await wire(page, ['a', 'out'], ['out', 'in'])
   await expect(node(page, 'out').locator('.react-flow__handle')).not.toHaveClass(/\bon\b/)
   await page.getByLabel('entrada a: 0').click()
@@ -119,7 +122,7 @@ test('a failing Probar says how many pass and marks the wrong outputs', async ({
 
 test('the level header, locked levels and the empty canvas explain themselves', async ({ page }) => {
   const errors = watchErrors(page)
-  await page.goto('/')
+  await start(page)
   const brief = page.locator('.brief')
   await expect(brief.getByText('Nivel 1 de 10')).toBeVisible()
   await expect(brief.locator('.pins code')).toHaveText(['a', 'out'])
@@ -156,7 +159,7 @@ test('the level header, locked levels and the empty canvas explain themselves', 
 
 test('Probar lists the passing tests in green next to the failing ones', async ({ page }) => {
   await seedSolved(page, ['NOT'])
-  await page.goto('/')
+  await start(page)
   await expect(page.getByRole('heading', { level: 2, name: 'AND' })).toBeVisible()
   // out = a: right for 3 of the 4 rows of AND.
   await wire(page, ['a', 'out'], ['out', 'in'])
@@ -170,7 +173,7 @@ test('Probar lists the passing tests in green next to the failing ones', async (
 
 test('the hint starts folded and folds again on another level; the ? button is round', async ({ page }) => {
   await seedSolved(page, ['NOT'])
-  await page.goto('/')
+  await start(page)
   const hint = page.getByText('Es lo contrario de un NAND.')
   await expect(hint).toBeHidden()
   await page.getByText('Ver pista').click()

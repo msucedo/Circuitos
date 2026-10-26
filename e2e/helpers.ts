@@ -24,6 +24,24 @@ export function watchErrors(page: Page): string[] {
   return errors
 }
 
+/** The welcome opens on every load; these get past it. */
+export async function start(page: Page) {
+  await page.goto('/')
+  await closeWelcome(page)
+}
+
+export async function restart(page: Page) {
+  await page.reload()
+  await closeWelcome(page)
+}
+
+async function closeWelcome(page: Page) {
+  const welcome = page.getByRole('dialog', { name: 'Circuitos' })
+  await expect(welcome).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(welcome).toBeHidden()
+}
+
 export async function openLevel(page: Page, name: string) {
   await page.getByRole('navigation', { name: 'Niveles' }).getByRole('button', { name }).click()
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()

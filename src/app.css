@@ -16,17 +16,8 @@
 .levels h1 { flex: 1; margin: 0; font-size: 20px; }
 .tagline { margin: 0; color: var(--muted); font-size: 13px; }
 .progress { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 8px; color: var(--muted); font-size: 12px; }
-.progress progress {
-  width: 100%;
-  height: 4px;
-  border: 0;
-  border-radius: 2px;
-  background: var(--line);
-  appearance: none;
-}
-.progress progress::-webkit-progress-bar { border-radius: 2px; background: var(--line); }
-.progress progress::-webkit-progress-value { border-radius: 2px; background: var(--on); }
-.progress progress::-moz-progress-bar { border-radius: 2px; background: var(--on); }
+.progress .bar { height: 4px; overflow: hidden; border-radius: 2px; background: var(--line); }
+.progress .bar span { display: block; height: 100%; border-radius: 2px; background: var(--on); transition: width 0.5s var(--ease); }
 .level-picker { display: none; }
 .levels ol {
   display: flex;
@@ -43,9 +34,14 @@
   text-align: left;
 }
 .levels button.current { border-color: var(--accent); background: #26304a; }
+.levels ol button:not([aria-disabled='true']):hover, .levels .sandbox:hover { background: #26304a; translate: 3px 0; }
 .levels button[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; }
+.levels button.fresh { animation: glow 1.2s var(--ease); }
 .levels .sandbox { margin-top: 4px; }
-.mark { display: flex; align-items: center; color: var(--on); }
+.mark { display: flex; align-items: center; color: var(--on); transition: scale 0.15s var(--spring); }
+.levels button:not([aria-disabled='true']):hover .mark { scale: 1.15; }
+/* The lock of a level that was just unlocked lifts off and fades; it rests invisible. */
+.mark .unlocking { display: flex; color: var(--muted); opacity: 0; animation: unlock 0.6s var(--ease) 0.2s backwards; }
 .mark .icon { width: 14px; height: 14px; }
 .levels button[aria-disabled='true'] .mark { color: var(--muted); }
 
@@ -66,7 +62,7 @@ main {
   border-bottom: 1px solid var(--line);
 }
 .brief { padding: 16px 20px; }
-.brief-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.brief-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; animation: fade-in 0.25s var(--ease); }
 .brief h2 { margin: 0; font-size: 22px; line-height: 1.2; }
 .brief p { margin: 0; max-width: 64ch; }
 .eyebrow { color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -91,6 +87,7 @@ main {
 .hint { margin-top: 4px; color: var(--muted); font-size: 13px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 button.primary { background: #2d4a8a; border-color: var(--accent); }
+button.primary:not(:disabled):hover { background: #3a5cab; translate: 0 -1px; box-shadow: 0 4px 14px rgb(122 162 255 / 0.35); }
 button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
 .result.pass button { margin-left: 12px; }
 
@@ -103,6 +100,7 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
   padding: 8px 16px;
   font-size: 14px;
   border-bottom: 1px solid var(--line);
+  animation: slide-down 0.25s var(--ease);
 }
 .notice.error { color: var(--bad); }
 .notice.info { color: var(--on); }
@@ -114,8 +112,11 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
   font-size: 14px;
+  animation: fade-in 0.25s var(--ease);
 }
+.result.fail { animation: shake 0.4s var(--ease); }
 .result p { margin: 0 0 6px; }
+.pass-check { display: inline-flex; margin-right: 6px; vertical-align: -2px; animation: pop 0.35s var(--spring); }
 /* Sticky so it stays reachable while scrolling a long list of failures. */
 .result .close { position: sticky; top: 0; float: right; margin-left: 12px; padding: 0 8px; }
 .result.pass { color: var(--on); }
@@ -198,7 +199,8 @@ button.danger { border-color: var(--bad); color: var(--bad); }
   color: var(--text);
   line-height: 1.5;
 }
-.welcome::backdrop { background: rgb(0 0 0 / 0.6); }
+.welcome[open] { animation: sheet-in 0.3s var(--ease); }
+.welcome::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(6px); animation: backdrop-in 0.3s var(--ease); }
 .welcome h2 { margin: 0 0 4px; font-size: 22px; }
 .welcome h3 { margin: 16px 0 4px; font-size: 15px; color: var(--muted); font-weight: 600; }
 .welcome p, .welcome ol { margin: 0 0 6px; }

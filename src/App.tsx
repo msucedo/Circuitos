@@ -23,7 +23,7 @@ import { CircuitError, toLibrary } from './sim/types.ts'
 import type { Circuit } from './sim/types.ts'
 import { verify } from './sim/verify.ts'
 import type { VerifyResult } from './sim/verify.ts'
-import { backupSave, loadSave, markWelcomeSeen, welcomeSeen, writeSave } from './storage.ts'
+import { backupSave, loadSave, writeSave } from './storage.ts'
 import { CheckIcon, LockIcon, Logo } from './icons.tsx'
 import { Credit, Welcome } from './Welcome.tsx'
 import './app.css'
@@ -31,6 +31,8 @@ import './app.css'
 const SANDBOX = 'sandbox'
 const SAVE_DELAY_MS = 400
 const SHOWN_STEPS = 64
+/** Info notices close by themselves after this; errors stay until closed. */
+const NOTICE_MS = 4000
 
 type Notice = { kind: 'info' | 'error'; text: string }
 
@@ -66,7 +68,11 @@ export default function App() {
   const [result, setResult] = useState<VerifyResult>()
   const [chipName, setChipName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string>()
-  const [welcome, setWelcome] = useState(() => !welcomeSeen())
+  const [welcome, setWelcome] = useState(true)
+  // Bumped on every Probar so the result panel animates again.
+  const [attempt, setAttempt] = useState(0)
+  // Levels the last Probar unlocked, so their buttons can celebrate once.
+  const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set())
   const customChips = save.chips.filter((c) => !levelById(c.id))
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -96,6 +102,12 @@ export default function App() {
     }
   }, [save])
 
+  useEffect(() => {
+    if (notice?.kind !== 'info') return
+    const timer = setTimeout(() => setNotice(undefined), NOTICE_MS)
+    return () => clearTimeout(timer)
+  }, [notice])
+
   const onChange = useCallback(
     (next: Circuit) =>
       setSave((s) =>
@@ -108,12 +120,16 @@ export default function App() {
     setWorkspace(id)
     setResult(undefined)
     setNotice(undefined)
+    setFresh(new Set())
   }
 
   const test = (lvl: Level) => {
     const outcome = verify(circuit, library, lvl.spec)
     setResult(outcome)
+    setAttempt((a) => a + 1)
     if (!outcome.passed) return
+    const after = new Set([...solved, lvl.id])
+    setFresh(new Set(LEVELS.filter((l) => !isUnlocked(l, solved) && isUnlocked(l, after)).map((l) => l.id)))
     setSave((s) => ({
       ...s,
       solved: s.solved.includes(lvl.id) ? s.solved : [...s.solved, lvl.id],
@@ -186,10 +202,7 @@ export default function App() {
     }
   }
 
-  const closeWelcome = () => {
-    markWelcomeSeen()
-    setWelcome(false)
-  }
+  const closeWelcome = () => setWelcome(false)
 
   const resetAll = () => {
     const problem = backupSave(save)
@@ -233,7 +246,16 @@ export default function App() {
           <span>
             {solvedCount} de {MAIN_LEVELS.length} resueltos
           </span>
-          <progress value={solvedCount} max={MAIN_LEVELS.length} aria-label="Niveles resueltos" />
+          <div
+            className="bar"
+            role="progressbar"
+            aria-label="Niveles resueltos"
+            aria-valuemin={0}
+            aria-valuemax={MAIN_LEVELS.length}
+            aria-valuenow={solvedCount}
+          >
+            <span style={{ width: `${(solvedCount / MAIN_LEVELS.length) * 100}%` }} />
+          </div>
         </div>
         {/* Shown instead of the list on a phone. */}
         <div className="level-picker">
@@ -257,7 +279,7 @@ export default function App() {
               <li key={l.id}>
                 <button
                   type="button"
-                  className={workspace === l.id ? 'current' : ''}
+                  className={`${workspace === l.id ? 'current' : ''}${fresh.has(l.id) ? ' fresh' : ''}`}
                   aria-disabled={!unlocked}
                   aria-current={workspace === l.id}
                   title={unlocked || !needs ? undefined : `Resuelve ${needs.name} para desbloquearlo`}
@@ -272,7 +294,15 @@ export default function App() {
                     {l.optional && <small className="optional"> opcional</small>}
                   </span>
                   <span className="mark" aria-label={solved.has(l.id) ? 'resuelto' : unlocked ? '' : 'bloqueado'}>
-                    {solved.has(l.id) ? <CheckIcon /> : unlocked ? null : <LockIcon />}
+                    {solved.has(l.id) ? (
+                      <CheckIcon />
+                    ) : !unlocked ? (
+                      <LockIcon />
+                    ) : fresh.has(l.id) ? (
+                      <span className="unlocking">
+                        <LockIcon />
+                      </span>
+                    ) : null}
                   </span>
                 </button>
               </li>
@@ -291,7 +321,7 @@ export default function App() {
         <section className="brief">
           {level ? (
             <>
-              <div className="brief-text">
+              <div className="brief-text" key={workspace}>
                 <p className="eyebrow">
                   {levelNumber(level) ? `Nivel ${levelNumber(level)} de ${MAIN_LEVELS.length}` : 'Nivel opcional'}
                 </p>
@@ -323,7 +353,7 @@ export default function App() {
             </>
           ) : (
             <>
-              <div className="brief-text">
+              <div className="brief-text" key={workspace}>
                 <p className="eyebrow">Banco de pruebas</p>
                 <h2>Modo libre</h2>
                 <p>Arma lo que quieras con las piezas que has desbloqueado y guárdalo como chip.</p>
@@ -370,7 +400,7 @@ export default function App() {
         </section>
 
         {notice && (
-          <p className={`notice ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
+          <p key={notice.text} className={`notice ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
             {notice.text}
             <button type="button" aria-label="Cerrar aviso" onClick={() => setNotice(undefined)}>
               ×
@@ -379,12 +409,15 @@ export default function App() {
         )}
 
         {result && level && (
-          <section className={`result ${result.passed ? 'pass' : 'fail'}`} aria-live="polite">
+          <section key={attempt} className={`result ${result.passed ? 'pass' : 'fail'}`} aria-live="polite">
             <button type="button" className="close" aria-label="Cerrar resultado" onClick={() => setResult(undefined)}>
               ×
             </button>
             {result.passed ? (
               <p>
+                <span className="pass-check">
+                  <CheckIcon />
+                </span>
                 ¡Funciona!{' '}
                 {level.chip === false ? (
                   'Nivel resuelto.'

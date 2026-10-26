@@ -11,11 +11,6 @@ export default defineConfig({
     baseURL: 'http://localhost:4173',
     channel: 'chrome',
     viewport: { width: 1280, height: 800 },
-    // Skip the welcome dialog; e2e/welcome.e2e.ts starts without it.
-    storageState: {
-      cookies: [],
-      origins: [{ origin: 'http://localhost:4173', localStorage: [{ name: 'circuitos:bienvenida', value: '1' }] }],
-    },
   },
   webServer: {
     command: 'npm run build && npx vite preview --port 4173 --strictPort',

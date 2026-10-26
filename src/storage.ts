@@ -53,22 +53,3 @@ export function backupSave(data: SaveData, store = browserStorage()): string | u
     return 'No se pudo guardar una copia de tu progreso, así que no se borró.'
   }
 }
-
-export const WELCOME_KEY = 'circuitos:bienvenida'
-
-/** When storage is blocked, treat the welcome as seen so it does not pop up on every load. */
-export function welcomeSeen(store = browserStorage()): boolean {
-  try {
-    return !store || store.getItem(WELCOME_KEY) !== null
-  } catch {
-    return true
-  }
-}
-
-export function markWelcomeSeen(store = browserStorage()) {
-  try {
-    store?.setItem(WELCOME_KEY, '1')
-  } catch {
-    /* it shows again next time, which is harmless */
-  }
-}

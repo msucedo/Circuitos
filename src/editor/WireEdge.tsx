@@ -67,6 +67,7 @@ export function WireEdge({ id, sourceX, sourceY, targetX, targetY, sourcePositio
   return (
     <>
       <BaseEdge id={id} path={path} className={cls} />
+      <path d={path} className="wire-flash" />
       {visible && (
         <circle key={run} r={width > 1 ? 5 : 4} className={`packet${on ? ' on' : ''}`} opacity={0}>
           <animateMotion

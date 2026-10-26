@@ -2,6 +2,7 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  animation: fade-in 0.25s var(--ease);
 }
 
 .palette {
@@ -19,6 +20,7 @@
   cursor: grab;
   text-align: left;
 }
+.palette button:hover { translate: 0 -1px; box-shadow: 0 3px 8px rgb(0 0 0 / 0.35); }
 .palette-title { margin: 0; font-size: 14px; }
 .palette-help { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.35; }
 .palette h3 {
@@ -89,6 +91,7 @@
   background: var(--chip);
   color: var(--text);
   font-size: 12px;
+  animation: pop 0.25s var(--spring);
 }
 .chip.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .chip.kind-nand { background: var(--chip-nand); }
@@ -156,6 +159,11 @@
   border: 1px solid var(--line-strong);
 }
 .react-flow__handle.on { background: var(--on); }
+/* Handles grow under the pointer and while a wire is being dragged onto them. */
+.react-flow__handle { transition: scale 0.12s var(--ease); }
+.react-flow__handle:hover, .react-flow__handle.connectingto, .react-flow__handle.valid { scale: 1.5; }
+/* A wire flashes once when it appears; it rests invisible, so reduced motion shows nothing. */
+.wire-flash { fill: none; stroke: var(--on); stroke-width: 5; opacity: 0; pointer-events: none; filter: drop-shadow(0 0 4px var(--on)); animation: flash 0.6s var(--ease); }
 .react-flow__edge-path.wire { stroke: var(--off-wire); stroke-width: 2; }
 .react-flow__edge-path.wire.on { stroke: var(--on); }
 .react-flow__edge-path.wire.selected { stroke-dasharray: 5 3; }
