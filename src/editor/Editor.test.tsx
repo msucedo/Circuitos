@@ -94,6 +94,21 @@ describe('Editor', () => {
     expect(container.querySelector('.chip.kind-half_adder .chip-title')).toBeTruthy()
   })
 
+  it('draws relays with a switch that closes while the coil is on (or off, when inverted)', () => {
+    const nodes = [
+      { id: 'c', kind: 'INPUT' },
+      { id: 'no', kind: 'RELAY' },
+      { id: 'nc', kind: 'RELAY_NC' },
+    ]
+    const wires = ['no', 'nc'].map((node) => ({ from: { node: 'c', pin: 'out' }, to: { node, pin: 'c' } }))
+    const { container } = render(<Editor initial={{ nodes, wires }} library={new Map()} palette={[]} onChange={() => {}} />)
+    const blade = (id: string) => container.querySelector(`.kind-relay${id === 'nc' ? '_nc' : ''} .relay-blade`)?.getAttribute('d')
+    const [open, closed] = ['M24 14L52 3', 'M24 14L55 14']
+    expect([blade('no'), blade('nc')]).toEqual([open, closed])
+    fireEvent.click(byLabel('entrada c: 0'))
+    expect([blade('no'), blade('nc')]).toEqual([closed, open])
+  })
+
   it('shows structural problems in the status bar', () => {
     setup({ nodes: [{ id: 'x', kind: 'MISSING' }], wires: [] })
     expect(screen.getByRole('status').textContent).toMatch(/Tipo desconocido/)

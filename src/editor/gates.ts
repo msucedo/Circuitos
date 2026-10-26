@@ -25,3 +25,11 @@ export const GATE_SHAPES: Record<string, GateShape> = {
   XOR: { inputs: TWO, leadTo: 15, outFrom: 62, body: 'M18 6Q36 6 62 24Q36 42 18 42Q28 24 18 6Z', back: 'M11 6Q21 24 11 42' },
   NOT: { inputs: [24], leadTo: 16, outFrom: 60, body: 'M16 8L52 24L16 40Z', bubble: 56 },
 }
+
+/** Relay symbol: switch on top (in → out), coil below (c). Same 80×48 box. */
+export const RELAY_PIN_Y: Record<string, number> = { in: 14, out: 14, c: 36 }
+/** Normally closed relays conduct while the coil is off. */
+export const RELAY_KINDS: Record<string, { normallyClosed: boolean }> = {
+  RELAY: { normallyClosed: false },
+  RELAY_NC: { normallyClosed: true },
+}

@@ -265,3 +265,8 @@
 .lead { fill: none; stroke: var(--off-wire); stroke-width: 2; }
 .lead.on { stroke: var(--on); }
 .gate .chip-title { padding: 2px 0 0; color: var(--muted); font-weight: 600; }
+.relay-blade { fill: none; stroke: var(--text); stroke-width: 2; stroke-linecap: round; }
+.relay-blade.on { stroke: var(--on); }
+.relay-contact { fill: var(--text); }
+.relay-link { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 2; }
+.relay-coil.on { stroke: var(--on); }

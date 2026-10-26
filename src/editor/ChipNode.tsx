@@ -6,7 +6,7 @@ import { isPrimitive, widthOf } from '../sim/types.ts'
 import type { Pin, Pins } from '../sim/types.ts'
 import type { ChipFlowNode } from './convert.ts'
 import { binary, kindName, useEditor } from './context.ts'
-import { GATE_H, GATE_SHAPES, GATE_W } from './gates.ts'
+import { GATE_H, GATE_SHAPES, GATE_W, RELAY_KINDS, RELAY_PIN_Y } from './gates.ts'
 import type { GateShape } from './gates.ts'
 
 const NO_PINS: Pins = { inputs: [], outputs: [] }
@@ -82,6 +82,31 @@ function GateSymbol({ shape, inputsOn, outputOn }: { shape: GateShape; inputsOn:
       {shape.back && <path className="gate-line" d={shape.back} />}
       <path className="gate-body" d={shape.body} />
       {shape.bubble !== undefined && <circle className="gate-body" cx={shape.bubble} cy="24" r="4" />}
+    </svg>
+  )
+}
+
+interface RelayState {
+  /** The contact touches: in passes to out. */
+  closed: boolean
+  coilOn: boolean
+  inOn: boolean
+  outOn: boolean
+}
+
+/** The blade moves with the coil, so the player sees the switch close or open. */
+function RelaySymbol({ closed, coilOn, inOn, outOn }: RelayState) {
+  return (
+    <svg className="gate-svg" width={GATE_W} height={GATE_H} viewBox={`0 0 ${GATE_W} ${GATE_H}`} aria-hidden="true">
+      <path className={`lead${inOn ? ' on' : ''}`} d="M0 14H22" />
+      <path className={`lead${outOn ? ' on' : ''}`} d="M58 14H80" />
+      <path className={`lead${coilOn ? ' on' : ''}`} d="M0 36H20" />
+      <path className="relay-link" d={closed ? 'M30 30V15' : 'M30 30V12'} />
+      <path className={`relay-blade${outOn ? ' on' : ''}`} d={closed ? 'M24 14L55 14' : 'M24 14L52 3'} />
+      <circle className="relay-contact" cx="24" cy="14" r="2.5" />
+      <circle className="relay-contact" cx="56" cy="14" r="2.5" />
+      <rect className={`gate-body relay-coil${coilOn ? ' on' : ''}`} x="20" y="30" width="22" height="12" rx="1" />
+      <path className="gate-line" d="M20 42L42 30" />
     </svg>
   )
 }
@@ -169,6 +194,36 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
             />
           ))}
           <Handle type="source" position={Position.Right} id={out.name} className={handleClass(out, outputOn)} />
+        </div>
+        <div className="chip-title">{title}</div>
+      </div>
+    )
+  }
+  const relay = RELAY_KINDS[data.kind]
+  if (relay) {
+    const coilOn = incoming(id, 'c') > 0
+    const outOn = signals.pin(id, 'out') > 0
+    return (
+      <div className={`gate kind-${data.kind.toLowerCase()}${selected ? ' selected' : ''}`} aria-label={title}>
+        <div className="gate-frame">
+          <RelaySymbol closed={coilOn !== relay.normallyClosed} coilOn={coilOn} inOn={incoming(id, 'in') > 0} outOn={outOn} />
+          {pins.inputs.map((pin) => (
+            <Handle
+              key={pin.name}
+              type="target"
+              position={Position.Left}
+              id={pin.name}
+              className={handleClass(pin, incoming(id, pin.name) > 0)}
+              style={{ top: `${(RELAY_PIN_Y[pin.name] / GATE_H) * 100}%` }}
+            />
+          ))}
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="out"
+            className={handleClass(pins.outputs[0], outOn)}
+            style={{ top: `${(RELAY_PIN_Y.out / GATE_H) * 100}%` }}
+          />
         </div>
         <div className="chip-title">{title}</div>
       </div>
