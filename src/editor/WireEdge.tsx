@@ -7,7 +7,8 @@ export type WireFlowEdge = Edge<WireData, 'wire'>
 
 /** Packets move at the same speed on every wire, so long wires don't look faster. */
 const PX_PER_MS = 0.25
-const MIN_PACKET_MS = 300
+/** The packet fades out over the same time on every wire, so the fade never reads as braking. */
+const FADE_MS = 120
 /** While a wire carries a non-zero value, a packet leaves this often (longer wires wait for the last one). */
 export const LOOP_MS = 2000
 const LOOP_GAP_MS = 600
@@ -40,6 +41,15 @@ export function WireEdge({ id, sourceX, sourceY, targetX, targetY, sourcePositio
     setPulse(pulse + 1)
   }
 
+  // Looping: cross in packetMs, then wait at the end (invisible) for the rest of the loop.
+  const length = useMemo(() => pathLength(path, Math.hypot(targetX - sourceX, targetY - sourceY)), [path, sourceX, sourceY, targetX, targetY])
+  const packetMs = Math.max(1, Math.round(length / PX_PER_MS))
+  const loopMs = Math.max(LOOP_MS, packetMs + LOOP_GAP_MS)
+  const cross = packetMs / loopMs
+  const fadeStart = Math.max(0, packetMs - FADE_MS)
+
+  // A new length restarts the packet: retiming a running SMIL animation makes it jump.
+  const run = `${pulse}-${packetMs}`
   const motion = useRef<SVGAnimateMotionElement>(null)
   const fade = useRef<SVGAnimateElement>(null)
   const visible = animate && (on || pulse > 0)
@@ -48,13 +58,7 @@ export function WireEdge({ id, sourceX, sourceY, targetX, targetY, sourcePositio
     if (!visible) return
     motion.current?.beginElement?.()
     fade.current?.beginElement?.()
-  }, [visible, pulse])
-
-  // Looping: cross in packetMs, then wait at the end (invisible) for the rest of the loop.
-  const length = useMemo(() => pathLength(path, Math.hypot(targetX - sourceX, targetY - sourceY)), [path, sourceX, sourceY, targetX, targetY])
-  const packetMs = Math.max(MIN_PACKET_MS, length / PX_PER_MS)
-  const loopMs = Math.max(LOOP_MS, packetMs + LOOP_GAP_MS)
-  const cross = packetMs / loopMs
+  }, [visible, run])
   const timing = on
     ? { dur: `${loopMs}ms`, repeatCount: 'indefinite', keyTimes: `0;${cross};1` }
     : { dur: `${packetMs}ms`, repeatCount: '1', keyTimes: '0;1' }
@@ -64,7 +68,7 @@ export function WireEdge({ id, sourceX, sourceY, targetX, targetY, sourcePositio
     <>
       <BaseEdge id={id} path={path} className={cls} />
       {visible && (
-        <circle key={pulse} r={width > 1 ? 5 : 4} className={`packet${on ? ' on' : ''}`} opacity={0}>
+        <circle key={run} r={width > 1 ? 5 : 4} className={`packet${on ? ' on' : ''}`} opacity={0}>
           <animateMotion
             ref={motion}
             begin="indefinite"
@@ -80,7 +84,7 @@ export function WireEdge({ id, sourceX, sourceY, targetX, targetY, sourcePositio
             begin="indefinite"
             calcMode="linear"
             values={on ? '1;1;0;0' : '1;1;0'}
-            keyTimes={on ? `0;${cross * 0.8};${cross};1` : '0;0.8;1'}
+            keyTimes={on ? `0;${fadeStart / loopMs};${cross};1` : `0;${fadeStart / packetMs};1`}
             dur={timing.dur}
             repeatCount={timing.repeatCount}
             fill="freeze"
