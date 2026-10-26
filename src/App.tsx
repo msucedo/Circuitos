@@ -30,7 +30,7 @@ import './app.css'
 
 const SANDBOX = 'sandbox'
 const SAVE_DELAY_MS = 400
-const SHOWN_FAILURES = 12
+const SHOWN_STEPS = 64
 
 type Notice = { kind: 'info' | 'error'; text: string }
 
@@ -211,6 +211,12 @@ export default function App() {
   const solvedCount = MAIN_LEVELS.filter((l) => solved.has(l.id)).length
   const next = level && nextLevel(level)
   const failures = result?.steps.filter((s) => !s.ok) ?? []
+  // Long test lists put every failure first so none is cut off.
+  const shownSteps = !result
+    ? []
+    : result.steps.length <= SHOWN_STEPS
+      ? result.steps
+      : [...failures, ...result.steps.filter((s) => s.ok)].slice(0, SHOWN_STEPS)
 
   return (
     <div className="app">
@@ -295,7 +301,13 @@ export default function App() {
                   <Pins label="Entradas" ids={level.spec.inputs} widths={level.spec.widths} />
                   <Pins label="Salidas" ids={level.spec.outputs} widths={level.spec.widths} />
                 </dl>
-                {level.hint && <p className="hint">Pista: {level.hint}</p>}
+                {level.hint && (
+                  // Folded so the player tries first; the key folds it again on another level.
+                  <details className="hint" key={level.id}>
+                    <summary>Ver pista</summary>
+                    <p>{level.hint}</p>
+                  </details>
+                )}
               </div>
               <div className="actions">
                 <button type="button" onClick={() => reset(level)}>
@@ -400,7 +412,7 @@ export default function App() {
             ) : (
               <>
                 <p>
-                  Pasan {result.steps.length - failures.length} de {result.steps.length} pruebas. Estas fallan:
+                  Pasan {result.steps.length - failures.length} de {result.steps.length} pruebas.
                 </p>
                 <table>
                   <thead>
@@ -408,16 +420,20 @@ export default function App() {
                       <th colSpan={level.spec.inputs.length}>entradas</th>
                       <th colSpan={level.spec.outputs.length}>esperado</th>
                       <th colSpan={level.spec.outputs.length}>tu circuito</th>
+                      <th />
                     </tr>
                     <tr>
                       {[...level.spec.inputs, ...level.spec.outputs, ...level.spec.outputs].map((id, i) => (
                         <th key={i}>{id}</th>
                       ))}
+                      <th>
+                        <span className="sr-only">resultado</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {failures.slice(0, SHOWN_FAILURES).map((f, i) => (
-                      <tr key={i}>
+                    {shownSteps.map((f, i) => (
+                      <tr key={i} className={f.ok ? 'ok' : 'wrong'}>
                         {level.spec.inputs.map((id) => (
                           <td key={id}>{f.step.set[id] ?? '·'}</td>
                         ))}
@@ -428,17 +444,20 @@ export default function App() {
                           const want = f.step.expect[id]
                           const bad = f.status === 'oscillating' || (want !== undefined && want !== f.actual[id])
                           return (
-                            <td key={id} className={bad ? 'bad' : ''}>
+                            <td key={id} className={bad ? 'bad' : 'got'}>
                               {f.status === 'oscillating' ? '~' : f.actual[id]}
                             </td>
                           )
                         })}
+                        <td className="verdict">{f.ok ? '✓' : '✗'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 {failures.some((f) => f.status === 'oscillating') && <p className="hint">~ = el circuito oscila: nunca se estabiliza.</p>}
-                {failures.length > SHOWN_FAILURES && <p className="hint">…y {failures.length - SHOWN_FAILURES} más.</p>}
+                {result.steps.length > shownSteps.length && (
+                  <p className="hint">…y {result.steps.length - shownSteps.length} pruebas más que pasan.</p>
+                )}
               </>
             )}
           </section>

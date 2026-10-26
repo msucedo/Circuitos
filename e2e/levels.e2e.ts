@@ -109,7 +109,8 @@ test('a failing Probar says how many pass and marks the wrong outputs', async ({
   // The output's pin lights up with the wire that feeds it.
   await expect(node(page, 'out').locator('.react-flow__handle')).toHaveClass(/\bon\b/)
   await page.getByRole('button', { name: 'Probar' }).click()
-  await expect(page.getByText('Pasan 0 de 2 pruebas. Estas fallan:')).toBeVisible()
+  await expect(page.getByText('Pasan 0 de 2 pruebas.')).toBeVisible()
+  await expect(page.locator('.result td.verdict')).toHaveText(['✗', '✗'])
   await expect(page.locator('.result td.bad')).toHaveCount(2)
   await page.screenshot({ path: `${SHOTS}/probar-fail.png` })
   await page.getByRole('button', { name: 'Cerrar resultado' }).click()
@@ -151,4 +152,31 @@ test('the level header, locked levels and the empty canvas explain themselves', 
   const emoji = await page.evaluate(() => /\p{Extended_Pictographic}/u.test(document.body.innerText))
   expect(emoji).toBe(false)
   expect(errors).toEqual([])
+})
+
+test('Probar lists the passing tests in green next to the failing ones', async ({ page }) => {
+  await seedSolved(page, ['NOT'])
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 2, name: 'AND' })).toBeVisible()
+  // out = a: right for 3 of the 4 rows of AND.
+  await wire(page, ['a', 'out'], ['out', 'in'])
+  await page.getByRole('button', { name: 'Probar' }).click()
+  await expect(page.getByText('Pasan 3 de 4 pruebas.')).toBeVisible()
+  await expect(page.locator('.result tbody tr.ok')).toHaveCount(3)
+  await expect(page.locator('.result tbody tr.wrong td.bad')).toHaveCount(1)
+  await expect(page.locator('.result tr.ok .verdict').first()).toHaveCSS('color', 'rgb(74, 222, 128)')
+  await page.screenshot({ path: `${SHOTS}/probar-mixed.png` })
+})
+
+test('the hint starts folded and folds again on another level; the ? button is round', async ({ page }) => {
+  await seedSolved(page, ['NOT'])
+  await page.goto('/')
+  const hint = page.getByText('Es lo contrario de un NAND.')
+  await expect(hint).toBeHidden()
+  await page.getByText('Ver pista').click()
+  await expect(hint).toBeVisible()
+  await openLevel(page, 'NOT')
+  await expect(page.getByText('NAND da 0 solo cuando sus dos entradas son 1.')).toBeHidden()
+  const box = await page.getByRole('button', { name: 'Acerca de Circuitos' }).boundingBox()
+  expect(box && box.width === box.height).toBe(true)
 })
