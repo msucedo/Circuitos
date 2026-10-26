@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { start, watchErrors } from './helpers.ts'
+import { fitsWithoutScroll, start, watchErrors, wrappedShortcuts } from './helpers.ts'
 
 test.use({ locale: 'en-US' })
 
@@ -9,6 +9,8 @@ test('an English browser gets the app in English, and the welcome switches it to
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   const welcome = page.getByRole('dialog', { name: 'Circuitos' })
   await expect(welcome).toContainText('Build a computer starting from a single NAND gate.')
+  expect(await fitsWithoutScroll(welcome)).toBe(true)
+  expect(await wrappedShortcuts(welcome)).toEqual([])
   const language = welcome.getByRole('group', { name: 'Language' })
   await expect(language.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
 

@@ -24,6 +24,15 @@ export function watchErrors(page: Page): string[] {
   return errors
 }
 
+/** True when a scrollable element shows all its content. */
+export const fitsWithoutScroll = (locator: Locator) => locator.evaluate((el) => el.scrollHeight <= el.clientHeight)
+
+/** Shortcut descriptions in the welcome that wrap onto a second line. */
+export const wrappedShortcuts = (welcome: Locator) =>
+  welcome.locator('.shortcuts dd').evaluateAll((items) =>
+    items.filter((dd) => dd.getBoundingClientRect().height > parseFloat(getComputedStyle(dd).lineHeight) * 1.5).map((dd) => dd.textContent),
+  )
+
 /** The welcome opens on every load; these get past it. */
 export async function start(page: Page) {
   await page.goto('/')

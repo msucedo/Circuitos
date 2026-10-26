@@ -96,14 +96,14 @@
     "actions": {
       "undo": "Deshacer",
       "redo": "Rehacer",
-      "copy": "Copiar lo seleccionado",
-      "paste": "Pegar (también en otro nivel)",
-      "delete": "Borrar lo seleccionado (o Backspace)",
-      "multiSelect": "Seleccionar varias piezas",
-      "boxSelect": "En el lienzo vacío, seleccionar con un recuadro",
-      "pan": "Mover el lienzo (también con scroll)",
-      "zoom": "Acercar o alejar (o pellizcar en el trackpad)",
-      "rename": "Renombrar una entrada o salida (Modo libre)"
+      "copy": "Copiar",
+      "paste": "Pegar",
+      "delete": "Borrar (o Backspace)",
+      "multiSelect": "Elegir varias piezas",
+      "boxSelect": "Recuadro de selección",
+      "pan": "Mover el lienzo",
+      "zoom": "Acercar o alejar",
+      "rename": "Renombrar un pin"
     }
   },
   "editor": {

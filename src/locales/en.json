@@ -96,14 +96,14 @@
     "actions": {
       "undo": "Undo",
       "redo": "Redo",
-      "copy": "Copy the selection",
-      "paste": "Paste (also into another level)",
-      "delete": "Delete the selection (or Backspace)",
+      "copy": "Copy",
+      "paste": "Paste",
+      "delete": "Delete (or Backspace)",
       "multiSelect": "Select several pieces",
-      "boxSelect": "On the empty canvas, select with a box",
-      "pan": "Move the canvas (also with scroll)",
-      "zoom": "Zoom in or out (or pinch on the trackpad)",
-      "rename": "Rename an input or output (Sandbox)"
+      "boxSelect": "Box selection",
+      "pan": "Move the canvas",
+      "zoom": "Zoom in or out",
+      "rename": "Rename a pin"
     }
   },
   "editor": {

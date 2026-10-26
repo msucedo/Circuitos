@@ -231,9 +231,17 @@ select {
 .language button:first-child { border-radius: 6px 0 0 6px; }
 .language button:last-child { border-left: 0; border-radius: 0 6px 6px 0; }
 .language button[aria-pressed='true'] { border-color: var(--accent); background: #26304a; }
-.shortcuts { display: grid; gap: 4px; margin: 0; font-size: 13px; }
-.shortcuts div { display: flex; gap: 12px; align-items: baseline; }
-.shortcuts dt { display: flex; flex: none; gap: 3px; width: 150px; }
+.shortcuts {
+  display: grid;
+  --gap: 20px;
+  /* Two columns when both fit at a readable width, one on a phone. Never more than two. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(14rem, (100% - var(--gap)) / 2)), 1fr));
+  gap: 6px var(--gap);
+  margin: 0;
+  font-size: 13px;
+}
+.shortcuts div { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: baseline; }
+.shortcuts dt { display: flex; gap: 3px; white-space: nowrap; }
 .shortcuts dd { margin: 0; color: var(--muted); }
 kbd {
   padding: 0 5px;
