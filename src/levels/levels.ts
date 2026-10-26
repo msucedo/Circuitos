@@ -20,6 +20,8 @@ const level = (id: string, extra?: Partial<Level>): Level => ({ id, spec: SPECS.
 
 /** Bus levels also offer the pieces that split a bus into bits and join them back. */
 const BUS_PARTS = ['NAND', 'SPLIT', 'JOIN']
+/** The counter needs a constant 1 for its register's load. */
+const BUS_AND_SOURCE = [...BUS_PARTS, 'VCC']
 
 export const LEVELS: Level[] = [
   level('RELAY_NAND', { parts: ['VCC', 'RELAY', 'RELAY_NC'], optional: true, chip: false }),
@@ -40,6 +42,10 @@ export const LEVELS: Level[] = [
   level('DECODER', { parts: BUS_PARTS }),
   level('INC4', { parts: BUS_PARTS }),
   level('ALU4', { parts: BUS_PARTS }),
+  level('BIT'),
+  level('REGISTER4', { parts: BUS_PARTS }),
+  level('COUNTER4', { parts: BUS_AND_SOURCE }),
+  level('RAM4', { parts: BUS_PARTS }),
 ]
 
 export const levelById = (id: string) => LEVELS.find((l) => l.id === id)

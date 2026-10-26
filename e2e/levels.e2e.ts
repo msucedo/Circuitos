@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { LEVELS, MAIN_LEVELS } from '../src/levels/levels.ts'
-import { addPiece, handle, node, openLevel, restart, seedSolved, SHOTS, start, watchErrors, wire } from './helpers.ts'
+import { addPiece, levelsBefore, handle, node, openLevel, restart, seedSolved, SHOTS, start, watchErrors, wire } from './helpers.ts'
 
 test('loads the built app with no console errors or CSP violations', async ({ page }) => {
   const errors = watchErrors(page)
@@ -192,8 +192,7 @@ test('the hint starts folded and folds again on another level; the ? button is r
 
 test('bus levels start with bus pins and a live table of the cases Probar checks', async ({ page }) => {
   const errors = watchErrors(page)
-  const before = (id: string) => LEVELS.slice(0, LEVELS.findIndex((l) => l.id === id)).map((l) => l.id)
-  await seedSolved(page, before('ALU4'))
+  await seedSolved(page, levelsBefore('ALU4'))
   await start(page)
   await openLevel(page, 'ALU de 4 bits')
   await expect(page.getByLabel('entrada a (4 bits)')).toBeVisible()
@@ -208,5 +207,19 @@ test('bus levels start with bus pins and a live table of the cases Probar checks
   const cases = LEVELS.find((l) => l.id === 'ALU4')!.spec.steps.length
   await expect(table.locator('tbody tr')).toHaveCount(cases)
   await page.screenshot({ path: `${SHOTS}/alu4.png` })
+  expect(errors).toEqual([])
+})
+
+test('memory levels: the counter offers a constant 1 and the RAM starts with a 2-bit address', async ({ page }) => {
+  const errors = watchErrors(page)
+  await seedSolved(page, levelsBefore('RAM4'))
+  await start(page)
+  await openLevel(page, 'Contador')
+  const palette = page.getByRole('complementary', { name: 'Piezas' })
+  await expect(palette.getByRole('button', { name: 'Fuente', exact: true })).toBeVisible()
+  await expect(palette.getByRole('button', { name: 'Registro de 4 bits', exact: true })).toBeVisible()
+  await openLevel(page, 'RAM')
+  await expect(page.getByLabel('entrada addr (2 bits)')).toBeVisible()
+  await expect(page.getByText(`Nivel ${MAIN_LEVELS.length} de ${MAIN_LEVELS.length}`)).toBeVisible()
   expect(errors).toEqual([])
 })

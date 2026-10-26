@@ -43,6 +43,6 @@ describe('chipUsers', () => {
     const ids = (users: ReturnType<typeof chipUsers>) => ({ chips: users.chips.map((c) => c.id), sandbox: users.sandbox })
     expect(ids(chipUsers('XOR', chips, { nodes: [], wires: [] }))).toEqual({ chips: ['HALF_ADDER'], sandbox: false })
     expect(ids(chipUsers('ADDER4', chips, FULL_ADDER))).toEqual({ chips: [], sandbox: false })
-    expect(ids(chipUsers('HALF_ADDER', chips, FULL_ADDER))).toEqual({ chips: ['FULL_ADDER'], sandbox: true })
+    expect(ids(chipUsers('HALF_ADDER', chips, FULL_ADDER))).toEqual({ chips: ['FULL_ADDER', 'INC4'], sandbox: true })
   })
 })

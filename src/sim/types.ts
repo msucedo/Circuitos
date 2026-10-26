@@ -12,6 +12,10 @@ export type PrimitiveKind = GateKind | 'SPLIT' | 'JOIN' | BuiltinKind
 
 export const MAX_WIDTH = 16
 
+/** Buses of the block 3 levels: 4-bit words, and 2-bit selectors that pick one of 4. */
+export const WORD = 4
+export const SELECTOR = 2
+
 export interface CircuitNode {
   id: string
   kind: string

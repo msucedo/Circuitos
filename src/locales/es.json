@@ -248,6 +248,26 @@
       "name": "ALU de 4 bits",
       "goal": "El corazón de la CPU. op elige la operación: 0 suma, 1 resta (a − b), 2 AND y 3 OR, bit por bit. zero vale 1 cuando el resultado es 0.",
       "hint": "a − b es a + NOT b + 1: el bit 0 de op sirve para invertir b y como ese 1 de acarreo. El bit 1 de op elige entre aritmética y lógica."
+    },
+    "BIT": {
+      "name": "Bit",
+      "goal": "Una memoria de 1 bit que tú controlas: cuando clk sube de 0 a 1, out guarda in si load=1; si load=0, conserva lo que tenía.",
+      "hint": "Un multiplexor elige qué entra al flip-flop D: su propia salida (conservar) o in (guardar)."
+    },
+    "REGISTER4": {
+      "name": "Registro de 4 bits",
+      "goal": "Guarda un número de 4 bits: cuando clk sube y load=1, out toma el valor de in.",
+      "hint": "Un Bit por cada bit del bus, todos con el mismo load y el mismo clk."
+    },
+    "COUNTER4": {
+      "name": "Contador",
+      "goal": "Cuenta solo: en cada subida de clk, out suma 1 (después de 15 vuelve a 0). Con load=1 salta a in, y con reset=1 vuelve a 0. reset gana sobre load.",
+      "hint": "Un registro que siempre guarda (load con la Fuente) el siguiente valor: 0 si reset, in si load y si no la cuenta + 1. Un bus en 0 es el contrario de un bus de unos."
+    },
+    "RAM4": {
+      "name": "RAM",
+      "goal": "Cuatro palabras de 4 bits. out muestra la palabra de la dirección addr; cuando clk sube y load=1, in se guarda en esa dirección.",
+      "hint": "Cuatro registros. El decodificador decide a cuál le llega load, y dos niveles de multiplexores eligen cuál se lee."
     }
   },
   "problems": {

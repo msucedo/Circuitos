@@ -1,5 +1,5 @@
 import { build, nand } from './build.ts'
-import { toLibrary } from './types.ts'
+import { SELECTOR, WORD, toLibrary } from './types.ts'
 
 /** Level 0: two relays in series give a AND b; a normally closed relay inverts it. */
 export const RELAY_NAND = build({
@@ -102,12 +102,11 @@ export const D_FLIPFLOP = build({
   outputs: { q: 'slave.q' },
 })
 
-/** Block 3: from multiplexers to a 4-bit ALU. Buses are 4 bits wide (`W`), split into b0 (least significant) to b3. */
+/** Block 3: from multiplexers to a 4-bit ALU. Buses are WORD bits wide, split into b0 (least significant) upwards. */
 
-const W = 4
-const BITS = [0, 1, 2, 3]
-const split = (from: string, width = W) => ({ kind: 'SPLIT', width, in: { in: from } })
-const join = (bit: (i: number) => string) => ({ kind: 'JOIN', width: W, in: Object.fromEntries(BITS.map((i) => [`b${i}`, bit(i)])) })
+const BITS = Array.from({ length: WORD }, (_, i) => i)
+const split = (from: string, width = WORD) => ({ kind: 'SPLIT', width, in: { in: from } })
+const join = (bit: (i: number) => string) => ({ kind: 'JOIN', width: WORD, in: Object.fromEntries(BITS.map((i) => [`b${i}`, bit(i)])) })
 /** One 1-bit chip per bit, named `${prefix}${i}`. */
 const perBit = (prefix: string, kind: string, inputs: (i: number) => Record<string, string>) =>
   Object.fromEntries(BITS.map((i) => [`${prefix}${i}`, part(kind, inputs(i))]))
@@ -133,7 +132,7 @@ export const NOT4 = build({
   inputs: ['in'],
   parts: { s: split('in'), ...perBit('n', 'NOT', (i) => ({ a: `s.b${i}` })), j: join((i) => `n${i}`) },
   outputs: { out: 'j' },
-  widths: { in: W, out: W },
+  widths: { in: WORD, out: WORD },
 })
 
 export const MUX4 = build({
@@ -145,13 +144,13 @@ export const MUX4 = build({
     j: join((i) => `m${i}`),
   },
   outputs: { out: 'j' },
-  widths: { a: W, b: W, out: W },
+  widths: { a: WORD, b: WORD, out: WORD },
 })
 
 export const DECODER = build({
   inputs: ['sel'],
   parts: {
-    s: split('sel', 2),
+    s: split('sel', SELECTOR),
     n0: part('NOT', { a: 's.b0' }),
     n1: part('NOT', { a: 's.b1' }),
     d0: part('AND', { a: 'n1', b: 'n0' }),
@@ -160,7 +159,7 @@ export const DECODER = build({
     d3: part('AND', { a: 's.b1', b: 's.b0' }),
   },
   outputs: { y0: 'd0', y1: 'd1', y2: 'd2', y3: 'd3' },
-  widths: { sel: 2 },
+  widths: { sel: SELECTOR },
 })
 
 /** Bit 0 always flips; every other bit is a half adder with the carry from below. */
@@ -175,7 +174,7 @@ export const INC4 = build({
     j: join((i) => (i === 0 ? 'o0' : `h${i}.sum`)),
   },
   outputs: { out: 'j' },
-  widths: { in: W, out: W },
+  widths: { in: WORD, out: WORD },
 })
 
 /**
@@ -185,7 +184,7 @@ export const INC4 = build({
 export const ALU4 = build({
   inputs: ['a', 'b', 'op'],
   parts: {
-    so: split('op', 2),
+    so: split('op', SELECTOR),
     nb: part('NOT4', { in: 'b' }),
     bb: part('MUX4', { a: 'b', b: 'nb', sel: 'so.b0' }),
     sa: split('a'),
@@ -210,11 +209,76 @@ export const ALU4 = build({
     none: part('NOT', { a: 'any' }),
   },
   outputs: { out: 'result', zero: 'none' },
-  widths: { a: W, b: W, op: 2, out: W },
+  widths: { a: WORD, b: WORD, op: SELECTOR, out: WORD },
+})
+
+/** Block 3, memory: everything stored changes only when `clk` rises. */
+
+/** A multiplexer feeds the flip-flop either its own value (keep) or `in` (load). */
+export const BIT = build({
+  inputs: ['in', 'load', 'clk'],
+  parts: { m: part('MUX', { a: 'd.q', b: 'in', sel: 'load' }), d: part('D_FLIPFLOP', { d: 'm', clk: 'clk' }) },
+  outputs: { out: 'd.q' },
+})
+
+export const REGISTER4 = build({
+  inputs: ['in', 'load', 'clk'],
+  parts: { s: split('in'), ...perBit('r', 'BIT', (i) => ({ in: `s.b${i}`, load: 'load', clk: 'clk' })), j: join((i) => `r${i}`) },
+  outputs: { out: 'j' },
+  widths: { in: WORD, out: WORD },
+})
+
+/** Next value: 0 on reset, else `in` on load, else the count plus one; the register stores it on every edge. */
+export const COUNTER4 = build({
+  inputs: ['in', 'load', 'reset', 'clk'],
+  parts: {
+    one: { kind: 'VCC', in: {} },
+    ones: join(() => 'one'),
+    zeros: part('NOT4', { in: 'ones' }),
+    plus: part('INC4', { in: 'reg' }),
+    loaded: part('MUX4', { a: 'plus', b: 'in', sel: 'load' }),
+    next: part('MUX4', { a: 'loaded', b: 'zeros', sel: 'reset' }),
+    reg: part('REGISTER4', { in: 'next', load: 'one', clk: 'clk' }),
+  },
+  outputs: { out: 'reg' },
+  widths: { in: WORD, out: WORD },
+})
+
+/** The decoder picks which register `load` reaches; two levels of multiplexers pick which one is read. */
+export const RAM4 = build({
+  inputs: ['in', 'addr', 'load', 'clk'],
+  parts: {
+    dec: part('DECODER', { sel: 'addr' }),
+    ...perBit('w', 'AND', (i) => ({ a: `dec.y${i}`, b: 'load' })),
+    ...perBit('r', 'REGISTER4', (i) => ({ in: 'in', load: `w${i}`, clk: 'clk' })),
+    sa: split('addr', SELECTOR),
+    lo: part('MUX4', { a: 'r0', b: 'r1', sel: 'sa.b0' }),
+    hi: part('MUX4', { a: 'r2', b: 'r3', sel: 'sa.b0' }),
+    o: part('MUX4', { a: 'lo', b: 'hi', sel: 'sa.b1' }),
+  },
+  outputs: { out: 'o' },
+  widths: { in: WORD, addr: SELECTOR, out: WORD },
 })
 
 export const LIBRARY = toLibrary(
-  Object.entries({ NOT, AND, OR, XOR, HALF_ADDER, FULL_ADDER, ADDER4, D_LATCH, MUX, NOT4, MUX4 }).map(([id, circuit]) => ({
+  Object.entries({
+    NOT,
+    AND,
+    OR,
+    XOR,
+    HALF_ADDER,
+    FULL_ADDER,
+    ADDER4,
+    D_LATCH,
+    D_FLIPFLOP,
+    MUX,
+    NOT4,
+    MUX4,
+    DECODER,
+    INC4,
+    BIT,
+    REGISTER4,
+  }).map(([id, circuit]) => ({
     id,
     name: id,
     circuit,

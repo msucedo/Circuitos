@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as examples from '../sim/examples.ts'
 import { verify } from '../sim/verify.ts'
 import type { ChipDef, Circuit } from '../sim/types.ts'
+import en from '../locales/en.json'
 import es from '../locales/es.json'
 import { ALU_OP } from './specs.ts'
 import { LEVELS, MAIN_LEVELS, firstOpenLevel, isUnlocked, levelById, levelCircuit, levelLibrary, levelNumber, levelPalette, nextLevel, unlockedBy } from './levels.ts'
@@ -99,10 +100,29 @@ describe('block 3 levels', () => {
     })
     const all = new Set(LEVELS.map((l) => l.id))
     const chips = LEVELS.filter((l) => l.chip !== false).map((l) => ({ id: l.id, name: l.id, circuit: solution(l.id) }))
-    for (const [id, join] of [['MUX4', 'j'], ['NOT4', 'j'], ['INC4', 'j'], ['ALU4', 'arith']]) {
+    for (const [id, join] of [['MUX4', 'j'], ['NOT4', 'j'], ['INC4', 'j'], ['ALU4', 'arith'], ['REGISTER4', 'j']]) {
       const library = levelLibrary(levelById(id)!, all, chips)
       expect(verify(crossed(solution(id), join), library, spec(id)).passed, id).toBe(false)
     }
+  })
+
+  it('memory levels follow their model: count, wrap, reset first, and read the addressed word', () => {
+    const outs = (id: string) => spec(id).steps.filter((s) => s.set.clk === 1).map((s) => s.expect.out)
+    expect(outs('COUNTER4')).toEqual([0, 1, 2, 3, 9, 10, 11, 12, 13, 14, 15, 0, 0, 1, 14, 15])
+    expect(outs('RAM4')).toEqual([5, 10, 3, 12, 5, 10, 3, 12, 15, 5, 15, 12])
+    expect(outs('BIT')).toEqual([1, 1, 0, 0, 1, 1, 0])
+  })
+
+  it('tell a flip-flop from a latch: a BIT that follows the clock level fails', () => {
+    const library = levelLibrary(levelById('BIT')!, new Set(LEVELS.map((l) => l.id)), LEVELS.map((l) => ({ id: l.id, name: l.id, circuit: solution(l.id) })))
+    const latched: Circuit = {
+      ...solution('BIT'),
+      nodes: solution('BIT').nodes.map((n) => (n.kind === 'D_FLIPFLOP' ? { ...n, kind: 'D_LATCH' } : n)),
+      wires: solution('BIT').wires.map((w) =>
+        w.to.node === 'd' && w.to.pin === 'clk' ? { ...w, to: { ...w.to, pin: 'en' } } : w,
+      ),
+    }
+    expect(verify(latched, library, spec('BIT')).passed).toBe(false)
   })
 
   it('keep every spec small', () => {
@@ -116,9 +136,12 @@ describe('block 3 levels', () => {
   })
 
   it('have a name and a goal in every language', () => {
-    for (const level of LEVELS) {
-      expect(es.levels[level.id as keyof typeof es.levels]?.name, level.id).toBeTruthy()
-      expect(es.levels[level.id as keyof typeof es.levels]?.goal, level.id).toBeTruthy()
+    for (const [language, texts] of Object.entries({ es, en })) {
+      const levels: Record<string, { name?: string; goal?: string }> = texts.levels
+      for (const level of LEVELS) {
+        expect(levels[level.id]?.name, `${language} ${level.id}`).toBeTruthy()
+        expect(levels[level.id]?.goal, `${language} ${level.id}`).toBeTruthy()
+      }
     }
   })
 })

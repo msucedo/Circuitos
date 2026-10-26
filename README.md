@@ -13,7 +13,7 @@ npm run e2e        # pruebas en Chrome real contra el build (con CSP); capturas 
 
 Nivel 0 (opcional): armar la NAND con relés (Fuente, Relé, Relé inverso). Esas piezas se definen en NAND dentro de `src/sim/builtins.ts`, así que el simulador solo corre NAND.
 
-Niveles: compuertas (NOT a XOR), sumadores, memoria (latches y flip-flop D) y el camino a la CPU: multiplexor, demultiplexor, buses de 4 bits (NOT4, MUX4), decodificador, incrementador y una ALU de 4 bits (suma, resta, AND, OR y bandera zero). Los niveles con muchas combinaciones se prueban con casos escogidos (`vectorSpec` en `src/sim/verify.ts`) en vez de todas.
+Niveles: compuertas (NOT a XOR), sumadores, memoria (latches y flip-flop D) y el camino a la CPU: multiplexor, demultiplexor, buses de 4 bits (NOT4, MUX4), decodificador, incrementador, una ALU de 4 bits (suma, resta, AND, OR y bandera zero), y memoria con reloj: bit, registro, contador y una RAM de 4 palabras. Los niveles con muchas combinaciones se prueban con casos escogidos (`vectorSpec`), y los de memoria con un modelo de lo que deben recordar (`sequentialSpec`), los dos en `src/sim/verify.ts`.
 
 - `src/sim/`: motor puro (sin DOM): `simulate`, `flatten` (chips anidados), `verify`, `schema` (validación de todo JSON externo).
 - `src/editor/`: editor con React Flow.

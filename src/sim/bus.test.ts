@@ -120,6 +120,25 @@ describe('live table', () => {
     expect(table.rows.map((r) => [r.inputs[0], r.outputs[0]])).toEqual([[200, 200], [7, 7]])
   })
 
+  it("uses the spec's cases only when the circuit's inputs are exactly the spec's", () => {
+    const spec = vectorSpec({ inputs: ['a'], outputs: ['out'], widths: { a: 4, out: 4 }, cases: [{ a: 9 }], fn: ({ a }) => ({ out: a }) })
+    // A 1-bit `a` (an old draft, an import) would only get bit 0 of 9: show its own combinations instead.
+    const narrow = liveTable(build({ inputs: ['a'], outputs: { out: 'a' } }), LIBRARY, spec)
+    if ('code' in narrow) throw new Error(narrow.code)
+    expect(narrow.rows.map((r) => r.inputs)).toEqual([[0], [1]])
+    // An extra input keeps every combination too.
+    const extra = liveTable(build({ inputs: ['a', 'x'], outputs: { out: 'a' }, widths: { a: 4, out: 4 } }), LIBRARY, spec)
+    if ('code' in extra) throw new Error(extra.code)
+    expect(extra.rows).toHaveLength(32)
+  })
+
+  it('attaches what each row expects, in output order', () => {
+    const spec = vectorSpec({ inputs: ['a'], outputs: ['out'], widths: { a: 8, out: 8 }, cases: [{ a: 3 }], fn: () => ({ out: 5 }) })
+    const table = liveTable(build({ inputs: ['a'], outputs: { out: 'a' }, widths: { a: 8, out: 8 } }), LIBRARY, spec)
+    if ('code' in table) throw new Error(table.code)
+    expect(table.rows).toEqual([{ inputs: [3], outputs: [3], expected: [5], status: 'stable' }])
+  })
+
   it('keeps the size limit when a spec has too many cases to show', () => {
     const many = vectorSpec({ inputs: ['a'], outputs: [], widths: { a: 8 }, cases: Array.from({ length: MAX_TABLE_ROWS + 1 }, (_, a) => ({ a })), fn: () => ({}) })
     const wide = build({ inputs: ['a'], outputs: {}, widths: { a: 8 } })

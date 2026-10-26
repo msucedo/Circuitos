@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
+import { LEVELS } from '../src/levels/levels.ts'
 
 /** Screenshots go here so they can be reviewed by hand; set SHOTS to change it. */
 export const SHOTS = process.env.SHOTS ?? 'test-results/shots'
@@ -91,6 +92,9 @@ export async function wire(page: Page, from: [string, string], to: [string, stri
   await page.mouse.up()
   await expect(page.getByTestId(`rf__edge-${from.join('.')}->${to.join('.')}`)).toHaveCount(1)
 }
+
+/** Ids of every level that comes before `id`, to seed the progress that opens it. */
+export const levelsBefore = (id: string) => LEVELS.slice(0, LEVELS.findIndex((l) => l.id === id)).map((l) => l.id)
 
 /** Starts the app with these levels already solved, using the reference solutions as their chips. */
 export async function seedSolved(page: Page, ids: string[]) {

@@ -27,6 +27,20 @@ const csp = (): Plugin => ({
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), csp()],
-  build: { modulePreload: { polyfill: false } },
+  build: {
+    modulePreload: { polyfill: false },
+    rolldownOptions: {
+      output: {
+        // Libraries change less often than the app: their own files stay cached across releases.
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'flow', test: /node_modules[\\/](@xyflow|d3-[^\\/]+|classcat|zustand)[\\/]/ },
+            { name: 'i18n', test: /node_modules[\\/](i18next|react-i18next|i18next-browser-languagedetector|html-parse-stringify|void-elements)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   test: { setupFiles: ['src/test-setup.ts'] },
 })

@@ -27,8 +27,8 @@ export function build(spec: {
   /** Widths of input and output pins other than 1. */
   widths?: Record<string, number>
 }): Circuit {
-  const sized = (node: CircuitNode, width = spec.widths?.[node.id]): CircuitNode => (width ? { ...node, width } : node)
-  const nodes: CircuitNode[] = spec.inputs.map((id) => sized({ id, kind: 'INPUT' }))
+  const sized = (node: CircuitNode, width: number | undefined): CircuitNode => (width ? { ...node, width } : node)
+  const nodes: CircuitNode[] = spec.inputs.map((id) => sized({ id, kind: 'INPUT' }, spec.widths?.[id]))
   const wires: Wire[] = []
   for (const [id, part] of Object.entries(spec.parts ?? {})) {
     nodes.push(sized({ id, kind: part.kind }, part.width))
@@ -37,7 +37,7 @@ export function build(spec: {
     }
   }
   for (const [id, ref] of Object.entries(spec.outputs)) {
-    nodes.push(sized({ id, kind: 'OUTPUT' }))
+    nodes.push(sized({ id, kind: 'OUTPUT' }, spec.widths?.[id]))
     wires.push({ from: endpoint(ref), to: { node: id, pin: 'in' } })
   }
   return { nodes, wires }

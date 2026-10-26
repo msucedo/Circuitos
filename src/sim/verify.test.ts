@@ -3,7 +3,7 @@ import { SPECS } from '../levels/specs.ts'
 import { build, nand } from './build.ts'
 import * as examples from './examples.ts'
 import { LIBRARY, OR } from './examples.ts'
-import { verify } from './verify.ts'
+import { sequentialSpec, verify } from './verify.ts'
 
 describe('verify', () => {
   it.each([...SPECS.keys()])('the reference %s passes its spec', (id) => {
@@ -36,5 +36,34 @@ describe('verify', () => {
     const result = verify(ring, LIBRARY, SPECS.get('NOT')!)
     expect(result.steps.map((s) => s.status)).toEqual(['stable', 'oscillating'])
     expect(result.passed).toBe(false)
+  })
+})
+
+describe('sequentialSpec', () => {
+  // A 1-bit register: on each rising clock edge, q takes d when load is 1.
+  const spec = sequentialSpec<number | undefined>({
+    inputs: ['d', 'load', 'clk'],
+    outputs: ['q'],
+    cycles: [{ d: 1, load: 1 }, { d: 0, load: 0 }],
+    initial: undefined,
+    next: (state, set) => (set.load ? set.d : state),
+    read: (state): Record<string, number> => (state === undefined ? {} : { q: state }),
+  })
+
+  it('turns each cycle into: set inputs, clock low, clock high; holding the output until the edge', () => {
+    expect(spec.steps).toEqual([
+      { set: { d: 1, load: 1 }, expect: {} },
+      { set: { clk: 0 }, expect: {} },
+      { set: { clk: 1 }, expect: { q: 1 } },
+      { set: { d: 0, load: 0 }, expect: { q: 1 } },
+      { set: { clk: 0 }, expect: { q: 1 } },
+      { set: { clk: 1 }, expect: { q: 1 } },
+    ])
+    expect(spec.combinational).toBeUndefined()
+  })
+
+  it('refuses a clock that is not one of the inputs', () => {
+    const noClock = { inputs: ['d'], outputs: ['q'], cycles: [], initial: 0, next: () => 0, read: () => ({}) }
+    expect(() => sequentialSpec(noClock)).toThrow(/clock "clk" is not among the inputs/)
   })
 })

@@ -17,12 +17,6 @@ export function TruthTable({ circuit, library, spec }: { circuit: Circuit; libra
   if ('code' in table) return <p className="table-note">{problemText(t, table)}</p>
   if (table.inputs.length === 0) return <p className="table-note">{t('result.addInputs')}</p>
 
-  const expected = (inputs: number[]) => {
-    if (!spec?.combinational) return undefined
-    const step = spec.steps.find((s) => table.inputs.every((p, i) => s.set[p.name] === inputs[i]))
-    return step && table.outputs.map((p) => step.expect[p.name])
-  }
-
   const checked = spec?.combinational === true
   const group = (label: string, span: number) => span > 0 && <th colSpan={span}>{label}</th>
 
@@ -55,7 +49,7 @@ export function TruthTable({ circuit, library, spec }: { circuit: Circuit; libra
       </thead>
       <tbody>
         {table.rows.map((row, r) => {
-          const want = expected(row.inputs)
+          const want = row.expected
           const oscillating = row.status === 'oscillating'
           const bad = (i: number) => oscillating || (want !== undefined && want[i] !== row.outputs[i])
           const wrong = table.outputs.some((_, i) => bad(i))

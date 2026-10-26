@@ -248,6 +248,26 @@
       "name": "4-bit ALU",
       "goal": "The heart of the CPU. op picks the operation: 0 add, 1 subtract (a − b), 2 AND and 3 OR, bit by bit. zero is 1 when the result is 0.",
       "hint": "a − b is a + NOT b + 1: bit 0 of op can invert b and be that carry-in 1. Bit 1 of op picks arithmetic or logic."
+    },
+    "BIT": {
+      "name": "Bit",
+      "goal": "A 1-bit memory you control: when clk rises from 0 to 1, out stores in if load=1; if load=0, it keeps what it had.",
+      "hint": "A multiplexer picks what goes into the D flip-flop: its own output (keep) or in (store)."
+    },
+    "REGISTER4": {
+      "name": "4-bit register",
+      "goal": "Store a 4-bit number: when clk rises and load=1, out takes the value of in.",
+      "hint": "One Bit per bit of the bus, all sharing load and clk."
+    },
+    "COUNTER4": {
+      "name": "Counter",
+      "goal": "Counts by itself: on every rise of clk, out adds 1 (after 15 it wraps to 0). With load=1 it jumps to in, and with reset=1 it goes back to 0. reset wins over load.",
+      "hint": "A register that always stores (load from the Source) the next value: 0 on reset, in on load, otherwise the count + 1. A bus of 0s is the opposite of a bus of 1s."
+    },
+    "RAM4": {
+      "name": "RAM",
+      "goal": "Four 4-bit words. out shows the word at address addr; when clk rises and load=1, in is stored at that address.",
+      "hint": "Four registers. The decoder decides which one gets load, and two levels of multiplexers pick which one is read."
     }
   },
   "problems": {

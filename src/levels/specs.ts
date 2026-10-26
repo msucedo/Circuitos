@@ -1,24 +1,35 @@
-import { tableSpec, vectorSpec } from '../sim/verify.ts'
+import { sequentialSpec, tableSpec, vectorSpec } from '../sim/verify.ts'
 import type { Spec } from '../sim/verify.ts'
+import { SELECTOR, WORD } from '../sim/types.ts'
 import type { Bit } from '../sim/types.ts'
 
 const bit = (value: boolean | number): Bit => (value ? 1 : 0)
 const toNumber = (bits: Bit[]) => bits.reduce<number>((n, b) => n * 2 + b, 0)
 
-/** Width of the buses in the 4-bit levels. */
-export const WORD = 4
 const WORD_MASK = 2 ** WORD - 1
-const SEL2 = 2
 const ALL_WORDS = Array.from({ length: 2 ** WORD }, (_, n) => n)
 
 /** What the ALU's 2-bit `op` input selects. */
 export const ALU_OP = { ADD: 0, SUB: 1, AND: 2, OR: 3 } as const
-const ALU = {
-  [ALU_OP.ADD]: (a: number, b: number) => (a + b) & WORD_MASK,
-  [ALU_OP.SUB]: (a: number, b: number) => (a - b) & WORD_MASK,
-  [ALU_OP.AND]: (a: number, b: number) => a & b,
-  [ALU_OP.OR]: (a: number, b: number) => a | b,
+const ALU: Record<number, (a: number, b: number) => number> = {
+  [ALU_OP.ADD]: (a, b) => (a + b) & WORD_MASK,
+  [ALU_OP.SUB]: (a, b) => (a - b) & WORD_MASK,
+  [ALU_OP.AND]: (a, b) => a & b,
+  [ALU_OP.OR]: (a, b) => a | b,
 }
+
+function alu(a: number, b: number, op: number): number {
+  const operation = ALU[op]
+  if (!operation) throw new Error(`ALU4 spec: no operation ${op}`)
+  return operation(a, b)
+}
+
+/** Words of the 4-word RAM, addressed by a 2-bit `addr`. */
+const RAM_WORDS = 4
+type Memory = (number | undefined)[]
+
+/** What a register shows: nothing is known until something is stored. */
+const shown = (pin: string, value: number | undefined) => (value === undefined ? {} : { [pin]: value })
 
 /**
  * Pairs of words chosen to catch the usual wiring mistakes when checking every
@@ -135,7 +146,7 @@ export const SPECS = new Map<string, Spec>([
     vectorSpec({
       inputs: ['sel'],
       outputs: ['y0', 'y1', 'y2', 'y3'],
-      widths: { sel: SEL2 },
+      widths: { sel: SELECTOR },
       cases: [0, 1, 2, 3].map((sel) => ({ sel })),
       fn: (set) => ({ y0: bit(set.sel === 0), y1: bit(set.sel === 1), y2: bit(set.sel === 2), y3: bit(set.sel === 3) }),
     }),
@@ -155,12 +166,105 @@ export const SPECS = new Map<string, Spec>([
     vectorSpec({
       inputs: ['a', 'b', 'op'],
       outputs: ['out', 'zero'],
-      widths: { a: WORD, b: WORD, op: SEL2, out: WORD },
+      widths: { a: WORD, b: WORD, op: SELECTOR, out: WORD },
       cases: WORD_PAIRS.flatMap(([a, b]) => Object.values(ALU_OP).map((op) => ({ a, b, op }))),
       fn: ({ a, b, op }) => {
-        const out = ALU[op as keyof typeof ALU](a, b)
+        const out = alu(a, b, op)
         return { out, zero: bit(out === 0) }
       },
+    }),
+  ],
+  [
+    'BIT',
+    sequentialSpec<number | undefined>({
+      inputs: ['in', 'load', 'clk'],
+      outputs: ['out'],
+      cycles: [
+        { in: 1, load: 1 },
+        { in: 0, load: 0 },
+        { in: 0, load: 1 },
+        { in: 1, load: 0 },
+        { in: 1, load: 1 },
+        { in: 0, load: 0 },
+        { in: 0, load: 1 },
+      ],
+      initial: undefined,
+      next: (state, set) => (set.load ? set.in : state),
+      read: (state) => shown('out', state),
+    }),
+  ],
+  [
+    'REGISTER4',
+    sequentialSpec<number | undefined>({
+      inputs: ['in', 'load', 'clk'],
+      outputs: ['out'],
+      widths: { in: WORD, out: WORD },
+      cycles: [
+        { in: 5, load: 1 },
+        { in: 10, load: 0 },
+        { in: 10, load: 1 },
+        { in: 1, load: 1 },
+        { in: 8, load: 0 },
+        { in: 15, load: 1 },
+        { in: 0, load: 0 },
+        { in: 6, load: 1 },
+        { in: 9, load: 1 },
+        { in: 0, load: 1 },
+      ],
+      initial: undefined,
+      next: (state, set) => (set.load ? set.in : state),
+      read: (state) => shown('out', state),
+    }),
+  ],
+  [
+    'COUNTER4',
+    sequentialSpec<number | undefined>({
+      inputs: ['in', 'load', 'reset', 'clk'],
+      outputs: ['out'],
+      widths: { in: WORD, out: WORD },
+      cycles: [
+        { in: 0, load: 0, reset: 1 },
+        { reset: 0 },
+        {},
+        {},
+        { in: 9, load: 1 },
+        { in: 0, load: 0 },
+        ...Array.from({ length: 6 }, () => ({})),
+        { in: 5, load: 1, reset: 1 },
+        { load: 0, reset: 0 },
+        { in: 14, load: 1 },
+        { load: 0 },
+      ],
+      initial: undefined,
+      // Reset wins over load, and load over counting.
+      next: (state, set) => (set.reset ? 0 : set.load ? set.in : state === undefined ? undefined : (state + 1) & WORD_MASK),
+      read: (state) => shown('out', state),
+    }),
+  ],
+  [
+    'RAM4',
+    sequentialSpec<Memory>({
+      inputs: ['in', 'addr', 'load', 'clk'],
+      outputs: ['out'],
+      widths: { in: WORD, addr: SELECTOR, out: WORD },
+      cycles: [
+        { in: 5, addr: 0, load: 1 },
+        { in: 10, addr: 1 },
+        { in: 3, addr: 2 },
+        { in: 12, addr: 3 },
+        { in: 0, addr: 0, load: 0 },
+        { addr: 1 },
+        { addr: 2 },
+        { addr: 3 },
+        { in: 15, addr: 2, load: 1 },
+        { in: 0, addr: 0, load: 0 },
+        { addr: 2 },
+        { addr: 3 },
+      ],
+      initial: Array.from({ length: RAM_WORDS }, () => undefined),
+      // The addressed word is always on `out`; `load` stores `in` there on the clock edge.
+      next: (memory, set) => (set.load ? memory.map((word, i) => (i === set.addr ? set.in : word)) : memory),
+      read: (memory, set) => shown('out', memory[set.addr]),
     }),
   ],
 ])

@@ -87,6 +87,38 @@ export function vectorSpec(def: {
   return { inputs, outputs, widths, combinational: true, steps: cases.map((set) => ({ set, expect: fn(set) })) }
 }
 
+/**
+ * Spec for a clocked circuit, from a model of what it should remember. Each cycle
+ * sets its inputs, drops the clock and raises it again; the outputs must hold
+ * until the rising edge, so a level-sensitive latch fails where a flip-flop passes.
+ * `read` returns only the outputs it knows (none before the state is set).
+ */
+export function sequentialSpec<S>(def: {
+  inputs: string[]
+  outputs: string[]
+  widths?: Record<string, number>
+  clock?: string
+  cycles: Record<string, number>[]
+  initial: S
+  next: (state: S, inputs: Record<string, number>) => S
+  read: (state: S, inputs: Record<string, number>) => Record<string, number>
+}): Spec {
+  const { inputs, outputs, widths, clock = 'clk', cycles, next, read } = def
+  // A spec mistake, not a player's: fail where the level is defined.
+  if (!inputs.includes(clock)) throw new Error(`sequentialSpec: the clock "${clock}" is not among the inputs`)
+  const steps: Step[] = []
+  let state = def.initial
+  let current: Record<string, number> = {}
+  for (const set of cycles) {
+    current = { ...current, ...set }
+    steps.push({ set, expect: read(state, current) })
+    steps.push({ set: { [clock]: 0 }, expect: read(state, current) })
+    state = next(state, current)
+    steps.push({ set: { [clock]: 1 }, expect: read(state, current) })
+  }
+  return { inputs, outputs, widths, steps }
+}
+
 export function verify(circuit: Circuit, library: ChipLibrary, spec: Spec): VerifyResult {
   const harness = tryHarness(circuit, library)
   if (harness instanceof CircuitError) return { passed: false, error: harness, steps: [] }
@@ -105,39 +137,49 @@ export function verify(circuit: Circuit, library: ChipLibrary, spec: Spec): Veri
 }
 
 export const MAX_TABLE_BITS = 6
-/** A level's own cases are shown instead of every combination when there are at most this many. */
-export const MAX_TABLE_ROWS = 64
+/** A level's own cases are shown instead of every combination when there are at most as many as a full table. */
+export const MAX_TABLE_ROWS = 2 ** MAX_TABLE_BITS
 
 export interface LiveTable {
   inputs: Pin[]
   outputs: Pin[]
-  rows: { inputs: number[]; outputs: number[]; status: SettleResult['status'] }[]
+  /** `expected` (by output) comes with a combinational spec, when the spec has a case for the row. */
+  rows: { inputs: number[]; outputs: number[]; expected?: (number | undefined)[]; status: SettleResult['status'] }[]
 }
 
 /**
  * Truth table of the current circuit over its top-level pins. With a combinational
- * spec of few cases, the rows are those cases (what Probar checks); otherwise every
- * combination, up to MAX_TABLE_BITS input bits. Every row starts from all-zero
- * state so memory circuits don't leak state between rows.
+ * spec of few cases whose inputs the circuit has exactly (names and widths), the rows
+ * are those cases, what Probar checks; otherwise every combination, up to
+ * MAX_TABLE_BITS input bits. Every row starts from all-zero state so memory
+ * circuits don't leak state between rows.
  */
 export function liveTable(circuit: Circuit, library: ChipLibrary, spec?: Spec): LiveTable | Problem {
   const harness = tryHarness(circuit, library)
   if (harness instanceof CircuitError) return harness
   const bits = harness.inputs.reduce((n, p) => n + p.width, 0)
-  const row = (values: number[]) => {
+  const checked = spec?.combinational ? spec : undefined
+  const expectedFor = (step: Step | undefined) => step && harness.outputs.map((p) => step.expect[p.name])
+  const row = (values: number[], step?: Step) => {
     harness.sim.values.fill(0)
     harness.inputs.forEach((pin, i) => harness.set(pin.name, values[i]))
     const { status } = harness.sim.settle()
-    return { inputs: values, outputs: harness.outputs.map((p) => harness.read(p.name)), status }
+    const expected = expectedFor(step)
+    return { inputs: values, outputs: harness.outputs.map((p) => harness.read(p.name)), ...(expected ? { expected } : {}), status }
   }
-  if (spec?.combinational && spec.steps.length <= MAX_TABLE_ROWS) {
-    const rows = spec.steps.map((step) => row(harness.inputs.map((pin) => step.set[pin.name] ?? 0)))
+  const sameInputs =
+    checked !== undefined &&
+    harness.inputs.length === checked.inputs.length &&
+    harness.inputs.every((p) => checked.inputs.includes(p.name) && p.width === specWidth(checked, p.name))
+  if (checked && sameInputs && checked.steps.length <= MAX_TABLE_ROWS) {
+    const rows = checked.steps.map((step) => row(harness.inputs.map((pin) => step.set[pin.name]), step))
     return { inputs: harness.inputs, outputs: harness.outputs, rows }
   }
   if (bits > MAX_TABLE_BITS) return problem('tableTooWide', { max: MAX_TABLE_BITS, count: bits })
   const rows = combinations(bits).map((combo) => {
     let at = 0
-    return row(harness.inputs.map((pin) => combo.slice(at, (at += pin.width)).reduce<number>((n, b) => n * 2 + b, 0)))
+    const values = harness.inputs.map((pin) => combo.slice(at, (at += pin.width)).reduce<number>((n, b) => n * 2 + b, 0))
+    return row(values, checked?.steps.find((s) => harness.inputs.every((p, i) => s.set[p.name] === values[i])))
   })
   return { inputs: harness.inputs, outputs: harness.outputs, rows }
 }
