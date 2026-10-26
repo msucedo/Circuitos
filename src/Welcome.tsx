@@ -10,7 +10,9 @@ const SHORTCUTS: [keys: string[], action: string][] = [
   [[MOD, 'V'], 'Pegar (también en otro nivel)'],
   [['Supr'], 'Borrar lo seleccionado (o Backspace)'],
   [[MOD, 'clic'], 'Seleccionar varias piezas'],
-  [['Shift', 'arrastrar'], 'Seleccionar con un recuadro'],
+  [['Arrastrar'], 'En el lienzo vacío, seleccionar con un recuadro'],
+  [['Espacio', 'arrastrar'], 'Mover el lienzo (también con scroll)'],
+  [[MOD, 'scroll'], 'Acercar o alejar (o pellizcar en el trackpad)'],
   [['Doble clic'], 'Renombrar una entrada o salida (Modo libre)'],
 ]
 

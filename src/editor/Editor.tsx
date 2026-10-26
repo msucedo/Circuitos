@@ -1,4 +1,14 @@
-import { Background, Controls, ReactFlow, ReactFlowProvider, addEdge, useEdgesState, useNodesState, useReactFlow } from '@xyflow/react'
+import {
+  Background,
+  Controls,
+  ReactFlow,
+  ReactFlowProvider,
+  SelectionMode,
+  addEdge,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+} from '@xyflow/react'
 import type { Connection, Edge, EdgeTypes, NodeTypes, OnBeforeDelete, XYPosition } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -22,6 +32,8 @@ const edgeTypes: EdgeTypes = { wire: WireEdge }
 const DRAG_TYPE = 'application/x-circuitos-kind'
 const CLOCK_MS = 500
 const WIDTHS = [1, 2, 4, 8, 16]
+/** On touch screens a one-finger drag keeps moving the canvas; box selection is for mouse and trackpad. */
+const TOUCH = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 
 /** Shared by every editor, so a selection can be pasted into another level or the sandbox. */
 let clipboard: Circuit | undefined
@@ -351,6 +363,12 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
             onNodeDragStart={record}
             isValidConnection={(c) => canConnect(edges, c, nodes, library)}
             deleteKeyCode={['Backspace', 'Delete']}
+            // Like most apps: drag on empty space draws a selection box; the canvas pans with
+            // scroll, Space + drag or the middle/right button.
+            selectionOnDrag={!TOUCH}
+            panOnDrag={TOUCH ? true : [1, 2]}
+            panOnScroll={!TOUCH}
+            selectionMode={SelectionMode.Partial}
             colorMode="dark"
             fitView
             fitViewOptions={{ maxZoom: 1.2 }}
