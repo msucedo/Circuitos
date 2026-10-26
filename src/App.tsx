@@ -25,6 +25,7 @@ import { verify } from './sim/verify.ts'
 import type { VerifyResult } from './sim/verify.ts'
 import { backupSave, loadSave, writeSave } from './storage.ts'
 import { CheckIcon, LockIcon, Logo } from './icons.tsx'
+import { Confetti } from './Confetti.tsx'
 import { Credit, Welcome } from './Welcome.tsx'
 import './app.css'
 
@@ -427,13 +428,17 @@ export default function App() {
                   </>
                 )}
                 {next ? (
-                  <button type="button" className="primary" onClick={() => open(next.id)}>
-                    Siguiente: {next.name}
-                  </button>
+                  <>
+                    <Confetti />
+                    <button type="button" className="primary" onClick={() => open(next.id)}>
+                      Siguiente: {next.name}
+                    </button>
+                  </>
                 ) : (
                   <>
                     {' '}
-                    Terminaste todos los niveles.{' '}
+                    Terminaste todos los niveles.
+                    <Confetti />{' '}
                     <button type="button" className="primary" onClick={() => open(SANDBOX)}>
                       Ir al Modo libre
                     </button>

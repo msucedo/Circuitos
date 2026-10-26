@@ -117,6 +117,12 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
 .result.fail { animation: shake 0.4s var(--ease); }
 .result p { margin: 0 0 6px; }
 .pass-check { display: inline-flex; margin-right: 6px; vertical-align: -2px; animation: pop 0.35s var(--spring); }
+/* The passing panel is short, so it can let the confetti out instead of scrolling. */
+.result.pass { position: relative; z-index: 5; overflow: visible; }
+/* A zero-width anchor at the end of the message; the burst starts there. */
+.confetti { position: relative; display: inline-block; width: 0; height: 1em; vertical-align: middle; pointer-events: none; }
+.confetti i { position: absolute; top: 50%; left: 0; width: 7px; height: 4px; margin: -2px 0 0 -3.5px; border-radius: 1px; background: var(--c); opacity: 0; animation: confetti 1.2s var(--ease) forwards; }
+.confetti i.round { width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; }
 /* Sticky so it stays reachable while scrolling a long list of failures. */
 .result .close { position: sticky; top: 0; float: right; margin-left: 12px; padding: 0 8px; }
 .result.pass { color: var(--on); }

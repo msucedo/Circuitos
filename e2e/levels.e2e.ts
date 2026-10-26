@@ -60,6 +60,7 @@ test('NOT by hand: the LED follows the input, Probar unlocks AND, and progress s
 
   await page.getByRole('button', { name: 'Probar' }).click()
   await expect(page.getByText('ya está en tu paleta')).toBeVisible()
+  await expect(page.locator('.result.pass .confetti i')).toHaveCount(18)
   await expect(page.getByText('1 de 10 resueltos')).toBeVisible()
   const nav = page.getByRole('navigation', { name: 'Niveles' })
   await expect(nav.getByRole('button', { name: 'AND', exact: true })).toBeEnabled()
@@ -115,6 +116,7 @@ test('a failing Probar says how many pass and marks the wrong outputs', async ({
   await expect(page.getByText('Pasan 0 de 2 pruebas.')).toBeVisible()
   await expect(page.locator('.result td.verdict')).toHaveText(['✗', '✗'])
   await expect(page.locator('.result td.bad')).toHaveCount(2)
+  await expect(page.locator('.confetti')).toHaveCount(0)
   await page.screenshot({ path: `${SHOTS}/probar-fail.png` })
   await page.getByRole('button', { name: 'Cerrar resultado' }).click()
   await expect(page.locator('.result')).toHaveCount(0)
