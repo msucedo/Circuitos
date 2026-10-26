@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
@@ -27,4 +28,5 @@ const csp = (): Plugin => ({
 export default defineConfig({
   plugins: [react(), csp()],
   build: { modulePreload: { polyfill: false } },
+  test: { setupFiles: ['src/test-setup.ts'] },
 })

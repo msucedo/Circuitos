@@ -1,5 +1,7 @@
 import { LIMITS, byteLength, emptySave, parseSave, serializeSave } from './sim/schema.ts'
 import type { SaveData } from './sim/schema.ts'
+import { problem } from './sim/types.ts'
+import type { Problem } from './sim/types.ts'
 
 export const STORAGE_KEY = 'circuitos:v1'
 
@@ -12,44 +14,44 @@ function browserStorage(): Storage | undefined {
   }
 }
 
-export function loadSave(store = browserStorage()): { data: SaveData; warning?: string } {
+export function loadSave(store = browserStorage()): { data: SaveData; warning?: Problem } {
   let raw: string | null
   try {
     raw = store ? store.getItem(STORAGE_KEY) : null
   } catch {
-    return { data: emptySave(), warning: 'El navegador no deja guardar datos: tu progreso no se guardará.' }
+    return { data: emptySave(), warning: problem('storageBlocked') }
   }
   if (raw === null) return { data: emptySave() }
   try {
     return { data: parseSave(raw) }
   } catch (error) {
+    console.warn('Unreadable save', error)
     // Keep the unreadable copy so the next autosave does not destroy it.
     try {
       store?.setItem(`${STORAGE_KEY}:corrupto`, raw)
     } catch {
       /* nothing else to do */
     }
-    const reason = error instanceof Error ? error.message : String(error)
-    return { data: emptySave(), warning: `No se pudo leer tu progreso (${reason}). Se guardó una copia y empiezas de cero.` }
+    return { data: emptySave(), warning: problem('saveUnreadable') }
   }
 }
 
-/** Returns a message when the progress could not be saved. */
-export function writeSave(data: SaveData, store = browserStorage()): string | undefined {
+/** Returns the problem when the progress could not be saved. */
+export function writeSave(data: SaveData, store = browserStorage()): Problem | undefined {
   const json = serializeSave(data)
-  if (byteLength(json) > LIMITS.bytes) return 'Tu progreso pasa de 2 MB y ya no se guarda. Borra circuitos grandes.'
+  if (byteLength(json) > LIMITS.bytes) return problem('saveTooBig', { mb: LIMITS.bytes / 1024 / 1024 })
   try {
     store?.setItem(STORAGE_KEY, json)
   } catch {
-    return 'No se pudo guardar tu progreso en el navegador.'
+    return problem('saveFailed')
   }
 }
 
 /** Before wiping the progress, keep one copy of it next to the save. */
-export function backupSave(data: SaveData, store = browserStorage()): string | undefined {
+export function backupSave(data: SaveData, store = browserStorage()): Problem | undefined {
   try {
     store?.setItem(`${STORAGE_KEY}:respaldo`, serializeSave(data))
   } catch {
-    return 'No se pudo guardar una copia de tu progreso, así que no se borró.'
+    return problem('backupFailed')
   }
 }

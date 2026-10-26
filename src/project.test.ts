@@ -19,11 +19,11 @@ describe('export / import', () => {
   it('refuses a chip whose id the user already has with a different circuit', () => {
     const json = JSON.stringify(exportProject(FULL_ADDER, LIBRARY))
     const mine = [{ id: 'XOR', name: 'XOR', circuit: { ...XOR, wires: [] } }]
-    expect(() => importProject(json, mine)).toThrow(/Ya tienes un chip "XOR"/)
+    expect(() => importProject(json, mine)).toThrow(/chipConflict \{"id":"XOR"\}/)
   })
 
   it('rejects invalid files through the schema', () => {
-    expect(() => importProject('{"version":1}', [])).toThrow(/chips: debe ser una lista/)
+    expect(() => importProject('{"version":1}', [])).toThrow(/notList \{"path":"chips"\}/)
   })
 })
 
@@ -40,8 +40,9 @@ describe('chipIdFor', () => {
 describe('chipUsers', () => {
   it('lists the chips and the sandbox that use a chip', () => {
     const chips = [...LIBRARY.values()]
-    expect(chipUsers('XOR', chips, { nodes: [], wires: [] })).toEqual(['"HALF_ADDER"'])
-    expect(chipUsers('FULL_ADDER', chips, FULL_ADDER)).toEqual([])
-    expect(chipUsers('OR', chips, FULL_ADDER)).toEqual(['"FULL_ADDER"', 'el circuito del modo libre'])
+    const ids = (users: ReturnType<typeof chipUsers>) => ({ chips: users.chips.map((c) => c.id), sandbox: users.sandbox })
+    expect(ids(chipUsers('XOR', chips, { nodes: [], wires: [] }))).toEqual({ chips: ['HALF_ADDER'], sandbox: false })
+    expect(ids(chipUsers('FULL_ADDER', chips, FULL_ADDER))).toEqual({ chips: [], sandbox: false })
+    expect(ids(chipUsers('OR', chips, FULL_ADDER))).toEqual({ chips: ['FULL_ADDER'], sandbox: true })
   })
 })

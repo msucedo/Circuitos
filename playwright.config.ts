@@ -10,6 +10,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4173',
     channel: 'chrome',
+    // The suite reads the Spanish texts; e2e/language.e2e.ts covers English.
+    locale: 'es-MX',
     viewport: { width: 1280, height: 800 },
   },
   webServer: {

@@ -23,19 +23,19 @@ export class Harness {
     this.outputs = pins.outputs
   }
 
-  private pin(list: Pin[], name: string, kind: string): Pin {
+  private pin(list: Pin[], name: string, missing: 'noSuchInput' | 'noSuchOutput'): Pin {
     const pin = list.find((p) => p.name === name)
-    if (!pin) throw new CircuitError(`No existe la ${kind} "${name}"`)
+    if (!pin) throw new CircuitError(missing, { name })
     return pin
   }
 
   set(name: string, value: number) {
-    const { width } = this.pin(this.inputs, name, 'entrada')
+    const { width } = this.pin(this.inputs, name, 'noSuchInput')
     for (let i = 0; i < width; i++) this.sim.setInput(bitNode(name, i, width), ((value >> i) & 1) as Bit)
   }
 
   read(name: string): number {
-    const { width } = this.pin(this.outputs, name, 'salida')
+    const { width } = this.pin(this.outputs, name, 'noSuchOutput')
     let value = 0
     for (let i = 0; i < width; i++) value |= this.sim.read(bitNode(name, i, width)) << i
     return value

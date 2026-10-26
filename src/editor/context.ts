@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
-import type { ChipLibrary } from '../sim/types.ts'
+import type { TFunction } from 'i18next'
+import type { ChipLibrary, Problem } from '../sim/types.ts'
 import type { Signals } from './useSimulation.ts'
 
 export interface EditorState {
@@ -9,8 +10,8 @@ export interface EditorState {
   incoming: (node: string, pin: string) => number
   inputs: ReadonlyMap<string, number>
   setInput: (id: string, value: number) => void
-  /** Undefined when pins can't be renamed (levels); otherwise returns an error message or undefined. */
-  rename?: (from: string, to: string) => string | undefined
+  /** Undefined when pins can't be renamed (levels); otherwise returns the problem, if any. */
+  rename?: (from: string, to: string) => Problem | undefined
 }
 
 export const EditorContext = createContext<EditorState | undefined>(undefined)
@@ -21,19 +22,13 @@ export function useEditor(): EditorState {
   return state
 }
 
-export const KIND_NAMES: Record<string, string> = {
-  INPUT: 'Entrada',
-  OUTPUT: 'Salida',
-  CLOCK: 'Reloj',
-  NAND: 'NAND',
-  SPLIT: 'Separar',
-  JOIN: 'Juntar',
-  VCC: 'Fuente',
-  RELAY: 'Relé',
-  RELAY_NC: 'Relé inverso',
-}
+/** Built-in pieces; their names are `kinds.<KIND>` in src/locales. */
+export const BASIC_KINDS = ['INPUT', 'OUTPUT', 'CLOCK', 'NAND', 'SPLIT', 'JOIN', 'VCC', 'RELAY', 'RELAY_NC'] as const
+type BasicKind = (typeof BASIC_KINDS)[number]
+export const isBasicKind = (kind: string): kind is BasicKind => (BASIC_KINDS as readonly string[]).includes(kind)
 
-export const kindName = (kind: string, library: ChipLibrary) => KIND_NAMES[kind] ?? library.get(kind)?.name ?? kind
+export const kindName = (t: TFunction, kind: string, library: ChipLibrary) =>
+  isBasicKind(kind) ? t(`kinds.${kind}`) : (library.get(kind)?.name ?? kind)
 
 /** Kinds whose width the user picks when adding them. */
 export const SIZED_KINDS = new Set(['INPUT', 'OUTPUT', 'SPLIT', 'JOIN'])

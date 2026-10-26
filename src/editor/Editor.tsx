@@ -13,12 +13,14 @@ import type { Connection, Edge, EdgeTypes, NodeTypes, OnBeforeDelete, XYPosition
 import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent, ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { problemText } from '../i18n.ts'
 import type { Bit, ChipLibrary, Circuit } from '../sim/types.ts'
 import type { Spec } from '../sim/verify.ts'
 import { ChipNode } from './ChipNode.tsx'
 import { canConnect, copySelection, edgeId, nextId, pasteCircuit, pinWidth, renameNode, toCircuit, toFlow } from './convert.ts'
 import type { ChipFlowNode } from './convert.ts'
-import { EditorContext, KIND_NAMES, SIZED_KINDS, kindName } from './context.ts'
+import { EditorContext, SIZED_KINDS, isBasicKind, kindName } from './context.ts'
 import { CopyIcon, PasteIcon, RedoIcon, StepIcon, TableIcon, TrashIcon, UndoIcon } from '../icons.tsx'
 import { History } from './history.ts'
 import { TruthTable } from './TruthTable.tsx'
@@ -102,6 +104,7 @@ function freeSpot(at: XYPosition, nodes: ChipFlowNode[]): XYPosition {
 }
 
 function Canvas({ initial, library, palette, locked, spec, renamePins = false, onChange }: EditorProps) {
+  const { t } = useTranslation()
   const [start] = useState(() => toFlow(initial, locked))
   const [nodes, setNodes, onNodesChange] = useNodesState<ChipFlowNode>(start.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(start.edges)
@@ -217,7 +220,7 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
 
   const rename = (from: string, to: string) => {
     const result = renameNode(nodes, edges, from, to)
-    if (typeof result === 'string') return result
+    if ('code' in result) return result
     record()
     setNodes(result.nodes)
     setEdges(result.edges)
@@ -260,18 +263,18 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
   )
 
   const status = signals.error
-    ? { cls: 'error', text: signals.error, help: 'El circuito tiene un problema y no se puede simular.' }
+    ? { cls: 'error', text: problemText(t, signals.error), help: t('editor.status.error') }
     : signals.oscillating
-      ? { cls: 'warn', text: 'El circuito oscila: nunca se estabiliza', help: 'Alguna señal cambia sin parar, como un NOT conectado a sí mismo.' }
+      ? { cls: 'warn', text: t('editor.status.oscillating'), help: t('editor.status.oscillatingHelp') }
       : stepMode
         ? {
             cls: 'ok',
-            text: signals.settled ? 'Paso a paso: estable' : 'Paso a paso: la señal sigue avanzando',
-            help: 'Pulsa Avanzar para mover la señal una compuerta.',
+            text: signals.settled ? t('editor.status.stepSettled') : t('editor.status.stepMoving'),
+            help: t('editor.status.stepHelp'),
           }
         : signals.hasClock
-          ? { cls: 'ok', text: `Reloj: ${clock}`, help: 'El reloj cambia de 0 a 1 solo; páusalo para avanzar con Tic.' }
-          : { cls: 'ok', text: 'Estable', help: 'Las salidas ya no cambian con las entradas actuales.' }
+          ? { cls: 'ok', text: t('editor.status.clock', { value: clock }), help: t('editor.status.clockHelp') }
+          : { cls: 'ok', text: t('editor.status.stable'), help: t('editor.status.stableHelp') }
 
   const blank = edges.length === 0 && nodes.every((n) => n.data.kind === 'INPUT' || n.data.kind === 'OUTPUT')
   const pieceButton = (kind: string) => {
@@ -287,27 +290,27 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
           e.dataTransfer.effectAllowed = 'move'
         }}
         onClick={() => addNode(kind)}
-        title={needsBus ? 'Elige 2 o más bits' : 'Arrastra al lienzo o haz clic para agregar'}
+        title={needsBus ? t('editor.pickBus') : t('editor.addPiece')}
       >
-        {kindName(kind, library)}
+        {kindName(t, kind, library)}
         {SIZED_KINDS.has(kind) && width > 1 ? ` ${width}` : ''}
       </button>
     )
   }
-  const basics = palette.filter((k) => k in KIND_NAMES)
-  const chips = palette.filter((k) => !(k in KIND_NAMES))
+  const basics = palette.filter(isBasicKind)
+  const chips = palette.filter((k) => !isBasicKind(k))
 
   return (
     <div className="editor">
       <aside className="palette" aria-labelledby="palette-title">
         <h2 id="palette-title" className="palette-title">
-          Piezas
+          {t('editor.pieces')}
         </h2>
-        <p className="palette-help">Arrastra o haz clic para agregar.</p>
-        <h3>Básicas</h3>
+        <p className="palette-help">{t('editor.piecesHelp')}</p>
+        <h3>{t('editor.basics')}</h3>
         {palette.some((k) => SIZED_KINDS.has(k)) && (
           <label className="width-picker">
-            Bits
+            {t('editor.bits')}
             <select value={width} onChange={(e) => setWidth(Number(e.target.value))}>
               {WIDTHS.map((w) => (
                 <option key={w} value={w}>
@@ -318,33 +321,33 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
           </label>
         )}
         {basics.map(pieceButton)}
-        <h3>Tus chips</h3>
-        {chips.length > 0 ? chips.map(pieceButton) : <p className="palette-help">Resuelve niveles para sumar chips aquí.</p>}
+        <h3>{t('editor.yourChips')}</h3>
+        {chips.length > 0 ? chips.map(pieceButton) : <p className="palette-help">{t('editor.noChips')}</p>}
       </aside>
       <div className="canvas" ref={canvas} onDrop={onDrop} onDragOver={(e) => e.preventDefault()}>
-        <div className="toolbar" role="toolbar" aria-label="Herramientas">
-          <ToolButton label="Deshacer" icon={<UndoIcon />} keys="Ctrl/⌘ + Z" onClick={undo} disabled={!history.canUndo} />
-          <ToolButton label="Rehacer" icon={<RedoIcon />} keys="Ctrl/⌘ + Shift + Z" onClick={redo} disabled={!history.canRedo} />
-          <ToolButton label="Copiar" icon={<CopyIcon />} keys="Ctrl/⌘ + C" onClick={copy} />
-          <ToolButton label="Pegar" icon={<PasteIcon />} keys="Ctrl/⌘ + V" onClick={paste} />
-          <ToolButton label="Borrar" icon={<TrashIcon />} keys="Supr o Backspace" onClick={deleteSelection} disabled={!canDelete} />
+        <div className="toolbar" role="toolbar" aria-label={t('editor.tools')}>
+          <ToolButton label={t('editor.undo')} icon={<UndoIcon />} keys="Ctrl/⌘ + Z" onClick={undo} disabled={!history.canUndo} />
+          <ToolButton label={t('editor.redo')} icon={<RedoIcon />} keys="Ctrl/⌘ + Shift + Z" onClick={redo} disabled={!history.canRedo} />
+          <ToolButton label={t('editor.copy')} icon={<CopyIcon />} keys="Ctrl/⌘ + C" onClick={copy} />
+          <ToolButton label={t('editor.paste')} icon={<PasteIcon />} keys="Ctrl/⌘ + V" onClick={paste} />
+          <ToolButton label={t('editor.delete')} icon={<TrashIcon />} keys={t('editor.deleteKeys')} onClick={deleteSelection} disabled={!canDelete} />
           <span className="separator" />
-          <ToolButton label="Tabla" icon={<TableIcon />} pressed={showTable} onClick={() => setShowTable((v) => !v)} />
-          <ToolButton label="Paso a paso" icon={<StepIcon />} pressed={stepMode} onClick={() => setStepMode((v) => !v)} />
+          <ToolButton label={t('editor.table')} icon={<TableIcon />} pressed={showTable} onClick={() => setShowTable((v) => !v)} />
+          <ToolButton label={t('editor.stepMode')} icon={<StepIcon />} pressed={stepMode} onClick={() => setStepMode((v) => !v)} />
           {stepMode && (
             <button type="button" className="primary" onClick={step} disabled={signals.settled}>
-              Avanzar
+              {t('editor.advance')}
             </button>
           )}
           {signals.hasClock && (
             <>
               <span className="separator" />
               <button type="button" onClick={() => setClockRunning((v) => !v)}>
-                {clockRunning ? 'Pausar reloj' : 'Reanudar reloj'}
+                {clockRunning ? t('editor.pauseClock') : t('editor.resumeClock')}
               </button>
               {!clockRunning && (
                 <button type="button" onClick={() => setClock((c) => (c ? 0 : 1))}>
-                  Tic
+                  {t('editor.tick')}
                 </button>
               )}
             </>
@@ -378,13 +381,13 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
           </ReactFlow>
         </EditorContext.Provider>
         {showTable && (
-          <aside className="table-panel" aria-label="Tabla de verdad">
+          <aside className="table-panel" aria-label={t('editor.truthTable')}>
             <TruthTable circuit={circuit} library={library} spec={spec} />
           </aside>
         )}
         {blank && (
           <p className="canvas-guide">
-            Agrega piezas desde Piezas y une los pines arrastrando de un punto a otro.
+            {t('editor.guide')}
           </p>
         )}
         <div className={`status ${status.cls}`} role="status" title={status.help}>

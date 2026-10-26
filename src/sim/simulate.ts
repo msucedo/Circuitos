@@ -28,8 +28,8 @@ export interface SettleResult {
 export function compile(circuit: Circuit): Compiled {
   const kinds = new Map<string, GateKind>()
   for (const node of circuit.nodes) {
-    if (kinds.has(node.id)) throw new CircuitError(`Id repetido: "${node.id}"`)
-    if (!isGate(node.kind)) throw new CircuitError(`Tipo desconocido: "${node.kind}"`)
+    if (kinds.has(node.id)) throw new CircuitError('duplicateId', { id: node.id })
+    if (!isGate(node.kind)) throw new CircuitError('unknownKind', { kind: node.kind })
     kinds.set(node.id, node.kind)
   }
 
@@ -44,16 +44,16 @@ export function compile(circuit: Circuit): Compiled {
     const fromKind = kinds.get(from.node)
     const toKind = kinds.get(to.node)
     if (fromKind === undefined || toKind === undefined) {
-      throw new CircuitError(`Cable a un nodo que no existe: "${fromKind ? to.node : from.node}"`)
+      throw new CircuitError('missingWireNode', { node: fromKind ? to.node : from.node })
     }
     if (!GATE_PINS[fromKind].outputs.includes(from.pin)) {
-      throw new CircuitError(`"${from.node}" no tiene salida "${from.pin}"`)
+      throw new CircuitError('noOutputPin', { node: from.node, pin: from.pin })
     }
     if (!GATE_PINS[toKind].inputs.includes(to.pin)) {
-      throw new CircuitError(`"${to.node}" no tiene entrada "${to.pin}"`)
+      throw new CircuitError('noInputPin', { node: to.node, pin: to.pin })
     }
     const key = `${to.node}\0${to.pin}`
-    if (driver.has(key)) throw new CircuitError(`La entrada "${to.pin}" de "${to.node}" tiene dos cables`)
+    if (driver.has(key)) throw new CircuitError('twoWires', { pin: to.pin, node: to.node })
     driver.set(key, signalOf.get(from.node)!)
   }
   const source = (node: string, pin: string) => driver.get(`${node}\0${pin}`) ?? ZERO
@@ -134,7 +134,7 @@ export class Simulator {
   }
 
   setInput(id: string, bit: Bit) {
-    if (!this.compiled.inputIds.includes(id)) throw new CircuitError(`No existe la entrada "${id}"`)
+    if (!this.compiled.inputIds.includes(id)) throw new CircuitError('noSuchInput', { name: id })
     this.values[this.compiled.signalOf.get(id)!] = bit
   }
 
@@ -182,7 +182,7 @@ export class Simulator {
   /** Current value of a node: what an INPUT/NAND emits or what an OUTPUT receives. */
   read(id: string): Bit {
     const signal = this.compiled.signalOf.get(id)
-    if (signal === undefined) throw new CircuitError(`No existe el nodo "${id}"`)
+    if (signal === undefined) throw new CircuitError('noSuchNode', { id })
     return this.values[signal] as Bit
   }
 }

@@ -134,7 +134,10 @@ test('the level header, locked levels and the empty canvas explain themselves', 
   const and = page.getByRole('navigation', { name: 'Niveles' }).getByRole('button', { name: 'AND bloqueado' })
   await expect(and).toHaveAttribute('title', 'Resuelve NOT para desbloquearlo')
   await and.click({ force: true }) // aria-disabled: Playwright waits for it to be enabled, a person can click it
-  await expect(page.getByText('AND está bloqueado: resuelve NOT para desbloquearlo.')).toBeVisible()
+  const locked = page.getByText('AND está bloqueado: resuelve NOT para desbloquearlo.')
+  await expect(locked).toBeVisible()
+  // A warning, not a success: yellow.
+  await expect(locked).toHaveClass(/\bwarn\b/)
   await expect(page.getByRole('heading', { level: 2, name: 'NOT' })).toBeVisible()
 
   await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })

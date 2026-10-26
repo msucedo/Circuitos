@@ -23,12 +23,12 @@ describe('verify', () => {
 
   it('reports missing or extra pins instead of rows', () => {
     const notGate = build({ inputs: ['x'], parts: { n: nand('x', 'x') }, outputs: { out: 'n' } })
-    expect(verify(notGate, LIBRARY, SPECS.get('NOT')!)).toEqual({ passed: false, error: 'Falta la entrada "a"', steps: [] })
+    expect(verify(notGate, LIBRARY, SPECS.get('NOT')!)).toEqual({ passed: false, error: { code: 'missingInput', params: { name: 'a' } }, steps: [] })
   })
 
-  it('turns structural errors into a message', () => {
+  it('turns structural errors into a problem', () => {
     const broken = build({ inputs: ['a'], parts: { x: { kind: 'NOPE', in: {} } }, outputs: { out: 'a' } })
-    expect(verify(broken, LIBRARY, SPECS.get('NOT')!).error).toMatch(/desconocido/)
+    expect(verify(broken, LIBRARY, SPECS.get('NOT')!).error?.code).toBe('unknownKind')
   })
 
   it('fails a step that oscillates even if the output happens to match', () => {

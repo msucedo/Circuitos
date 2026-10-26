@@ -13,10 +13,10 @@ if (file === undefined || spec === undefined) {
 }
 
 try {
-  if (statSync(file).size > LIMITS.bytes) throw new CircuitError('El archivo pesa más de 2 MB')
+  if (statSync(file).size > LIMITS.bytes) throw new CircuitError('fileTooBig', { mb: LIMITS.bytes / 1024 / 1024 })
   const project = parseProject(readFileSync(file, 'utf8'))
   const result = verify(project.circuit, toLibrary(project.chips), spec)
-  if (result.error) throw new CircuitError(result.error)
+  if (result.error) throw new CircuitError(result.error.code, result.error.params)
 
   const bits = (values: Record<string, number>, names: string[]) => names.map((n) => values[n] ?? '-').join(' ')
   console.log(`${spec.inputs.join(' ')} | esperado | obtenido`)
@@ -29,8 +29,10 @@ try {
   console.log(failed === 0 ? `\n✓ ${level}: pasa` : `\n✗ ${level}: ${failed} fila(s) fallan`)
   process.exit(failed === 0 ? 0 : 1)
 } catch (error) {
-  const unreadable = error instanceof Error && 'code' in error
+  // CircuitError carries a code too, so tell it apart from Node's file errors first.
+  const unreadable = !(error instanceof CircuitError) && error instanceof Error && 'code' in error
   if (!(error instanceof CircuitError) && !unreadable) throw error
-  console.error(`✗ ${unreadable ? `No se pudo leer "${file}"` : error.message}`)
+  // The CLI is a developer tool: it prints the problem code and its values.
+  console.error(`✗ ${unreadable ? `No se pudo leer "${file}"` : (error as CircuitError).message}`)
   process.exit(1)
 }

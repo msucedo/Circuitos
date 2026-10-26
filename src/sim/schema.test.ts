@@ -22,37 +22,37 @@ describe('parseProject', () => {
   })
 
   it('rejects files that are not JSON, too big, or another version', () => {
-    expect(() => parseProject('{nope')).toThrow(/no es JSON/)
-    expect(() => parseProject(' '.repeat(LIMITS.bytes + 1))).toThrow(/pesa más de 2 MB/)
-    bad({ ...project, version: 2 }, /versión no soportada/)
-    bad([], /proyecto: debe ser un objeto/)
+    expect(() => parseProject('{nope')).toThrow(/notJson/)
+    expect(() => parseProject(' '.repeat(LIMITS.bytes + 1))).toThrow(/fileTooBig \{"mb":2\}/)
+    bad({ ...project, version: 2 }, /badVersion/)
+    bad([], /notObject \{"path":"project"\}/)
   })
 
   it('rejects bad ids, text and numbers, with the path to the problem', () => {
     const node = (extra: object) => ({ ...project, circuit: { nodes: [{ id: 'a', kind: 'INPUT', ...extra }], wires: [] } })
-    bad(node({ id: 'a/b' }), /circuit\.nodes\[0\]\.id: id inválido/)
-    bad(node({ id: '__proto__' }), /id inválido/)
-    bad(node({ kind: 42 }), /\.kind: id inválido/)
-    bad(node({ label: 'x'.repeat(LIMITS.text + 1) }), /\.label: debe tener de 1 a 40/)
-    bad(node({ x: 'left' }), /\.x: debe ser un número/)
-    bad({ ...project, circuit: { nodes: [{ id: 'a', kind: 'INPUT' }, { id: 'a', kind: 'NAND' }], wires: [] } }, /repetido/)
+    bad(node({ id: 'a/b' }), /badId \{"path":"circuit\.nodes\[0\]\.id"\}/)
+    bad(node({ id: '__proto__' }), /badId/)
+    bad(node({ kind: 42 }), /badId \{"path":"circuit\.nodes\[0\]\.kind"\}/)
+    bad(node({ label: 'x'.repeat(LIMITS.text + 1) }), /textLength \{"path":"circuit\.nodes\[0\]\.label","max":40\}/)
+    bad(node({ x: 'left' }), /notNumber \{"path":"circuit\.nodes\[0\]\.x"\}/)
+    bad({ ...project, circuit: { nodes: [{ id: 'a', kind: 'INPUT' }, { id: 'a', kind: 'NAND' }], wires: [] } }, /duplicate /)
   })
 
   it('rejects wires to nodes that do not exist', () => {
     const wires = [{ from: { node: 'a', pin: 'out' }, to: { node: 'ghost', pin: 'in' } }]
-    bad({ ...project, circuit: { nodes: [{ id: 'a', kind: 'INPUT' }], wires } }, /"ghost" no existe/)
+    bad({ ...project, circuit: { nodes: [{ id: 'a', kind: 'INPUT' }], wires } }, /missingNode .*"node":"ghost"/)
   })
 
   it('enforces size limits', () => {
     const nodes = Array.from({ length: LIMITS.nodes + 1 }, (_, i) => ({ id: `n${i}`, kind: 'NAND' }))
-    bad({ ...project, circuit: { nodes, wires: [] } }, /más de 5000 elementos/)
+    bad({ ...project, circuit: { nodes, wires: [] } }, /tooMany .*"max":5000/)
   })
 
   it('rejects unknown kinds, duplicate chips and chips that contain themselves', () => {
-    bad({ ...project, chips: [] }, /Tipo desconocido: "HALF_ADDER"/)
-    bad({ ...project, chips: [...project.chips, project.chips[0]] }, /chips\[7\]\.id: repetido/)
-    bad({ ...project, chips: [{ id: 'NAND', name: 'x', circuit: { nodes: [], wires: [] } }] }, /repetido \("NAND"\)/)
+    bad({ ...project, chips: [] }, /unknownKind \{"kind":"HALF_ADDER"\}/)
+    bad({ ...project, chips: [...project.chips, project.chips[0]] }, /duplicate \{"path":"chips\[7\]\.id"/)
+    bad({ ...project, chips: [{ id: 'NAND', name: 'x', circuit: { nodes: [], wires: [] } }] }, /duplicate .*"id":"NAND"/)
     const loop = { id: 'LOOP', name: 'Bucle', circuit: { nodes: [{ id: 'x', kind: 'LOOP' }], wires: [] } }
-    bad({ ...project, chips: [loop] }, /"Bucle" se contiene a sí mismo/)
+    bad({ ...project, chips: [loop] }, /selfContaining \{"name":"Bucle"\}/)
   })
 })

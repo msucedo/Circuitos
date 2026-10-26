@@ -16,7 +16,7 @@ describe('levels', () => {
       expect(result.error, level.id).toBeUndefined()
       expect(result.passed, level.id).toBe(true)
       solved.add(level.id)
-      if (level.chip !== false) chips.push({ id: level.id, name: level.name, circuit: solution(level.id) })
+      if (level.chip !== false) chips.push({ id: level.id, name: level.id, circuit: solution(level.id) })
     }
   })
 
@@ -48,13 +48,13 @@ describe('levels', () => {
     const relays = LEVELS[0]
     expect(levelPalette(relays, new Map())).toEqual(['VCC', 'RELAY', 'RELAY_NC'])
     const not = LEVELS.find((l) => l.id === 'NOT')!
-    const all = LEVELS.map((l) => ({ id: l.id, name: l.name, circuit: solution(l.id) }))
+    const all = LEVELS.map((l) => ({ id: l.id, name: l.id, circuit: solution(l.id) }))
     expect([...levelLibrary(not, new Set(['RELAY_NAND']), all).keys()]).toEqual([])
     expect(levelPalette(not, new Map())).toEqual(['NAND'])
   })
 
   it('never offers a level its own chip or a later one', () => {
-    const all = LEVELS.map((l) => ({ id: l.id, name: l.name, circuit: solution(l.id) }))
+    const all = LEVELS.map((l) => ({ id: l.id, name: l.id, circuit: solution(l.id) }))
     const solvedAll = new Set(LEVELS.map((l) => l.id))
     const xor = LEVELS.find((l) => l.id === 'XOR')!
     expect([...levelLibrary(xor, solvedAll, all).keys()]).toEqual(['NOT', 'AND', 'OR'])

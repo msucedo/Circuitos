@@ -1,8 +1,8 @@
 import { Harness } from './harness.ts'
 import { combinations } from './simulate.ts'
 import type { SettleResult } from './simulate.ts'
-import { CircuitError } from './types.ts'
-import type { Bit, ChipLibrary, Circuit, Pin } from './types.ts'
+import { CircuitError, problem } from './types.ts'
+import type { Bit, ChipLibrary, Circuit, Pin, Problem } from './types.ts'
 
 /** Inputs to set, then the outputs expected once the circuit settles (unlisted outputs are not checked). Bus values are numbers. */
 export interface Step {
@@ -30,7 +30,7 @@ export interface StepResult {
 
 export interface VerifyResult {
   passed: boolean
-  error?: string
+  error?: Problem
   steps: StepResult[]
 }
 
@@ -47,30 +47,36 @@ export function tableSpec(inputs: string[], outputs: string[], fn: (...bits: Bit
   }
 }
 
-function pinError(kind: string, actual: Pin[], expected: string[], spec: Spec): string | undefined {
+const PIN_PROBLEMS = {
+  inputs: { missing: 'missingInput', extra: 'extraInput', width: 'inputWidth' },
+  outputs: { missing: 'missingOutput', extra: 'extraOutput', width: 'outputWidth' },
+} as const
+
+function pinError(side: keyof typeof PIN_PROBLEMS, actual: Pin[], expected: string[], spec: Spec): Problem | undefined {
+  const codes = PIN_PROBLEMS[side]
   const missing = expected.find((id) => !actual.some((p) => p.name === id))
-  if (missing) return `Falta la ${kind} "${missing}"`
+  if (missing) return problem(codes.missing, { name: missing })
   const extra = actual.find((p) => !expected.includes(p.name))
-  if (extra) return `Sobra la ${kind} "${extra.name}"`
+  if (extra) return problem(codes.extra, { name: extra.name })
   const wrong = actual.find((p) => p.width !== specWidth(spec, p.name))
-  if (wrong) return `La ${kind} "${wrong.name}" debe ser de ${specWidth(spec, wrong.name)} bit(s)`
+  if (wrong) return problem(codes.width, { name: wrong.name, count: specWidth(spec, wrong.name) })
 }
 
-/** Builds a harness, or returns the user-facing reason it can't be built. */
-export function tryHarness(circuit: Circuit, library: ChipLibrary): Harness | string {
+/** Builds a harness, or returns the reason it can't be built. */
+export function tryHarness(circuit: Circuit, library: ChipLibrary): Harness | CircuitError {
   try {
     return new Harness(circuit, library)
   } catch (error) {
-    if (error instanceof CircuitError) return error.message
+    if (error instanceof CircuitError) return error
     throw error
   }
 }
 
 export function verify(circuit: Circuit, library: ChipLibrary, spec: Spec): VerifyResult {
   const harness = tryHarness(circuit, library)
-  if (typeof harness === 'string') return { passed: false, error: harness, steps: [] }
+  if (harness instanceof CircuitError) return { passed: false, error: harness, steps: [] }
   const error =
-    pinError('entrada', harness.inputs, spec.inputs, spec) ?? pinError('salida', harness.outputs, spec.outputs, spec)
+    pinError('inputs', harness.inputs, spec.inputs, spec) ?? pinError('outputs', harness.outputs, spec.outputs, spec)
   if (error) return { passed: false, error, steps: [] }
 
   const steps = spec.steps.map((step): StepResult => {
@@ -95,11 +101,11 @@ export interface LiveTable {
  * Truth table of the current circuit over its top-level pins. Every row starts
  * from all-zero state so memory circuits don't leak state between rows.
  */
-export function liveTable(circuit: Circuit, library: ChipLibrary): LiveTable | string {
+export function liveTable(circuit: Circuit, library: ChipLibrary): LiveTable | Problem {
   const harness = tryHarness(circuit, library)
-  if (typeof harness === 'string') return harness
+  if (harness instanceof CircuitError) return harness
   const bits = harness.inputs.reduce((n, p) => n + p.width, 0)
-  if (bits > MAX_TABLE_BITS) return `La tabla solo se muestra con hasta ${MAX_TABLE_BITS} bits de entrada (hay ${bits})`
+  if (bits > MAX_TABLE_BITS) return problem('tableTooWide', { max: MAX_TABLE_BITS, count: bits })
   const rows = combinations(bits).map((combo) => {
     harness.sim.values.fill(0)
     let at = 0

@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { Harness } from '../sim/harness.ts'
 import { tryHarness } from '../sim/verify.ts'
-import type { Bit, ChipLibrary, Circuit } from '../sim/types.ts'
+import { CircuitError } from '../sim/types.ts'
+import type { Bit, ChipLibrary, Circuit, Problem } from '../sim/types.ts'
 
 export interface Signals {
-  error?: string
+  error?: Problem
   oscillating: boolean
   hasClock: boolean
   /** Step mode only: the last step changed nothing. */
@@ -42,7 +43,7 @@ export function useSimulation(
   const settled = last?.token === token && last.settled
 
   const signals = useMemo((): Signals => {
-    if (typeof harness === 'string') return { ...OFF, error: harness }
+    if (harness instanceof CircuitError) return { ...OFF, error: harness }
     for (const pin of harness.inputs) harness.set(pin.name, inputs.get(pin.name) ?? 0)
     harness.sim.setClock(clock)
     const oscillating = stepMode ? false : harness.sim.settle().status === 'oscillating'
@@ -56,7 +57,7 @@ export function useSimulation(
   }, [harness, inputs, clock, stepMode, settled, last]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const step = useCallback(() => {
-    if (typeof harness === 'string') return
+    if (harness instanceof CircuitError) return
     const changed = harness.sim.step()
     setLast({ token, settled: !changed })
   }, [harness, token])

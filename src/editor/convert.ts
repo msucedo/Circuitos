@@ -1,7 +1,8 @@
 import type { Connection, Edge, Node } from '@xyflow/react'
 import { nodePins } from '../sim/flatten.ts'
 import { ID_PATTERN } from '../sim/schema.ts'
-import type { ChipLibrary, Circuit } from '../sim/types.ts'
+import { problem } from '../sim/types.ts'
+import type { ChipLibrary, Circuit, Problem } from '../sim/types.ts'
 
 export interface ChipData extends Record<string, unknown> {
   kind: string
@@ -87,16 +88,16 @@ export function nextId(kind: string, taken: ReadonlySet<string>): string {
   return `${base}${i}`
 }
 
-/** Renames a node (a pin name, for INPUT/OUTPUT) and its wires; returns a message if the name is not usable. */
+/** Renames a node (a pin name, for INPUT/OUTPUT) and its wires; returns the problem if the name is not usable. */
 export function renameNode(
   nodes: ChipFlowNode[],
   edges: Edge[],
   from: string,
   to: string,
-): { nodes: ChipFlowNode[]; edges: Edge[] } | string {
+): { nodes: ChipFlowNode[]; edges: Edge[] } | Problem {
   if (to === from) return { nodes, edges }
-  if (!ID_PATTERN.test(to)) return 'Usa letras, números, "_" o "-", empezando con letra'
-  if (nodes.some((n) => n.id === to)) return `Ya existe "${to}"`
+  if (!ID_PATTERN.test(to)) return problem('badName')
+  if (nodes.some((n) => n.id === to)) return problem('nameTaken', { name: to })
   const swap = (id: string) => (id === from ? to : id)
   return {
     nodes: nodes.map((n) => (n.id === from ? { ...n, id: to } : n)),

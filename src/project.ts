@@ -34,7 +34,7 @@ export function importProject(json: string, mine: ChipDef[]): { circuit: Circuit
     const current = existing.get(chip.id)
     if (!current) added.push(chip)
     else if (!sameCircuit(current.circuit, chip.circuit)) {
-      throw new CircuitError(`Ya tienes un chip "${chip.id}" distinto al del archivo`)
+      throw new CircuitError('chipConflict', { id: chip.id })
     }
   }
   checkLibrary(toLibrary([...mine, ...added]))
@@ -58,9 +58,7 @@ export function chipIdFor(name: string, taken: ReadonlySet<string>): string {
 }
 
 /** Who uses a chip: other chips (by name) and the sandbox circuit. Empty means it can be deleted. */
-export function chipUsers(id: string, chips: ChipDef[], sandbox: Circuit): string[] {
+export function chipUsers(id: string, chips: ChipDef[], sandbox: Circuit): { chips: ChipDef[]; sandbox: boolean } {
   const uses = (c: Circuit) => c.nodes.some((n) => n.kind === id)
-  const users = chips.filter((c) => c.id !== id && uses(c.circuit)).map((c) => `"${c.name}"`)
-  if (uses(sandbox)) users.push('el circuito del modo libre')
-  return users
+  return { chips: chips.filter((c) => c.id !== id && uses(c.circuit)), sandbox: uses(sandbox) }
 }

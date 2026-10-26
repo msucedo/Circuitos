@@ -80,7 +80,79 @@ export const widthOf = (node: Pick<CircuitNode, 'width'>) => node.width ?? 1
 /** Flat id of bit `i` of a node: the node itself when it is 1 bit wide. `#` can't appear in ids. */
 export const bitNode = (id: string, i: number, width: number) => (width === 1 ? id : `${id}#${i}`)
 
-/** Structural problem in a circuit; the message is shown to the user. */
-export class CircuitError extends Error {
+/**
+ * Every problem the user can be told about. The simulator stays language-free:
+ * it reports a code and its values, and the UI turns them into a sentence.
+ */
+export type ProblemCode =
+  // File and save validation (`path` says where)
+  | 'notObject'
+  | 'notList'
+  | 'tooMany'
+  | 'badId'
+  | 'notText'
+  | 'textLength'
+  | 'notNumber'
+  | 'badWidth'
+  | 'duplicate'
+  | 'missingNode'
+  | 'badVersion'
+  | 'fileTooBig'
+  | 'notJson'
+  | 'chipConflict'
+  // Building and simulating a circuit
+  | 'unknownKind'
+  | 'selfContaining'
+  | 'tooDeep'
+  | 'nestedTooDeep'
+  | 'duplicateId'
+  | 'tooBig'
+  | 'busTooNarrow'
+  | 'missingWireNode'
+  | 'noInputPin'
+  | 'noOutputPin'
+  | 'widthMismatch'
+  | 'twoWires'
+  | 'wireLoop'
+  | 'noSuchInput'
+  | 'noSuchOutput'
+  | 'noSuchNode'
+  // Checking a circuit against a level
+  | 'missingInput'
+  | 'missingOutput'
+  | 'extraInput'
+  | 'extraOutput'
+  | 'inputWidth'
+  | 'outputWidth'
+  | 'tableTooWide'
+  // Editing and saving
+  | 'badName'
+  | 'nameTaken'
+  | 'chipNeedsOutput'
+  | 'storageBlocked'
+  | 'saveUnreadable'
+  | 'saveTooBig'
+  | 'saveFailed'
+  | 'backupFailed'
+
+export type ProblemParams = Record<string, string | number>
+
+export interface Problem {
+  code: ProblemCode
+  params: ProblemParams
+}
+
+export const problem = (code: ProblemCode, params: ProblemParams = {}): Problem => ({ code, params })
+
+/** Structural problem in a circuit. The message is for developers; the UI translates `code`. */
+export class CircuitError extends Error implements Problem {
   override name = 'CircuitError'
+  readonly code: ProblemCode
+  readonly params: ProblemParams
+
+  constructor(code: ProblemCode, params: ProblemParams = {}) {
+    super(`${code} ${JSON.stringify(params)}`)
+    this.code = code
+    this.params = params
+  }
 }

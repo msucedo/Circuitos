@@ -28,7 +28,7 @@ describe('storage', () => {
     store.items.set(STORAGE_KEY, '{"version":1,"solved":"nope"}')
     const { data, warning } = loadSave(store)
     expect(data).toEqual(emptySave())
-    expect(warning).toMatch(/No se pudo leer tu progreso \(chips: debe ser una lista\)/)
+    expect(warning?.code).toBe('saveUnreadable')
     expect(store.items.get(`${STORAGE_KEY}:corrupto`)).toBe('{"version":1,"solved":"nope"}')
   })
 
@@ -41,8 +41,8 @@ describe('storage', () => {
         throw new DOMException('full', 'QuotaExceededError')
       },
     } as unknown as Storage
-    expect(loadSave(blocked).warning).toMatch(/no deja guardar/)
-    expect(writeSave(emptySave(), blocked)).toMatch(/No se pudo guardar/)
+    expect(loadSave(blocked).warning?.code).toBe('storageBlocked')
+    expect(writeSave(emptySave(), blocked)?.code).toBe('saveFailed')
   })
 
   it('refuses to wipe progress when storage is blocked', () => {
@@ -54,7 +54,7 @@ describe('storage', () => {
         throw new DOMException('denied', 'SecurityError')
       },
     } as unknown as Storage
-    expect(backupSave(emptySave(), blocked)).toMatch(/no se borró/)
+    expect(backupSave(emptySave(), blocked)?.code).toBe('backupFailed')
   })
 
   it('keeps a copy of the progress before wiping it', () => {
@@ -67,6 +67,6 @@ describe('storage', () => {
   it('refuses to write progress bigger than the load limit', () => {
     const big = { ...emptySave(), sandbox: { nodes: [{ id: 'a', kind: 'INPUT', label: 'x'.repeat(40) }], wires: [] } }
     big.sandbox.nodes = Array.from({ length: 30_000 }, (_, i) => ({ id: `n${i}`, kind: 'NAND', label: 'x'.repeat(40) }))
-    expect(writeSave(big, memory())).toMatch(/pasa de 2 MB/)
+    expect(writeSave(big, memory())?.code).toBe('saveTooBig')
   })
 })

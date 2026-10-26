@@ -15,6 +15,7 @@ test('the welcome shows on every load', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: `${SHOTS}/welcome-phone.png`, animations: 'disabled' })
 
+  await expect(welcome.getByRole('button', { name: 'Empezar' })).toBeFocused()
   await welcome.getByRole('button', { name: 'Empezar' }).click()
   await expect(welcome).toBeHidden()
   await page.reload()

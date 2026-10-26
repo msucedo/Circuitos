@@ -31,25 +31,25 @@ describe('flatten', () => {
   it('rejects a wire loop that has no gate in it', () => {
     const library = toLibrary([chip('WIRE', build({ inputs: ['i'], outputs: { o: 'i' } }))])
     const circuit = build({ inputs: [], parts: { w: use('WIRE', { i: 'w.o' }) }, outputs: { out: 'w.o' } })
-    expect(() => flatten(circuit, library)).toThrow(/bucle de cables/)
+    expect(() => flatten(circuit, library)).toThrow(/wireLoop/)
   })
 
   it('rejects unknown chips and pins', () => {
-    expect(() => flatten(build({ inputs: [], parts: { x: use('NOPE') }, outputs: {} }), LIBRARY)).toThrow(/desconocido/)
+    expect(() => flatten(build({ inputs: [], parts: { x: use('NOPE') }, outputs: {} }), LIBRARY)).toThrow(/unknownKind/)
     expect(() => flatten(build({ inputs: ['a'], parts: { n: use('NOT', { zz: 'a' }) }, outputs: {} }), LIBRARY)).toThrow(
-      /no tiene entrada "zz"/,
+      /noInputPin \{"node":"n","pin":"zz"\}/,
     )
   })
 
   it('rejects chips that contain themselves, directly or through another chip', () => {
     const self = toLibrary([chip('A', build({ inputs: [], parts: { a: use('A') }, outputs: {} }))])
-    expect(() => checkLibrary(self)).toThrow(/se contiene a sí mismo/)
-    expect(() => flatten(build({ inputs: [], parts: { a: use('A') }, outputs: {} }), self)).toThrow(/sí mismo/)
+    expect(() => checkLibrary(self)).toThrow(/selfContaining/)
+    expect(() => flatten(build({ inputs: [], parts: { a: use('A') }, outputs: {} }), self)).toThrow(/selfContaining/)
     const pair = toLibrary([
       chip('A', build({ inputs: [], parts: { b: use('B') }, outputs: {} })),
       chip('B', build({ inputs: [], parts: { a: use('A') }, outputs: {} })),
     ])
-    expect(() => checkLibrary(pair)).toThrow(/sí mismo/)
+    expect(() => checkLibrary(pair)).toThrow(/selfContaining/)
   })
 
   it(`rejects more than ${MAX_DEPTH} levels of nesting`, () => {
@@ -57,7 +57,7 @@ describe('flatten', () => {
     for (let i = 1; i <= MAX_DEPTH; i++) {
       chips.push(chip(`L${i}`, build({ inputs: ['a'], parts: { c: use(`L${i - 1}`, { a: 'a' }) }, outputs: { out: 'c' } })))
     }
-    expect(() => checkLibrary(toLibrary(chips))).toThrow(/anida más de 16/)
+    expect(() => checkLibrary(toLibrary(chips))).toThrow(/tooDeep .*"max":16/)
     expect(() => checkLibrary(toLibrary(chips.slice(0, MAX_DEPTH)))).not.toThrow()
   })
 
@@ -67,7 +67,7 @@ describe('flatten', () => {
       chips.push(chip(`D${i}`, build({ inputs: [], parts: { x: use(`D${i - 1}`), y: use(`D${i - 1}`) }, outputs: {} })))
     }
     const huge = build({ inputs: [], parts: { a: use('D15'), b: use('D15'), c: use('D15'), d: use('D15') }, outputs: {} })
-    expect(() => flatten(huge, toLibrary(chips))).toThrow(/demasiado grande/)
+    expect(() => flatten(huge, toLibrary(chips))).toThrow(/tooBig/)
   })
 })
 

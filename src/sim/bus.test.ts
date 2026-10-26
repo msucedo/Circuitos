@@ -50,7 +50,7 @@ describe('buses', () => {
     const steps = [{ set: { a: 3, b: 4 }, expect: { sum: 7, cout: 0 } }, { set: { a: 8, b: 8 }, expect: { sum: 0, cout: 1 } }]
     const spec = { inputs: ['a', 'b'], outputs: ['sum', 'cout'], widths: { a: 4, b: 4, sum: 4 }, steps }
     expect(verify(BUS_ADDER, LIBRARY, spec).passed).toBe(true)
-    expect(verify(BUS_ADDER, LIBRARY, { ...spec, widths: { a: 8, b: 4, sum: 4 } }).error).toBe('La entrada "a" debe ser de 8 bit(s)')
+    expect(verify(BUS_ADDER, LIBRARY, { ...spec, widths: { a: 8, b: 4, sum: 4 } }).error).toEqual({ code: 'inputWidth', params: { name: 'a', count: 8 } })
   })
 
   it('works across chip boundaries: a chip with bus pins', () => {
@@ -75,9 +75,9 @@ describe('buses', () => {
 
   it('rejects wires between pins of different widths and too-narrow splitters', () => {
     const narrow = { ...BUS_ADDER, nodes: BUS_ADDER.nodes.map((n) => (n.id === 'a' ? { ...n, width: 8 } : n)) }
-    expect(() => new Harness(narrow, LIBRARY)).toThrow(/Un cable de 8 bit\(s\) no entra en "in" de "sa", que es de 4/)
+    expect(() => new Harness(narrow, LIBRARY)).toThrow(/widthMismatch \{"count":8,"pin":"in","node":"sa","width":4\}/)
     const tiny = { nodes: [{ id: 's', kind: 'SPLIT', width: 1 }], wires: [] }
-    expect(() => new Harness(tiny, LIBRARY)).toThrow(/al menos 2 bits/)
+    expect(() => new Harness(tiny, LIBRARY)).toThrow(/busTooNarrow/)
   })
 })
 
@@ -98,12 +98,12 @@ describe('live table', () => {
       ],
     }
     const table = liveTable(circuit, LIBRARY)
-    if (typeof table === 'string') throw new Error(table)
+    if ('code' in table) throw new Error(table.code)
     expect(table.rows.map((r) => [r.inputs[0], r.outputs[0]])).toEqual([[0, 1], [1, 1], [2, 1], [3, 0]])
   })
 
   it('refuses tables with too many input bits', () => {
-    expect(liveTable({ nodes: [{ id: 'a', kind: 'INPUT', width: 8 }], wires: [] }, LIBRARY)).toMatch(/hasta 6 bits/)
+    expect(liveTable({ nodes: [{ id: 'a', kind: 'INPUT', width: 8 }], wires: [] }, LIBRARY)).toEqual({ code: 'tableTooWide', params: { max: 6, count: 8 } })
   })
 })
 

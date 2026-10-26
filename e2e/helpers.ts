@@ -82,7 +82,7 @@ export async function seedSolved(page: Page, ids: string[]) {
   const { STORAGE_KEY } = await import('../src/storage.ts')
   const chips = LEVELS.filter((l) => ids.includes(l.id) && l.chip !== false).map((l) => ({
     id: l.id,
-    name: l.name,
+    name: l.id,
     circuit: examples[l.id] as ReturnType<typeof emptySave>['sandbox'],
   }))
   const raw = serializeSave({ ...emptySave(), solved: ids, chips })

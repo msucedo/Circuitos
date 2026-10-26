@@ -37,7 +37,7 @@ export function nodePins(node: Pick<CircuitNode, 'kind' | 'width'>, library: Chi
       return { inputs: bits, outputs: [{ name: 'out', width }] }
   }
   const chip = chipOf(node.kind, library)
-  if (!chip) throw new CircuitError(`Tipo desconocido: "${node.kind}"`)
+  if (!chip) throw new CircuitError('unknownKind', { kind: node.kind })
   return chipPins(chip.circuit)
 }
 
@@ -49,15 +49,15 @@ export function checkLibrary(library: ChipLibrary) {
     const known = depthOf.get(id)
     if (known !== undefined) return known
     const chip = library.get(id)
-    if (!chip) throw new CircuitError(`Tipo desconocido: "${id}"`)
-    if (visiting.has(id)) throw new CircuitError(`El chip "${chip.name}" se contiene a sí mismo`)
+    if (!chip) throw new CircuitError('unknownKind', { kind: id })
+    if (visiting.has(id)) throw new CircuitError('selfContaining', { name: chip.name })
     visiting.add(id)
     let depth = 1
     for (const node of chip.circuit.nodes) {
       if (!isPrimitive(node.kind)) depth = Math.max(depth, 1 + visit(node.kind))
     }
     visiting.delete(id)
-    if (depth > MAX_DEPTH) throw new CircuitError(`"${chip.name}" anida más de ${MAX_DEPTH} niveles de chips`)
+    if (depth > MAX_DEPTH) throw new CircuitError('tooDeep', { name: chip.name, max: MAX_DEPTH })
     depthOf.set(id, depth)
     return depth
   }
@@ -87,13 +87,13 @@ export function flatten(circuit: Circuit, library: ChipLibrary): FlatCircuit {
   const expand = (current: Circuit, prefix: string, chain: string[]) => {
     const byId = new Map<string, CircuitNode>()
     for (const node of current.nodes) {
-      if (byId.has(node.id)) throw new CircuitError(`Id repetido: "${node.id}"`)
+      if (byId.has(node.id)) throw new CircuitError('duplicateId', { id: node.id })
       byId.set(node.id, node)
       const id = prefix + node.id
       const width = widthOf(node)
       count += width
       if (count > MAX_FLAT_NODES) {
-        throw new CircuitError(`El circuito es demasiado grande (más de ${MAX_FLAT_NODES} piezas)`)
+        throw new CircuitError('tooBig', { max: MAX_FLAT_NODES })
       }
       switch (node.kind) {
         case 'NAND':
@@ -109,23 +109,23 @@ export function flatten(circuit: Circuit, library: ChipLibrary): FlatCircuit {
           continue
         case 'SPLIT':
         case 'JOIN':
-          if (width < 2) throw new CircuitError(`"${node.id}" necesita un bus de al menos 2 bits`)
+          if (width < 2) throw new CircuitError('busTooNarrow', { id: node.id })
           for (const i of range(width)) aliases.add(bitNode(id, i, width))
           continue
       }
       const chip = chipOf(node.kind, library)
-      if (!chip) throw new CircuitError(`Tipo desconocido: "${node.kind}"`)
-      if (chain.includes(node.kind)) throw new CircuitError(`El chip "${chip.name}" se contiene a sí mismo`)
-      if (chain.length >= MAX_DEPTH) throw new CircuitError(`Más de ${MAX_DEPTH} niveles de chips anidados`)
+      if (!chip) throw new CircuitError('unknownKind', { kind: node.kind })
+      if (chain.includes(node.kind)) throw new CircuitError('selfContaining', { name: chip.name })
+      if (chain.length >= MAX_DEPTH) throw new CircuitError('nestedTooDeep', { max: MAX_DEPTH })
       expand(chip.circuit, `${id}/`, [...chain, node.kind])
     }
 
     /** The flat single-bit endpoints behind a pin, LSB first. */
     const bits = (ep: Endpoint, side: 'inputs' | 'outputs'): Endpoint[] => {
       const node = byId.get(ep.node)
-      if (!node) throw new CircuitError(`Cable a un nodo que no existe: "${ep.node}"`)
+      if (!node) throw new CircuitError('missingWireNode', { node: ep.node })
       const pin = nodePins(node, library)[side].find((p) => p.name === ep.pin)
-      if (!pin) throw new CircuitError(`"${ep.node}" no tiene ${side === 'inputs' ? 'entrada' : 'salida'} "${ep.pin}"`)
+      if (!pin) throw new CircuitError(side === 'inputs' ? 'noInputPin' : 'noOutputPin', { node: ep.node, pin: ep.pin })
       const id = prefix + node.id
       const width = widthOf(node)
       const all = (pinName: string) => range(width).map((i) => ({ node: bitNode(id, i, width), pin: pinName }))
@@ -151,14 +151,12 @@ export function flatten(circuit: Circuit, library: ChipLibrary): FlatCircuit {
       const to = bits(wire.to, 'inputs')
       const from = bits(wire.from, 'outputs')
       if (to.length !== from.length) {
-        throw new CircuitError(
-          `Un cable de ${from.length} bit(s) no entra en "${wire.to.pin}" de "${wire.to.node}", que es de ${to.length}`,
-        )
+        throw new CircuitError('widthMismatch', { count: from.length, pin: wire.to.pin, node: wire.to.node, width: to.length })
       }
       to.forEach((t, i) => {
         const key = pinKey(t.node, t.pin)
         if (drivers.has(key)) {
-          throw new CircuitError(`La entrada "${wire.to.pin}" de "${wire.to.node}" tiene dos cables`)
+          throw new CircuitError('twoWires', { pin: wire.to.pin, node: wire.to.node })
         }
         drivers.set(key, { from: from[i], to: t })
       })
@@ -171,7 +169,7 @@ export function flatten(circuit: Circuit, library: ChipLibrary): FlatCircuit {
   const resolve = (from: Endpoint): Endpoint | undefined => {
     const seen = new Set<string>()
     while (aliases.has(from.node)) {
-      if (seen.has(from.node)) throw new CircuitError('Hay un bucle de cables sin ninguna compuerta')
+      if (seen.has(from.node)) throw new CircuitError('wireLoop')
       seen.add(from.node)
       const wire = drivers.get(pinKey(from.node, 'in'))
       if (!wire) return undefined

@@ -104,6 +104,7 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
 }
 .notice.error { color: var(--bad); }
 .notice.info { color: var(--on); }
+.notice.warn { color: var(--warn); }
 .notice button { padding: 0 8px; }
 
 .result {
@@ -224,6 +225,12 @@ select {
 
 .welcome-title { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .welcome-title h2 { margin: 0; }
+/* Segmented language picker; the pressed button is the current language. */
+.language { display: flex; margin-left: auto; }
+.language button { padding: 3px 10px; font-size: 12px; }
+.language button:first-child { border-radius: 6px 0 0 6px; }
+.language button:last-child { border-left: 0; border-radius: 0 6px 6px 0; }
+.language button[aria-pressed='true'] { border-color: var(--accent); background: #26304a; }
 .shortcuts { display: grid; gap: 4px; margin: 0; font-size: 13px; }
 .shortcuts div { display: flex; gap: 12px; align-items: baseline; }
 .shortcuts dt { display: flex; flex: none; gap: 3px; width: 150px; }

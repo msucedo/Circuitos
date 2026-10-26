@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
+import type { TFunction } from 'i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { Editor } from './editor/Editor.tsx'
 import {
   LEVELS,
@@ -19,14 +21,15 @@ import { chipIdFor, chipUsers, exportProject, importProject } from './project.ts
 import { flatten } from './sim/flatten.ts'
 import { LIMITS, emptySave } from './sim/schema.ts'
 import type { SaveData } from './sim/schema.ts'
-import { CircuitError, toLibrary } from './sim/types.ts'
-import type { Circuit } from './sim/types.ts'
+import { CircuitError, problem, toLibrary } from './sim/types.ts'
+import type { ChipDef, Circuit, Problem } from './sim/types.ts'
 import { verify } from './sim/verify.ts'
 import type { VerifyResult } from './sim/verify.ts'
 import { backupSave, loadSave, writeSave } from './storage.ts'
 import { CheckIcon, LockIcon, Logo } from './icons.tsx'
 import { Confetti } from './Confetti.tsx'
 import { Credit, Welcome } from './Welcome.tsx'
+import { levelText, problemText } from './i18n.ts'
 import './app.css'
 
 const SANDBOX = 'sandbox'
@@ -35,7 +38,10 @@ const SHOWN_STEPS = 64
 /** Info notices close by themselves after this; errors stay until closed. */
 const NOTICE_MS = 4000
 
-type Notice = { kind: 'info' | 'error'; text: string }
+/** The text is built when rendering, so a notice follows a language change. */
+type Notice = { kind: 'info' | 'warn' | 'error'; text: (t: TFunction) => string }
+
+const problemNotice = (p: Problem): Notice => ({ kind: 'error', text: (t) => problemText(t, p) })
 
 function download(name: string, text: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
@@ -60,9 +66,10 @@ function Pins({ label, ids, widths }: { label: string; ids: string[]; widths?: R
 }
 
 export default function App() {
+  const { t } = useTranslation()
   const [loaded] = useState(loadSave)
   const [save, setSave] = useState<SaveData>(loaded.data)
-  const [notice, setNotice] = useState<Notice | undefined>(loaded.warning ? { kind: 'error', text: loaded.warning } : undefined)
+  const [notice, setNotice] = useState<Notice | undefined>(loaded.warning && problemNotice(loaded.warning))
   const solved = useMemo(() => new Set(save.solved), [save.solved])
   const [workspace, setWorkspace] = useState(() => firstOpenLevel(new Set(loaded.data.solved)))
   const [generation, setGeneration] = useState(0)
@@ -74,14 +81,20 @@ export default function App() {
   const [attempt, setAttempt] = useState(0)
   // Levels the last Probar unlocked, so their buttons can celebrate once.
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set())
-  const customChips = save.chips.filter((c) => !levelById(c.id))
   const fileInput = useRef<HTMLInputElement>(null)
+  const levelName = (l: Pick<Level, 'id'>) => levelText(t, l, 'name')
+  // A level chip is always shown with its level's name in the current language, never the saved one.
+  const chips = useMemo(
+    () => save.chips.map((c): ChipDef => (levelById(c.id) ? { ...c, name: levelText(t, c, 'name') } : c)),
+    [save.chips, t],
+  )
+  const customChips = chips.filter((c) => !levelById(c.id))
 
   const level = workspace === SANDBOX ? undefined : levelById(workspace)
-  const fullLibrary = useMemo(() => toLibrary(save.chips), [save.chips])
+  const fullLibrary = useMemo(() => toLibrary(chips), [chips])
   const library = useMemo(
-    () => (level ? levelLibrary(level, solved, save.chips) : fullLibrary),
-    [level, solved, save.chips, fullLibrary],
+    () => (level ? levelLibrary(level, solved, chips) : fullLibrary),
+    [level, solved, chips, fullLibrary],
   )
   const circuit: Circuit = level ? (save.drafts.get(level.id) ?? levelCircuit(level)) : save.sandbox
   const palette = level
@@ -91,8 +104,8 @@ export default function App() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const problem = writeSave(save)
-      if (problem) setNotice({ kind: 'error', text: problem })
+      const failed = writeSave(save)
+      if (failed) setNotice(problemNotice(failed))
     }, SAVE_DELAY_MS)
     // Leaving or reloading before the delay runs out must not lose the last change.
     const flush = () => writeSave(save)
@@ -104,7 +117,7 @@ export default function App() {
   }, [save])
 
   useEffect(() => {
-    if (notice?.kind !== 'info') return
+    if (!notice || notice.kind === 'error') return
     const timer = setTimeout(() => setNotice(undefined), NOTICE_MS)
     return () => clearTimeout(timer)
   }, [notice])
@@ -134,7 +147,7 @@ export default function App() {
     setSave((s) => ({
       ...s,
       solved: s.solved.includes(lvl.id) ? s.solved : [...s.solved, lvl.id],
-      chips: lvl.chip === false ? s.chips : [...s.chips.filter((c) => c.id !== lvl.id), { id: lvl.id, name: lvl.name, circuit }],
+      chips: lvl.chip === false ? s.chips : [...s.chips.filter((c) => c.id !== lvl.id), { id: lvl.id, name: lvl.id, circuit }],
     }))
   }
 
@@ -151,33 +164,39 @@ export default function App() {
   const saveChip = () => {
     const name = chipName.trim()
     if (name.length === 0 || name.length > LIMITS.text) {
-      return setNotice({ kind: 'error', text: `El nombre debe tener de 1 a ${LIMITS.text} caracteres.` })
+      return setNotice({ kind: 'error', text: (t) => t('app.chipNameLength', { max: LIMITS.text }) })
     }
     if (!circuit.nodes.some((n) => n.kind === 'OUTPUT')) {
-      return setNotice({ kind: 'error', text: 'El chip necesita al menos una salida.' })
+      return setNotice(problemNotice(problem('chipNeedsOutput')))
     }
     try {
       flatten(circuit, fullLibrary)
     } catch (error) {
       if (!(error instanceof CircuitError)) throw error
-      return setNotice({ kind: 'error', text: error.message })
+      return setNotice(problemNotice(error))
     }
     const id = chipIdFor(name, new Set(save.chips.map((c) => c.id)))
     setSave((s) => ({ ...s, chips: [...s.chips, { id, name, circuit }] }))
     setChipName('')
-    setNotice({ kind: 'info', text: `Chip "${name}" guardado: ya está en la paleta.` })
+    setNotice({ kind: 'info', text: (t) => t('app.chipSaved', { name }) })
   }
 
   const deleteChip = (id: string) => {
-    const users = chipUsers(id, save.chips, save.sandbox)
-    if (users.length > 0) {
+    const users = chipUsers(id, chips, save.sandbox)
+    if (users.chips.length > 0 || users.sandbox) {
       setConfirmDelete(undefined)
-      return setNotice({ kind: 'error', text: `No se puede borrar: lo usa ${users.join(', ')}.` })
+      return setNotice({
+        kind: 'error',
+        text: (t) =>
+          t('app.chipInUse', {
+            users: [...users.chips.map((c) => `"${c.name}"`), ...(users.sandbox ? [t('app.sandboxCircuit')] : [])],
+          }),
+      })
     }
     if (confirmDelete !== id) return setConfirmDelete(id)
     setSave((s) => ({ ...s, chips: s.chips.filter((c) => c.id !== id) }))
     setConfirmDelete(undefined)
-    setNotice({ kind: 'info', text: 'Chip borrado.' })
+    setNotice({ kind: 'info', text: (t) => t('app.chipDeleted') })
   }
 
   const exportCurrent = () => {
@@ -189,31 +208,35 @@ export default function App() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (file.size > LIMITS.bytes) return setNotice({ kind: 'error', text: 'El archivo pesa más de 2 MB.' })
+    if (file.size > LIMITS.bytes) return setNotice(problemNotice(problem('fileTooBig', { mb: LIMITS.bytes / 1024 / 1024 })))
     try {
       const { circuit: imported, added } = importProject(await file.text(), save.chips)
       setSave((s) => ({ ...s, sandbox: imported, chips: [...s.chips, ...added] }))
       setWorkspace(SANDBOX)
       setResult(undefined)
       setGeneration((g) => g + 1)
-      setNotice({ kind: 'info', text: `Importado "${file.name}"${added.length ? ` con ${added.length} chip(s) nuevos` : ''}.` })
+      setNotice({
+        kind: 'info',
+        text: (t) =>
+          added.length ? t('app.imported', { file: file.name, count: added.length }) : t('app.importedNoChips', { file: file.name }),
+      })
     } catch (error) {
       if (!(error instanceof CircuitError)) throw error
-      setNotice({ kind: 'error', text: `No se pudo importar: ${error.message}` })
+      setNotice({ kind: 'error', text: (t) => t('app.importFailed', { reason: problemText(t, error) }) })
     }
   }
 
   const closeWelcome = () => setWelcome(false)
 
   const resetAll = () => {
-    const problem = backupSave(save)
-    if (problem) return setNotice({ kind: 'error', text: problem })
+    const failed = backupSave(save)
+    if (failed) return setNotice(problemNotice(failed))
     setSave(emptySave())
     setWorkspace(firstOpenLevel(new Set()))
     setResult(undefined)
     setGeneration((g) => g + 1)
     closeWelcome()
-    setNotice({ kind: 'info', text: 'Progreso borrado. Se guardó una copia en el navegador.' })
+    setNotice({ kind: 'info', text: (t) => t('app.progressWiped') })
   }
 
   // Opening a level stores its pins as a draft, so only drafts with pieces or wires count.
@@ -223,6 +246,8 @@ export default function App() {
     save.sandbox.nodes.length > 0 ||
     [...save.drafts.values()].some((c) => c.wires.length > 0 || c.nodes.some((n) => n.kind !== 'INPUT' && n.kind !== 'OUTPUT'))
   const solvedCount = MAIN_LEVELS.filter((l) => solved.has(l.id)).length
+  const hint = level && levelText(t, level, 'hint')
+  const noticeText = notice?.text(t)
   const next = level && nextLevel(level)
   const failures = result?.steps.filter((s) => !s.ok) ?? []
   // Long test lists put every failure first so none is cut off.
@@ -234,23 +259,21 @@ export default function App() {
 
   return (
     <div className="app">
-      <nav className="levels" aria-label="Niveles">
+      <nav className="levels" aria-label={t('app.levels')}>
         <div className="title">
           <Logo />
-          <h1>Circuitos</h1>
-          <button type="button" aria-label="Acerca de Circuitos" onClick={() => setWelcome(true)}>
+          <h1>{t('app.name')}</h1>
+          <button type="button" aria-label={t('app.about')} onClick={() => setWelcome(true)}>
             ?
           </button>
         </div>
-        <p className="tagline">De NAND a computadora</p>
+        <p className="tagline">{t('app.tagline')}</p>
         <div className="progress">
-          <span>
-            {solvedCount} de {MAIN_LEVELS.length} resueltos
-          </span>
+          <span>{t('app.solvedCount', { count: solvedCount, total: MAIN_LEVELS.length })}</span>
           <div
             className="bar"
             role="progressbar"
-            aria-label="Niveles resueltos"
+            aria-label={t('app.solvedLabel')}
             aria-valuemin={0}
             aria-valuemax={MAIN_LEVELS.length}
             aria-valuenow={solvedCount}
@@ -260,16 +283,20 @@ export default function App() {
         </div>
         {/* Shown instead of the list on a phone. */}
         <div className="level-picker">
-          <label htmlFor="level-picker">Nivel</label>
+          <label htmlFor="level-picker">{t('app.levelPicker')}</label>
           <select id="level-picker" value={workspace} onChange={(e) => open(e.target.value)}>
             {LEVELS.map((l) => (
               <option key={l.id} value={l.id} disabled={!isUnlocked(l, solved)}>
-                {l.name}
-                {l.optional ? ' (opcional)' : ''}
-                {solved.has(l.id) ? ' (resuelto)' : isUnlocked(l, solved) ? '' : ' (bloqueado)'}
+                {[
+                  levelName(l),
+                  l.optional && t('app.tag.optional'),
+                  solved.has(l.id) ? t('app.tag.solved') : !isUnlocked(l, solved) && t('app.tag.locked'),
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               </option>
             ))}
-            <option value={SANDBOX}>Modo libre</option>
+            <option value={SANDBOX}>{t('app.sandbox')}</option>
           </select>
         </div>
         <ol>
@@ -283,18 +310,21 @@ export default function App() {
                   className={`${workspace === l.id ? 'current' : ''}${fresh.has(l.id) ? ' fresh' : ''}`}
                   aria-disabled={!unlocked}
                   aria-current={workspace === l.id}
-                  title={unlocked || !needs ? undefined : `Resuelve ${needs.name} para desbloquearlo`}
+                  title={unlocked || !needs ? undefined : t('app.lockedTitle', { needs: levelName(needs) })}
                   onClick={() =>
                     unlocked
                       ? open(l.id)
-                      : setNotice({ kind: 'info', text: `${l.name} está bloqueado: resuelve ${needs?.name} para desbloquearlo.` })
+                      : setNotice({
+                          kind: 'warn',
+                          text: (t) => t('app.lockedNotice', { name: levelText(t, l, 'name'), needs: needs && levelText(t, needs, 'name') }),
+                        })
                   }
                 >
                   <span>
-                    {l.name}
-                    {l.optional && <small className="optional"> opcional</small>}
+                    {levelName(l)}
+                    {l.optional && <small className="optional"> {t('app.optional')}</small>}
                   </span>
-                  <span className="mark" aria-label={solved.has(l.id) ? 'resuelto' : unlocked ? '' : 'bloqueado'}>
+                  <span className="mark" aria-label={solved.has(l.id) ? t('app.solved') : unlocked ? '' : t('app.locked')}>
                     {solved.has(l.id) ? (
                       <CheckIcon />
                     ) : !unlocked ? (
@@ -311,7 +341,7 @@ export default function App() {
           })}
         </ol>
         <button type="button" className={`sandbox${workspace === SANDBOX ? ' current' : ''}`} onClick={() => open(SANDBOX)}>
-          Modo libre
+          {t('app.sandbox')}
         </button>
         <Credit className="credit" />
       </nav>
@@ -324,73 +354,77 @@ export default function App() {
             <>
               <div className="brief-text" key={workspace}>
                 <p className="eyebrow">
-                  {levelNumber(level) ? `Nivel ${levelNumber(level)} de ${MAIN_LEVELS.length}` : 'Nivel opcional'}
+                  {levelNumber(level)
+                    ? t('app.levelOf', { number: levelNumber(level), total: MAIN_LEVELS.length })
+                    : t('app.optionalLevel')}
                 </p>
-                <h2>{level.name}</h2>
-                <p>{level.goal}</p>
+                <h2>{levelName(level)}</h2>
+                <p>{levelText(t, level, 'goal')}</p>
                 <dl className="pins">
-                  <Pins label="Entradas" ids={level.spec.inputs} widths={level.spec.widths} />
-                  <Pins label="Salidas" ids={level.spec.outputs} widths={level.spec.widths} />
+                  <Pins label={t('app.inputs')} ids={level.spec.inputs} widths={level.spec.widths} />
+                  <Pins label={t('app.outputs')} ids={level.spec.outputs} widths={level.spec.widths} />
                 </dl>
-                {level.hint && (
+                {hint && (
                   // Folded so the player tries first; the key folds it again on another level.
                   <details className="hint" key={level.id}>
-                    <summary>Ver pista</summary>
-                    <p>{level.hint}</p>
+                    <summary>{t('app.showHint')}</summary>
+                    <p>{hint}</p>
                   </details>
                 )}
               </div>
               <div className="actions">
                 <button type="button" onClick={() => reset(level)}>
-                  Reiniciar
+                  {t('app.reset')}
                 </button>
                 <button type="button" onClick={exportCurrent}>
-                  Exportar
+                  {t('app.export')}
                 </button>
                 <button type="button" className="primary big" onClick={() => test(level)}>
-                  Probar
+                  {t('app.test')}
                 </button>
               </div>
             </>
           ) : (
             <>
               <div className="brief-text" key={workspace}>
-                <p className="eyebrow">Banco de pruebas</p>
-                <h2>Modo libre</h2>
-                <p>Arma lo que quieras con las piezas que has desbloqueado y guárdalo como chip.</p>
+                <p className="eyebrow">{t('app.sandboxEyebrow')}</p>
+                <h2>{t('app.sandbox')}</h2>
+                <p>{t('app.sandboxGoal')}</p>
               </div>
               <div className="actions">
                 <input
                   type="text"
                   value={chipName}
                   maxLength={LIMITS.text}
-                  placeholder="Nombre del chip"
-                  aria-label="Nombre del chip"
+                  placeholder={t('app.chipName')}
+                  aria-label={t('app.chipName')}
                   onChange={(e) => setChipName(e.target.value)}
                 />
                 <button type="button" className="primary" onClick={saveChip}>
-                  Guardar como chip
+                  {t('app.saveChip')}
                 </button>
                 <button type="button" onClick={exportCurrent}>
-                  Exportar
+                  {t('app.export')}
                 </button>
                 <button type="button" onClick={() => fileInput.current?.click()}>
-                  Importar
+                  {t('app.import')}
                 </button>
                 <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={importFile} />
               </div>
               {customChips.length > 0 && (
-                <ul className="my-chips" aria-label="Mis chips">
+                <ul className="my-chips" aria-label={t('app.myChips')}>
                   {customChips.map((c) => (
                     <li key={c.id}>
                       <span>{c.name}</span>
                       <button
                         type="button"
                         className={confirmDelete === c.id ? 'danger' : ''}
-                        aria-label={confirmDelete === c.id ? `Confirmar borrar ${c.name}` : `Borrar ${c.name}`}
+                        aria-label={
+                          confirmDelete === c.id ? t('app.confirmDeleteChip', { name: c.name }) : t('app.deleteChip', { name: c.name })
+                        }
                         onClick={() => deleteChip(c.id)}
                       >
-                        {confirmDelete === c.id ? '¿Borrar?' : '×'}
+                        {confirmDelete === c.id ? t('app.confirmDeleteShort') : '×'}
                       </button>
                     </li>
                   ))}
@@ -401,9 +435,9 @@ export default function App() {
         </section>
 
         {notice && (
-          <p key={notice.text} className={`notice ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
-            {notice.text}
-            <button type="button" aria-label="Cerrar aviso" onClick={() => setNotice(undefined)}>
+          <p key={noticeText} className={`notice ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
+            {noticeText}
+            <button type="button" aria-label={t('app.closeNotice')} onClick={() => setNotice(undefined)}>
               ×
             </button>
           </p>
@@ -411,7 +445,7 @@ export default function App() {
 
         {result && level && (
           <section key={attempt} className={`result ${result.passed ? 'pass' : 'fail'}`} aria-live="polite">
-            <button type="button" className="close" aria-label="Cerrar resultado" onClick={() => setResult(undefined)}>
+            <button type="button" className="close" aria-label={t('app.closeResult')} onClick={() => setResult(undefined)}>
               ×
             </button>
             {result.passed ? (
@@ -419,45 +453,41 @@ export default function App() {
                 <span className="pass-check">
                   <CheckIcon />
                 </span>
-                ¡Funciona!{' '}
+                {t('result.works')}{' '}
                 {level.chip === false ? (
-                  'Nivel resuelto.'
+                  t('result.levelSolved')
                 ) : (
-                  <>
-                    <strong>{level.name}</strong> ya está en tu paleta.
-                  </>
+                  <Trans t={t} i18nKey="result.inPalette" values={{ name: levelName(level) }} components={{ b: <strong /> }} />
                 )}
                 {next ? (
                   <>
                     <Confetti />
                     <button type="button" className="primary" onClick={() => open(next.id)}>
-                      Siguiente: {next.name}
+                      {t('result.next', { name: levelName(next) })}
                     </button>
                   </>
                 ) : (
                   <>
                     {' '}
-                    Terminaste todos los niveles.
+                    {t('result.allDone')}
                     <Confetti />{' '}
                     <button type="button" className="primary" onClick={() => open(SANDBOX)}>
-                      Ir al Modo libre
+                      {t('result.toSandbox')}
                     </button>
                   </>
                 )}
               </p>
             ) : result.error ? (
-              <p>{result.error}</p>
+              <p>{problemText(t, result.error)}</p>
             ) : (
               <>
-                <p>
-                  Pasan {result.steps.length - failures.length} de {result.steps.length} pruebas.
-                </p>
+                <p>{t('result.passing', { passed: result.steps.length - failures.length, count: result.steps.length })}</p>
                 <table>
                   <thead>
                     <tr className="groups">
-                      <th colSpan={level.spec.inputs.length}>entradas</th>
-                      <th colSpan={level.spec.outputs.length}>esperado</th>
-                      <th colSpan={level.spec.outputs.length}>tu circuito</th>
+                      <th colSpan={level.spec.inputs.length}>{t('result.inputs')}</th>
+                      <th colSpan={level.spec.outputs.length}>{t('result.expected')}</th>
+                      <th colSpan={level.spec.outputs.length}>{t('result.yours')}</th>
                       <th />
                     </tr>
                     <tr>
@@ -465,7 +495,7 @@ export default function App() {
                         <th key={i}>{id}</th>
                       ))}
                       <th>
-                        <span className="sr-only">resultado</span>
+                        <span className="sr-only">{t('result.verdict')}</span>
                       </th>
                     </tr>
                   </thead>
@@ -492,9 +522,9 @@ export default function App() {
                     ))}
                   </tbody>
                 </table>
-                {failures.some((f) => f.status === 'oscillating') && <p className="hint">~ = el circuito oscila: nunca se estabiliza.</p>}
+                {failures.some((f) => f.status === 'oscillating') && <p className="hint">{t('result.oscillates')}</p>}
                 {result.steps.length > shownSteps.length && (
-                  <p className="hint">…y {result.steps.length - shownSteps.length} pruebas más que pasan.</p>
+                  <p className="hint">{t('result.morePassing', { count: result.steps.length - shownSteps.length })}</p>
                 )}
               </>
             )}

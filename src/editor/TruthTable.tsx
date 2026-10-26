@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { problemText } from '../i18n.ts'
 import type { ChipLibrary, Circuit } from '../sim/types.ts'
 import { liveTable } from '../sim/verify.ts'
 import type { Spec } from '../sim/verify.ts'
@@ -8,11 +10,12 @@ import type { Spec } from '../sim/verify.ts'
  * shows the expected outputs next to the real ones and marks mismatches.
  */
 export function TruthTable({ circuit, library, spec }: { circuit: Circuit; library: ChipLibrary; spec?: Spec }) {
+  const { t } = useTranslation()
   const structure = JSON.stringify([circuit.nodes.map((n) => [n.id, n.kind, n.width]), circuit.wires])
   const table = useMemo(() => liveTable(circuit, library), [structure, library]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (typeof table === 'string') return <p className="table-note">{table}</p>
-  if (table.inputs.length === 0) return <p className="table-note">Agrega entradas para ver la tabla.</p>
+  if ('code' in table) return <p className="table-note">{problemText(t, table)}</p>
+  if (table.inputs.length === 0) return <p className="table-note">{t('result.addInputs')}</p>
 
   const expected = (inputs: number[]) => {
     if (!spec?.combinational) return undefined
@@ -27,9 +30,9 @@ export function TruthTable({ circuit, library, spec }: { circuit: Circuit; libra
     <table className="truth-table">
       <thead>
         <tr className="groups">
-          {group('entradas', table.inputs.length)}
-          {group(checked ? 'tu circuito' : 'salidas', table.outputs.length)}
-          {checked && group('esperado', table.outputs.length)}
+          {group(t('result.inputs'), table.inputs.length)}
+          {group(checked ? t('result.yours') : t('result.outputs'), table.outputs.length)}
+          {checked && group(t('result.expected'), table.outputs.length)}
           {checked && <th />}
         </tr>
         <tr>
@@ -72,7 +75,7 @@ export function TruthTable({ circuit, library, spec }: { circuit: Circuit; libra
                 </td>
               ))}
               {checked && (
-                <td className="verdict" aria-label={wrong ? 'mal' : 'bien'}>
+                <td className="verdict" aria-label={wrong ? t('result.wrong') : t('result.right')}>
                   {wrong ? '✗' : '✓'}
                 </td>
               )}

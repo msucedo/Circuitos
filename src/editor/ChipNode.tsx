@@ -1,9 +1,11 @@
 import { Handle, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { problemText } from '../i18n.ts'
 import { nodePins } from '../sim/flatten.ts'
 import { isPrimitive, widthOf } from '../sim/types.ts'
-import type { Pin, Pins } from '../sim/types.ts'
+import type { Pin, Pins, Problem } from '../sim/types.ts'
 import type { ChipFlowNode } from './convert.ts'
 import { binary, kindName, useEditor } from './context.ts'
 import { GATE_H, GATE_SHAPES, GATE_W, RELAY_KINDS, RELAY_PIN_Y } from './gates.ts'
@@ -15,9 +17,10 @@ const handleClass = (pin: Pin, on: boolean) => `${pin.width > 1 ? 'bus' : ''}${o
 
 /** Pin name of an INPUT/OUTPUT; double-click renames it when allowed. */
 function PinName({ id, locked }: { id: string; locked: boolean }) {
+  const { t } = useTranslation()
   const { rename } = useEditor()
   const [draft, setDraft] = useState<string>()
-  const [error, setError] = useState<string>()
+  const [error, setError] = useState<Problem>()
   // Enter or Escape already decided; the blur that follows must not commit again.
   const settled = useRef(false)
   if (!rename || locked) return <span className="pin-name">{id}</span>
@@ -25,7 +28,7 @@ function PinName({ id, locked }: { id: string; locked: boolean }) {
     return (
       <span
         className="pin-name renamable"
-        title="Doble clic para renombrar"
+        title={t('editor.rename')}
         onDoubleClick={() => {
           settled.current = false
           setDraft(id)
@@ -53,7 +56,7 @@ function PinName({ id, locked }: { id: string; locked: boolean }) {
         autoFocus
         value={draft}
         maxLength={64}
-        aria-label={`Nuevo nombre para ${id}`}
+        aria-label={t('editor.newName', { id })}
         aria-invalid={error !== undefined}
         onChange={(e) => {
           setDraft(e.target.value)
@@ -67,7 +70,7 @@ function PinName({ id, locked }: { id: string; locked: boolean }) {
         // Clicking elsewhere keeps the name, like Enter; an invalid one stays open with its error.
         onBlur={() => settled.current || commit()}
       />
-      {error && <span className="rename-error">{error}</span>}
+      {error && <span className="rename-error">{problemText(t, error)}</span>}
     </span>
   )
 }
@@ -112,6 +115,7 @@ function RelaySymbol({ closed, coilOn, inOn, outOn }: RelayState) {
 }
 
 export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNode>) {
+  const { t } = useTranslation()
   const { library, signals, incoming, inputs, setInput } = useEditor()
   const known = isPrimitive(data.kind) || library.has(data.kind)
   const pins = known ? nodePins(data, library) : NO_PINS
@@ -129,7 +133,7 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
             type="button"
             className={`switch nodrag${value ? ' on' : ''}`}
             aria-pressed={value === 1}
-            aria-label={`entrada ${id}: ${value}`}
+            aria-label={t('editor.input', { id, value })}
             onClick={() => setInput(id, value ? 0 : 1)}
           >
             {value}
@@ -142,7 +146,7 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
               min={0}
               max={max}
               value={value}
-              aria-label={`entrada ${id} (${width} bits)`}
+              aria-label={t('editor.busInput', { id, width })}
               onChange={(e) => setInput(id, Math.min(max, Math.max(0, Math.trunc(Number(e.target.value) || 0))))}
             />
             <small>{binary(value, width)}</small>
@@ -160,9 +164,9 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
       <div className={cls}>
         <Handle type="target" position={Position.Left} id="in" className={handleClass(pins.inputs[0], value > 0)} />
         {width === 1 ? (
-          <span className={`led${value ? ' on' : ''}`} role="img" aria-label={`salida ${id}: ${value}`} />
+          <span className={`led${value ? ' on' : ''}`} role="img" aria-label={t('editor.output', { id, value })} />
         ) : (
-          <output className="bus-value" aria-label={`salida ${id}: ${value}`}>
+          <output className="bus-value" aria-label={t('editor.output', { id, value })}>
             <strong>{value}</strong>
             <small>{binary(value, width)}</small>
           </output>
@@ -172,7 +176,7 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
     )
   }
 
-  const title = data.label ?? kindName(data.kind, library)
+  const title = data.label ?? kindName(t, data.kind, library)
   const shape = known ? GATE_SHAPES[data.kind] : undefined
   // A chip that only shares the name (different pins) keeps the box.
   if (shape && width === 1 && pins.inputs.length === shape.inputs.length && pins.outputs.length === 1) {
@@ -180,7 +184,7 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
     const inputsOn = pins.inputs.map((pin) => incoming(id, pin.name) > 0)
     const outputOn = signals.pin(id, out.name) > 0
     return (
-      <div className={`gate kind-${data.kind.toLowerCase()}${selected ? ' selected' : ''}`} aria-label={`Compuerta ${title}`}>
+      <div className={`gate kind-${data.kind.toLowerCase()}${selected ? ' selected' : ''}`} aria-label={t('editor.gate', { name: title })}>
         <div className="gate-frame">
           <GateSymbol shape={shape} inputsOn={inputsOn} outputOn={outputOn} />
           {pins.inputs.map((pin, i) => (

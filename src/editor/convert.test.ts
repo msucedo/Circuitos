@@ -61,7 +61,7 @@ describe('renameNode', () => {
   it('renames a pin and rewires it', () => {
     const { nodes, edges } = toFlow(XOR)
     const result = renameNode(nodes, edges, 'a', 'p')
-    if (typeof result === 'string') throw new Error(result)
+    if ('code' in result) throw new Error(result.code)
     const circuit = toCircuit(result.nodes, result.edges)
     expect(circuit.nodes.map((n) => n.id)).toEqual(['p', 'b', 'n', 'x', 'y', 'z', 'out'])
     expect(circuit.wires.filter((w) => w.from.node === 'p')).toHaveLength(2)
@@ -70,9 +70,9 @@ describe('renameNode', () => {
 
   it('refuses invalid or taken names', () => {
     const { nodes, edges } = toFlow(XOR)
-    expect(renameNode(nodes, edges, 'a', 'b')).toBe('Ya existe "b"')
-    expect(renameNode(nodes, edges, 'a', '1x')).toMatch(/empezando con letra/)
-    expect(renameNode(nodes, edges, 'a', 'a/b')).toMatch(/letras, números/)
+    expect(renameNode(nodes, edges, 'a', 'b')).toEqual({ code: 'nameTaken', params: { name: 'b' } })
+    expect(renameNode(nodes, edges, 'a', '1x')).toEqual({ code: 'badName', params: {} })
+    expect(renameNode(nodes, edges, 'a', 'a/b')).toEqual({ code: 'badName', params: {} })
   })
 })
 

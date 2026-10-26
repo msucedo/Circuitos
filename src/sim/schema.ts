@@ -1,6 +1,6 @@
 import { checkLibrary } from './flatten.ts'
 import { CircuitError, MAX_WIDTH, isPrimitive, toLibrary } from './types.ts'
-import type { ChipDef, Circuit, CircuitNode, Endpoint, Wire } from './types.ts'
+import type { ChipDef, Circuit, CircuitNode, Endpoint, ProblemCode, ProblemParams, Wire } from './types.ts'
 
 /**
  * Trust boundary: everything loaded from a file or localStorage goes through
@@ -17,42 +17,42 @@ export interface Project {
   chips: ChipDef[]
 }
 
-const fail = (path: string, problem: string): never => {
-  throw new CircuitError(`${path}: ${problem}`)
+const fail = (path: string, code: ProblemCode, params: ProblemParams = {}): never => {
+  throw new CircuitError(code, { path, ...params })
 }
 
 function object(value: unknown, path: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) fail(path, 'debe ser un objeto')
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) fail(path, 'notObject')
   return value as Record<string, unknown>
 }
 
 function array(value: unknown, path: string, max: number): unknown[] {
-  if (!Array.isArray(value)) fail(path, 'debe ser una lista')
+  if (!Array.isArray(value)) fail(path, 'notList')
   const list = value as unknown[]
-  if (list.length > max) fail(path, `tiene más de ${max} elementos`)
+  if (list.length > max) fail(path, 'tooMany', { max })
   return list
 }
 
 function id(value: unknown, path: string): string {
-  if (typeof value !== 'string' || !ID_PATTERN.test(value)) fail(path, 'id inválido (letras, números, "_" o "-")')
+  if (typeof value !== 'string' || !ID_PATTERN.test(value)) fail(path, 'badId')
   return value as string
 }
 
 function text(value: unknown, path: string): string {
-  if (typeof value !== 'string') fail(path, 'debe ser texto')
+  if (typeof value !== 'string') fail(path, 'notText')
   const s = value as string
-  if (s.length === 0 || s.length > LIMITS.text) fail(path, `debe tener de 1 a ${LIMITS.text} caracteres`)
+  if (s.length === 0 || s.length > LIMITS.text) fail(path, 'textLength', { max: LIMITS.text })
   return s
 }
 
 function coordinate(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) fail(path, 'debe ser un número')
+  if (typeof value !== 'number' || !Number.isFinite(value)) fail(path, 'notNumber')
   return value as number
 }
 
 function width(value: unknown, path: string): number {
   if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > MAX_WIDTH) {
-    fail(path, `debe ser un entero de 1 a ${MAX_WIDTH}`)
+    fail(path, 'badWidth', { max: MAX_WIDTH })
   }
   return value as number
 }
@@ -69,7 +69,7 @@ export function parseCircuit(value: unknown, path = 'circuit'): Circuit {
     const at = `${path}.nodes[${i}]`
     const n = object(raw, at)
     const node: CircuitNode = { id: id(n.id, `${at}.id`), kind: id(n.kind, `${at}.kind`) }
-    if (ids.has(node.id)) fail(`${at}.id`, `repetido ("${node.id}")`)
+    if (ids.has(node.id)) fail(`${at}.id`, 'duplicate', { id: node.id })
     ids.add(node.id)
     if (n.label !== undefined) node.label = text(n.label, `${at}.label`)
     if (n.width !== undefined) node.width = width(n.width, `${at}.width`)
@@ -82,7 +82,7 @@ export function parseCircuit(value: unknown, path = 'circuit'): Circuit {
     const w = object(raw, at)
     const wire = { from: endpoint(w.from, `${at}.from`), to: endpoint(w.to, `${at}.to`) }
     for (const end of [wire.from, wire.to]) {
-      if (!ids.has(end.node)) fail(at, `el nodo "${end.node}" no existe`)
+      if (!ids.has(end.node)) fail(at, 'missingNode', { node: end.node })
     }
     return wire
   })
@@ -110,16 +110,16 @@ export const byteLength = (text: string) => new TextEncoder().encode(text).lengt
 
 function parseJson(json: string, what: string): Record<string, unknown> {
   if (byteLength(json) > LIMITS.bytes) {
-    throw new CircuitError(`El archivo pesa más de ${LIMITS.bytes / 1024 / 1024} MB`)
+    throw new CircuitError('fileTooBig', { mb: LIMITS.bytes / 1024 / 1024 })
   }
   let data: unknown
   try {
     data = JSON.parse(json)
   } catch {
-    throw new CircuitError('El archivo no es JSON válido')
+    throw new CircuitError('notJson')
   }
   const o = object(data, what)
-  if (o.version !== 1) fail('version', 'versión no soportada')
+  if (o.version !== 1) fail('version', 'badVersion')
   return o
 }
 
@@ -129,7 +129,7 @@ function parseChips(value: unknown): ChipDef[] {
     const at = `chips[${i}]`
     const c = object(raw, at)
     const chip = { id: id(c.id, `${at}.id`), name: text(c.name, `${at}.name`), circuit: parseCircuit(c.circuit, `${at}.circuit`) }
-    if (isPrimitive(chip.id) || chipIds.has(chip.id)) fail(`${at}.id`, `repetido ("${chip.id}")`)
+    if (isPrimitive(chip.id) || chipIds.has(chip.id)) fail(`${at}.id`, 'duplicate', { id: chip.id })
     chipIds.add(chip.id)
     return chip
   })
@@ -140,13 +140,13 @@ function parseChips(value: unknown): ChipDef[] {
 function checkKinds(circuit: Circuit, chips: ChipDef[]) {
   for (const node of circuit.nodes) {
     if (!isPrimitive(node.kind) && !chips.some((c) => c.id === node.kind)) {
-      throw new CircuitError(`Tipo desconocido: "${node.kind}"`)
+      throw new CircuitError('unknownKind', { kind: node.kind })
     }
   }
 }
 
 export function parseProject(json: string): Project {
-  const o = parseJson(json, 'proyecto')
+  const o = parseJson(json, 'project')
   const chips = parseChips(o.chips)
   const circuit = parseCircuit(o.circuit)
   checkKinds(circuit, chips)
@@ -154,7 +154,7 @@ export function parseProject(json: string): Project {
 }
 
 export function parseSave(json: string): SaveData {
-  const o = parseJson(json, 'progreso')
+  const o = parseJson(json, 'save')
   const chips = parseChips(o.chips)
   const solved = array(o.solved, 'solved', LIMITS.levels).map((value, i) => id(value, `solved[${i}]`))
   const drafts = new Map<string, Circuit>()
