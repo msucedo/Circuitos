@@ -132,3 +132,22 @@ test('dragging on the empty canvas draws a selection box', async ({ page }) => {
   await page.getByRole('toolbar', { name: 'Herramientas' }).getByRole('button', { name: 'Borrar' }).click()
   await expect(page.locator('.gate')).toHaveCount(0)
 })
+
+test('packets move at the same speed on short and long wires', async ({ page }) => {
+  await page.goto('/')
+  await addPiece(page, 'NAND', 'nand1', { x: 200, y: 280 })
+  await wire(page, ['a', 'out'], ['nand1', 'a'])
+  await wire(page, ['nand1', 'out'], ['out', 'in'])
+  await page.getByLabel('entrada a: 0').click() // a=1: both wires change, so both send a packet
+  const speeds = await page.evaluate(() =>
+    [...document.querySelectorAll('.react-flow__edge')].map((edge) => {
+      const path = edge.querySelector<SVGPathElement>('path.wire')!
+      const motion = edge.querySelector('animateMotion')!
+      const loop = parseFloat(motion.getAttribute('dur')!)
+      const cross = Number(motion.getAttribute('keyTimes')!.split(';')[1] ?? 1)
+      return path.getTotalLength() / (loop * cross)
+    }),
+  )
+  expect(speeds).toHaveLength(2)
+  expect(Math.abs(speeds[0] - speeds[1])).toBeLessThan(0.01)
+})

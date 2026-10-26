@@ -1,14 +1,24 @@
 import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@xyflow/react'
 import type { Edge, EdgeProps } from '@xyflow/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export type WireData = { value: number; width: number; animate: boolean }
 export type WireFlowEdge = Edge<WireData, 'wire'>
 
-/** How long a packet takes to cross a wire. */
-const PACKET_MS = 800
-/** While a wire carries a non-zero value, a packet leaves this often. */
+/** Packets move at the same speed on every wire, so long wires don't look faster. */
+const PX_PER_MS = 0.25
+const MIN_PACKET_MS = 300
+/** While a wire carries a non-zero value, a packet leaves this often (longer wires wait for the last one). */
 export const LOOP_MS = 2000
+const LOOP_GAP_MS = 600
+
+/** Real length of the drawn curve; jsdom can't measure, so it falls back to the straight distance. */
+function pathLength(d: string, fallback: number): number {
+  if (typeof document === 'undefined') return fallback
+  const el = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  el.setAttribute('d', d)
+  return typeof el.getTotalLength === 'function' ? el.getTotalLength() : fallback
+}
 
 /**
  * A wire coloured by its value. While it carries something other than 0, a
@@ -40,11 +50,14 @@ export function WireEdge({ id, sourceX, sourceY, targetX, targetY, sourcePositio
     fade.current?.beginElement?.()
   }, [visible, pulse])
 
-  // Looping: cross in PACKET_MS, then wait at the end (invisible) for the rest of LOOP_MS.
-  const cross = PACKET_MS / LOOP_MS
+  // Looping: cross in packetMs, then wait at the end (invisible) for the rest of the loop.
+  const length = useMemo(() => pathLength(path, Math.hypot(targetX - sourceX, targetY - sourceY)), [path, sourceX, sourceY, targetX, targetY])
+  const packetMs = Math.max(MIN_PACKET_MS, length / PX_PER_MS)
+  const loopMs = Math.max(LOOP_MS, packetMs + LOOP_GAP_MS)
+  const cross = packetMs / loopMs
   const timing = on
-    ? { dur: `${LOOP_MS}ms`, repeatCount: 'indefinite', keyTimes: `0;${cross};1` }
-    : { dur: `${PACKET_MS}ms`, repeatCount: '1', keyTimes: '0;1' }
+    ? { dur: `${loopMs}ms`, repeatCount: 'indefinite', keyTimes: `0;${cross};1` }
+    : { dur: `${packetMs}ms`, repeatCount: '1', keyTimes: '0;1' }
 
   const cls = `wire${on ? ' on' : ''}${width > 1 ? ' bus' : ''}${selected ? ' selected' : ''}`
   return (
