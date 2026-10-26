@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { MAIN_LEVELS } from '../src/levels/levels.ts'
 import { fitsWithoutScroll, start, watchErrors, wrappedShortcuts } from './helpers.ts'
 
 test.use({ locale: 'en-US' })
@@ -34,7 +35,7 @@ test('an English browser gets the app in English, and the welcome switches it to
 
 test('levels, pieces and the result read in English', async ({ page }) => {
   await start(page)
-  await expect(page.getByText('Level 1 of 10')).toBeVisible()
+  await expect(page.getByText(`Level 1 of ${MAIN_LEVELS.length}`)).toBeVisible()
   await expect(page.getByText('Output the opposite of the input: 0 → 1 and 1 → 0.')).toBeVisible()
   await expect(page.getByRole('complementary', { name: 'Pieces' })).toBeVisible()
   // aria-disabled: Playwright waits for it to be enabled, a person can click it.

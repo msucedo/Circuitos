@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import * as examples from '../sim/examples.ts'
 import { verify } from '../sim/verify.ts'
-import type { ChipDef } from '../sim/types.ts'
+import type { ChipDef, Circuit } from '../sim/types.ts'
+import es from '../locales/es.json'
+import { ALU_OP } from './specs.ts'
 import { LEVELS, MAIN_LEVELS, firstOpenLevel, isUnlocked, levelById, levelCircuit, levelLibrary, levelNumber, levelPalette, nextLevel, unlockedBy } from './levels.ts'
 
 const solution = (id: string) => examples[id as keyof typeof examples] as typeof examples.NOT
@@ -66,6 +68,57 @@ describe('levels', () => {
       expect(ids('INPUT')).toEqual(level.spec.inputs)
       expect(ids('OUTPUT')).toEqual(level.spec.outputs)
       expect(verify(levelCircuit(level), new Map(), level.spec).passed).toBe(false)
+    }
+  })
+})
+
+/** Verifying runs every step, so specs stay small enough to check instantly in the browser. */
+const MAX_SPEC_STEPS = 1024
+
+describe('block 3 levels', () => {
+  const spec = (id: string) => levelById(id)!.spec
+  const expected = (id: string, set: Record<string, number>) => spec(id).steps.find((s) => Object.entries(set).every(([k, v]) => s.set[k] === v))?.expect
+
+  it('compute what each case expects', () => {
+    expect(expected('ALU4', { a: 7, b: 9, op: ALU_OP.SUB })).toEqual({ out: 14, zero: 0 })
+    expect(expected('ALU4', { a: 5, b: 5, op: ALU_OP.SUB })).toEqual({ out: 0, zero: 1 })
+    expect(expected('ALU4', { a: 15, b: 1, op: ALU_OP.ADD })).toEqual({ out: 0, zero: 1 })
+    expect(expected('ALU4', { a: 5, b: 10, op: ALU_OP.OR })).toEqual({ out: 15, zero: 0 })
+    expect(expected('INC4', { in: 15 })).toEqual({ out: 0 })
+    expect(expected('DECODER', { sel: 2 })).toEqual({ y0: 0, y1: 0, y2: 1, y3: 0 })
+    expect(expected('MUX4', { a: 5, b: 10, sel: 1 })).toEqual({ out: 10 })
+  })
+
+  it('catch a circuit with two crossed bits', () => {
+    // Same as the reference, but bits 0 and 1 of the result swap places.
+    const crossed = (circuit: Circuit, join: string): Circuit => ({
+      ...circuit,
+      wires: circuit.wires.map((w) =>
+        w.to.node !== join ? w : { ...w, to: { ...w.to, pin: w.to.pin === 'b0' ? 'b1' : w.to.pin === 'b1' ? 'b0' : w.to.pin } },
+      ),
+    })
+    const all = new Set(LEVELS.map((l) => l.id))
+    const chips = LEVELS.filter((l) => l.chip !== false).map((l) => ({ id: l.id, name: l.id, circuit: solution(l.id) }))
+    for (const [id, join] of [['MUX4', 'j'], ['NOT4', 'j'], ['INC4', 'j'], ['ALU4', 'arith']]) {
+      const library = levelLibrary(levelById(id)!, all, chips)
+      expect(verify(crossed(solution(id), join), library, spec(id)).passed, id).toBe(false)
+    }
+  })
+
+  it('keep every spec small', () => {
+    for (const level of LEVELS) expect(level.spec.steps.length, level.id).toBeLessThanOrEqual(MAX_SPEC_STEPS)
+  })
+
+  it('start with bus pins already as wide as the spec says', () => {
+    const pins = levelCircuit(levelById('ALU4')!).nodes.map((n) => [n.id, n.width ?? 1])
+    expect(pins).toEqual([['a', 4], ['b', 4], ['op', 2], ['out', 4], ['zero', 1]])
+    expect(levelPalette(levelById('ALU4')!, new Map())).toEqual(['NAND', 'SPLIT', 'JOIN'])
+  })
+
+  it('have a name and a goal in every language', () => {
+    for (const level of LEVELS) {
+      expect(es.levels[level.id as keyof typeof es.levels]?.name, level.id).toBeTruthy()
+      expect(es.levels[level.id as keyof typeof es.levels]?.goal, level.id).toBeTruthy()
     }
   })
 })

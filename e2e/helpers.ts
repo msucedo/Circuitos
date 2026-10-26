@@ -51,8 +51,17 @@ async function closeWelcome(page: Page) {
   await expect(welcome).toBeHidden()
 }
 
+/**
+ * A level's button by its name; the accessible name may add " opcional", " resuelto" or " bloqueado",
+ * but "NOT" must not match "NOT de 4 bits".
+ */
+export const levelButton = (page: Page, name: string) =>
+  page
+    .getByRole('navigation', { name: 'Niveles' })
+    .getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( opcional)?( resuelto| bloqueado)?$`) })
+
 export async function openLevel(page: Page, name: string) {
-  await page.getByRole('navigation', { name: 'Niveles' }).getByRole('button', { name }).click()
+  await levelButton(page, name).click()
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible()
 }
 

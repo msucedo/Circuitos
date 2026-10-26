@@ -16,7 +16,7 @@ export interface Spec {
   outputs: string[]
   /** Pin widths other than 1. */
   widths?: Record<string, number>
-  /** Every input combination with no memory involved: a truth table can show the expected values. */
+  /** No memory involved: every step stands on its own, so a truth table can show the expected values. */
   combinational?: boolean
   steps: Step[]
 }
@@ -72,6 +72,21 @@ export function tryHarness(circuit: Circuit, library: ChipLibrary): Harness | Ci
   }
 }
 
+/**
+ * Spec for a combinational circuit checked on chosen cases (bus values as numbers),
+ * for when every combination would be too many. `fn` computes what each case expects.
+ */
+export function vectorSpec(def: {
+  inputs: string[]
+  outputs: string[]
+  widths?: Record<string, number>
+  cases: Record<string, number>[]
+  fn: (set: Record<string, number>) => Record<string, number>
+}): Spec {
+  const { inputs, outputs, widths, cases, fn } = def
+  return { inputs, outputs, widths, combinational: true, steps: cases.map((set) => ({ set, expect: fn(set) })) }
+}
+
 export function verify(circuit: Circuit, library: ChipLibrary, spec: Spec): VerifyResult {
   const harness = tryHarness(circuit, library)
   if (harness instanceof CircuitError) return { passed: false, error: harness, steps: [] }
@@ -90,6 +105,8 @@ export function verify(circuit: Circuit, library: ChipLibrary, spec: Spec): Veri
 }
 
 export const MAX_TABLE_BITS = 6
+/** A level's own cases are shown instead of every combination when there are at most this many. */
+export const MAX_TABLE_ROWS = 64
 
 export interface LiveTable {
   inputs: Pin[]
@@ -98,24 +115,29 @@ export interface LiveTable {
 }
 
 /**
- * Truth table of the current circuit over its top-level pins. Every row starts
- * from all-zero state so memory circuits don't leak state between rows.
+ * Truth table of the current circuit over its top-level pins. With a combinational
+ * spec of few cases, the rows are those cases (what Probar checks); otherwise every
+ * combination, up to MAX_TABLE_BITS input bits. Every row starts from all-zero
+ * state so memory circuits don't leak state between rows.
  */
-export function liveTable(circuit: Circuit, library: ChipLibrary): LiveTable | Problem {
+export function liveTable(circuit: Circuit, library: ChipLibrary, spec?: Spec): LiveTable | Problem {
   const harness = tryHarness(circuit, library)
   if (harness instanceof CircuitError) return harness
   const bits = harness.inputs.reduce((n, p) => n + p.width, 0)
+  const row = (values: number[]) => {
+    harness.sim.values.fill(0)
+    harness.inputs.forEach((pin, i) => harness.set(pin.name, values[i]))
+    const { status } = harness.sim.settle()
+    return { inputs: values, outputs: harness.outputs.map((p) => harness.read(p.name)), status }
+  }
+  if (spec?.combinational && spec.steps.length <= MAX_TABLE_ROWS) {
+    const rows = spec.steps.map((step) => row(harness.inputs.map((pin) => step.set[pin.name] ?? 0)))
+    return { inputs: harness.inputs, outputs: harness.outputs, rows }
+  }
   if (bits > MAX_TABLE_BITS) return problem('tableTooWide', { max: MAX_TABLE_BITS, count: bits })
   const rows = combinations(bits).map((combo) => {
-    harness.sim.values.fill(0)
     let at = 0
-    const inputs = harness.inputs.map((pin) => {
-      const value = combo.slice(at, (at += pin.width)).reduce<number>((n, b) => n * 2 + b, 0)
-      harness.set(pin.name, value)
-      return value
-    })
-    const { status } = harness.sim.settle()
-    return { inputs, outputs: harness.outputs.map((p) => harness.read(p.name)), status }
+    return row(harness.inputs.map((pin) => combo.slice(at, (at += pin.width)).reduce<number>((n, b) => n * 2 + b, 0)))
   })
   return { inputs: harness.inputs, outputs: harness.outputs, rows }
 }

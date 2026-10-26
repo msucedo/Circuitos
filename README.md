@@ -13,13 +13,16 @@ npm run e2e        # pruebas en Chrome real contra el build (con CSP); capturas 
 
 Nivel 0 (opcional): armar la NAND con relés (Fuente, Relé, Relé inverso). Esas piezas se definen en NAND dentro de `src/sim/builtins.ts`, así que el simulador solo corre NAND.
 
+Niveles: compuertas (NOT a XOR), sumadores, memoria (latches y flip-flop D) y el camino a la CPU: multiplexor, demultiplexor, buses de 4 bits (NOT4, MUX4), decodificador, incrementador y una ALU de 4 bits (suma, resta, AND, OR y bandera zero). Los niveles con muchas combinaciones se prueban con casos escogidos (`vectorSpec` en `src/sim/verify.ts`) en vez de todas.
+
 - `src/sim/`: motor puro (sin DOM): `simulate`, `flatten` (chips anidados), `verify`, `schema` (validación de todo JSON externo).
 - `src/editor/`: editor con React Flow.
 - `e2e/`: pruebas de UI con Playwright (usa el Google Chrome instalado).
 - `src/levels/`: niveles y lo que prueba cada uno.
 - `src/storage.ts`, `src/project.ts`: progreso en localStorage, exportar e importar.
+- `src/locales/`: textos en español e inglés (i18next); el idioma sale del navegador o del selector de la bienvenida.
 
-No hay cuentas: el progreso vive solo en el localStorage del navegador (`circuitos:v1`). La bienvenida sale en la primera visita (`circuitos:bienvenida`) y se reabre con "?". Desde ahí, "Borrar mi progreso" deja una copia en `circuitos:v1:respaldo` antes de empezar de cero.
+No hay cuentas: el progreso vive solo en el localStorage del navegador (`circuitos:v1`). La bienvenida sale en cada carga y se reabre con "?". Desde ahí, "Borrar mi progreso" deja una copia en `circuitos:v1:respaldo` antes de empezar de cero.
 
 ## Editor
 

@@ -12,7 +12,7 @@ import type { Spec } from '../sim/verify.ts'
 export function TruthTable({ circuit, library, spec }: { circuit: Circuit; library: ChipLibrary; spec?: Spec }) {
   const { t } = useTranslation()
   const structure = JSON.stringify([circuit.nodes.map((n) => [n.id, n.kind, n.width]), circuit.wires])
-  const table = useMemo(() => liveTable(circuit, library), [structure, library]) // eslint-disable-line react-hooks/exhaustive-deps
+  const table = useMemo(() => liveTable(circuit, library, spec), [structure, library, spec]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if ('code' in table) return <p className="table-note">{problemText(t, table)}</p>
   if (table.inputs.length === 0) return <p className="table-note">{t('result.addInputs')}</p>

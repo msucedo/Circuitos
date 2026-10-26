@@ -213,6 +213,41 @@
       "name": "Flip-flop D",
       "goal": "q toma el valor de d solo cuando clk sube de 0 a 1.",
       "hint": "Dos latches D: uno abierto con clk=0 y otro con clk=1."
+    },
+    "MUX": {
+      "name": "Multiplexor",
+      "goal": "Elige una de dos entradas: con sel=0 la salida copia a, con sel=1 copia b.",
+      "hint": "(a AND NOT sel) OR (b AND sel)."
+    },
+    "DMUX": {
+      "name": "Demultiplexor",
+      "goal": "Lo contrario del multiplexor: manda in a la salida a (sel=0) o a la b (sel=1); la otra queda en 0.",
+      "hint": "Cada salida es un AND de in con sel o con su contrario."
+    },
+    "NOT4": {
+      "name": "NOT de 4 bits",
+      "goal": "Tu primer bus: invierte los 4 bits de in. Separa el bus en bits, invierte cada uno y júntalos otra vez.",
+      "hint": "Separar → cuatro NOT → Juntar. Elige 4 en Bits antes de agregar Separar y Juntar."
+    },
+    "MUX4": {
+      "name": "Multiplexor de 4 bits",
+      "goal": "Como el multiplexor, pero con números de 4 bits: out es a cuando sel=0 y b cuando sel=1.",
+      "hint": "Un multiplexor por bit, todos con el mismo sel."
+    },
+    "DECODER": {
+      "name": "Decodificador",
+      "goal": "sel es un número de 2 bits (0 a 3). Enciende solo la salida con ese número: y0, y1, y2 o y3.",
+      "hint": "Cada salida es un AND de los dos bits de sel, o de sus contrarios."
+    },
+    "INC4": {
+      "name": "Incrementador",
+      "goal": "Suma 1 a un número de 4 bits. Después de 15 vuelve a 0.",
+      "hint": "El bit 0 siempre se invierte; cada bit siguiente es un medio sumador con el acarreo del bit anterior."
+    },
+    "ALU4": {
+      "name": "ALU de 4 bits",
+      "goal": "El corazón de la CPU. op elige la operación: 0 suma, 1 resta (a − b), 2 AND y 3 OR, bit por bit. zero vale 1 cuando el resultado es 0.",
+      "hint": "a − b es a + NOT b + 1: el bit 0 de op sirve para invertir b y como ese 1 de acarreo. El bit 1 de op elige entre aritmética y lógica."
     }
   },
   "problems": {

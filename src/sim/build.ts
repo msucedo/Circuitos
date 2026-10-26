@@ -6,6 +6,8 @@ type Ref = string
 export interface PartSpec {
   kind: string
   in: Record<string, Ref>
+  /** Bus width of a SPLIT or JOIN. */
+  width?: number
 }
 
 export function nand(a: Ref, b: Ref): PartSpec {
@@ -22,17 +24,20 @@ export function build(spec: {
   inputs: string[]
   parts?: Record<string, PartSpec>
   outputs: Record<string, Ref>
+  /** Widths of input and output pins other than 1. */
+  widths?: Record<string, number>
 }): Circuit {
-  const nodes: CircuitNode[] = spec.inputs.map((id) => ({ id, kind: 'INPUT' }))
+  const sized = (node: CircuitNode, width = spec.widths?.[node.id]): CircuitNode => (width ? { ...node, width } : node)
+  const nodes: CircuitNode[] = spec.inputs.map((id) => sized({ id, kind: 'INPUT' }))
   const wires: Wire[] = []
   for (const [id, part] of Object.entries(spec.parts ?? {})) {
-    nodes.push({ id, kind: part.kind })
+    nodes.push(sized({ id, kind: part.kind }, part.width))
     for (const [pin, ref] of Object.entries(part.in)) {
       wires.push({ from: endpoint(ref), to: { node: id, pin } })
     }
   }
   for (const [id, ref] of Object.entries(spec.outputs)) {
-    nodes.push({ id, kind: 'OUTPUT' })
+    nodes.push(sized({ id, kind: 'OUTPUT' }))
     wires.push({ from: endpoint(ref), to: { node: id, pin: 'in' } })
   }
   return { nodes, wires }

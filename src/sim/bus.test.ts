@@ -5,7 +5,7 @@ import { Simulator, compile } from './simulate.ts'
 import { build, nand } from './build.ts'
 import { toLibrary } from './types.ts'
 import type { Circuit } from './types.ts'
-import { liveTable, verify } from './verify.ts'
+import { MAX_TABLE_ROWS, liveTable, vectorSpec, verify } from './verify.ts'
 
 /** a + b on 4-bit buses: split both, four full adders, join the sum. */
 const BUS_ADDER: Circuit = {
@@ -104,6 +104,42 @@ describe('live table', () => {
 
   it('refuses tables with too many input bits', () => {
     expect(liveTable({ nodes: [{ id: 'a', kind: 'INPUT', width: 8 }], wires: [] }, LIBRARY)).toEqual({ code: 'tableTooWide', params: { max: 6, count: 8 } })
+  })
+
+  it("with a combinational spec, lists the spec's cases even past 6 input bits", () => {
+    const wide = build({ inputs: ['a'], outputs: { out: 'a' }, widths: { a: 8, out: 8 } })
+    const spec = vectorSpec({
+      inputs: ['a'],
+      outputs: ['out'],
+      widths: { a: 8, out: 8 },
+      cases: [{ a: 200 }, { a: 7 }],
+      fn: ({ a }) => ({ out: a }),
+    })
+    const table = liveTable(wide, LIBRARY, spec)
+    if ('code' in table) throw new Error(table.code)
+    expect(table.rows.map((r) => [r.inputs[0], r.outputs[0]])).toEqual([[200, 200], [7, 7]])
+  })
+
+  it('keeps the size limit when a spec has too many cases to show', () => {
+    const many = vectorSpec({ inputs: ['a'], outputs: [], widths: { a: 8 }, cases: Array.from({ length: MAX_TABLE_ROWS + 1 }, (_, a) => ({ a })), fn: () => ({}) })
+    const wide = build({ inputs: ['a'], outputs: {}, widths: { a: 8 } })
+    expect(liveTable(wide, LIBRARY, many)).toEqual({ code: 'tableTooWide', params: { max: 6, count: 8 } })
+  })
+})
+
+describe('build with buses', () => {
+  it('gives pins and pieces their widths', () => {
+    const circuit = build({
+      inputs: ['a'],
+      parts: { s: { kind: 'SPLIT', width: 4, in: { in: 'a' } }, j: { kind: 'JOIN', width: 4, in: { b0: 's.b3', b1: 's.b2', b2: 's.b1', b3: 's.b0' } } },
+      outputs: { out: 'j' },
+      widths: { a: 4, out: 4 },
+    })
+    expect(circuit.nodes.map((n) => [n.id, n.width ?? 1])).toEqual([['a', 4], ['s', 4], ['j', 4], ['out', 4]])
+    const h = new Harness(circuit, LIBRARY)
+    h.set('a', 0b0001)
+    h.sim.settle()
+    expect(h.read('out')).toBe(0b1000)
   })
 })
 

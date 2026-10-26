@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { LEVELS, MAIN_LEVELS } from '../src/levels/levels.ts'
 import { addPiece, handle, node, openLevel, restart, seedSolved, SHOTS, start, watchErrors, wire } from './helpers.ts'
 
 test('loads the built app with no console errors or CSP violations', async ({ page }) => {
@@ -61,7 +62,7 @@ test('NOT by hand: the LED follows the input, Probar unlocks AND, and progress s
   await page.getByRole('button', { name: 'Probar' }).click()
   await expect(page.getByText('ya está en tu paleta')).toBeVisible()
   await expect(page.locator('.result.pass .confetti i')).toHaveCount(18)
-  await expect(page.getByText('1 de 10 resueltos')).toBeVisible()
+  await expect(page.getByText(`1 de ${MAIN_LEVELS.length} resueltos`)).toBeVisible()
   const nav = page.getByRole('navigation', { name: 'Niveles' })
   await expect(nav.getByRole('button', { name: 'AND', exact: true })).toBeEnabled()
   await expect(nav.getByRole('button', { name: 'AND', exact: true })).toHaveClass(/fresh/)
@@ -126,9 +127,9 @@ test('the level header, locked levels and the empty canvas explain themselves', 
   const errors = watchErrors(page)
   await start(page)
   const brief = page.locator('.brief')
-  await expect(brief.getByText('Nivel 1 de 10')).toBeVisible()
+  await expect(brief.getByText(`Nivel 1 de ${MAIN_LEVELS.length}`)).toBeVisible()
   await expect(brief.locator('.pins code')).toHaveText(['a', 'out'])
-  await expect(page.getByText('0 de 10 resueltos')).toBeVisible()
+  await expect(page.getByText(`0 de ${MAIN_LEVELS.length} resueltos`)).toBeVisible()
   await expect(page.getByText('Agrega piezas desde Piezas')).toBeVisible()
 
   const and = page.getByRole('navigation', { name: 'Niveles' }).getByRole('button', { name: 'AND bloqueado' })
@@ -187,4 +188,25 @@ test('the hint starts folded and folds again on another level; the ? button is r
   await expect(page.getByText('NAND da 0 solo cuando sus dos entradas son 1.')).toBeHidden()
   const box = await page.getByRole('button', { name: 'Acerca de Circuitos' }).boundingBox()
   expect(box && box.width === box.height).toBe(true)
+})
+
+test('bus levels start with bus pins and a live table of the cases Probar checks', async ({ page }) => {
+  const errors = watchErrors(page)
+  const before = (id: string) => LEVELS.slice(0, LEVELS.findIndex((l) => l.id === id)).map((l) => l.id)
+  await seedSolved(page, before('ALU4'))
+  await start(page)
+  await openLevel(page, 'ALU de 4 bits')
+  await expect(page.getByLabel('entrada a (4 bits)')).toBeVisible()
+  await expect(page.getByLabel('entrada op (2 bits)')).toBeVisible()
+  const palette = page.getByRole('complementary', { name: 'Piezas' })
+  await expect(palette.getByRole('button', { name: 'Separar', exact: true })).toBeVisible()
+  await expect(palette.getByRole('button', { name: 'Multiplexor de 4 bits', exact: true })).toBeVisible()
+
+  // 10 input bits: too many for every combination, so the table lists the level's cases.
+  await page.getByRole('button', { name: 'Tabla' }).click()
+  const table = page.getByRole('complementary', { name: 'Tabla de verdad' })
+  const cases = LEVELS.find((l) => l.id === 'ALU4')!.spec.steps.length
+  await expect(table.locator('tbody tr')).toHaveCount(cases)
+  await page.screenshot({ path: `${SHOTS}/alu4.png` })
+  expect(errors).toEqual([])
 })

@@ -50,7 +50,7 @@ describe('parseProject', () => {
 
   it('rejects unknown kinds, duplicate chips and chips that contain themselves', () => {
     bad({ ...project, chips: [] }, /unknownKind \{"kind":"HALF_ADDER"\}/)
-    bad({ ...project, chips: [...project.chips, project.chips[0]] }, /duplicate \{"path":"chips\[7\]\.id"/)
+    bad({ ...project, chips: [...project.chips, project.chips[0]] }, new RegExp(`duplicate \\{"path":"chips\\[${project.chips.length}\\]\\.id"`))
     bad({ ...project, chips: [{ id: 'NAND', name: 'x', circuit: { nodes: [], wires: [] } }] }, /duplicate .*"id":"NAND"/)
     const loop = { id: 'LOOP', name: 'Bucle', circuit: { nodes: [{ id: 'x', kind: 'LOOP' }], wires: [] } }
     bad({ ...project, chips: [loop] }, /selfContaining \{"name":"Bucle"\}/)

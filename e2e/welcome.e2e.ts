@@ -1,9 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Locator } from '@playwright/test'
-import { SHOTS, fitsWithoutScroll, seedSolved, watchErrors, wrappedShortcuts } from './helpers.ts'
-
-const levelButton = (page: import('@playwright/test').Page, name: string) =>
-  page.getByRole('navigation', { name: 'Niveles' }).getByRole('button', { name })
+import { SHOTS, fitsWithoutScroll, levelButton, seedSolved, watchErrors, wrappedShortcuts } from './helpers.ts'
 
 /** Shortcuts sharing the first row's top edge = number of columns. */
 const shortcutColumns = (welcome: Locator) =>

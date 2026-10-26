@@ -213,6 +213,41 @@
       "name": "D flip-flop",
       "goal": "q takes the value of d only when clk rises from 0 to 1.",
       "hint": "Two D latches: one open with clk=0 and the other with clk=1."
+    },
+    "MUX": {
+      "name": "Multiplexer",
+      "goal": "Pick one of two inputs: with sel=0 the output copies a, with sel=1 it copies b.",
+      "hint": "(a AND NOT sel) OR (b AND sel)."
+    },
+    "DMUX": {
+      "name": "Demultiplexer",
+      "goal": "The opposite of the multiplexer: send in to output a (sel=0) or b (sel=1); the other one stays 0.",
+      "hint": "Each output is an AND of in with sel or with its opposite."
+    },
+    "NOT4": {
+      "name": "4-bit NOT",
+      "goal": "Your first bus: invert the 4 bits of in. Split the bus into bits, invert each one and join them back.",
+      "hint": "Split → four NOTs → Join. Pick 4 in Bits before adding Split and Join."
+    },
+    "MUX4": {
+      "name": "4-bit multiplexer",
+      "goal": "Like the multiplexer, but with 4-bit numbers: out is a when sel=0 and b when sel=1.",
+      "hint": "One multiplexer per bit, all sharing sel."
+    },
+    "DECODER": {
+      "name": "Decoder",
+      "goal": "sel is a 2-bit number (0 to 3). Turn on only the output with that number: y0, y1, y2 or y3.",
+      "hint": "Each output is an AND of the two bits of sel, or of their opposites."
+    },
+    "INC4": {
+      "name": "Incrementer",
+      "goal": "Add 1 to a 4-bit number. After 15 it wraps around to 0.",
+      "hint": "Bit 0 always flips; every following bit is a half adder with the carry from the bit before."
+    },
+    "ALU4": {
+      "name": "4-bit ALU",
+      "goal": "The heart of the CPU. op picks the operation: 0 add, 1 subtract (a − b), 2 AND and 3 OR, bit by bit. zero is 1 when the result is 0.",
+      "hint": "a − b is a + NOT b + 1: bit 0 of op can invert b and be that carry-in 1. Bit 1 of op picks arithmetic or logic."
     }
   },
   "problems": {
