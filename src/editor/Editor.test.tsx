@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { build, nand } from '../sim/build.ts'
-import { NOT, SR_LATCH } from '../sim/examples.ts'
+import { LIBRARY, NOT, SR_LATCH } from '../sim/examples.ts'
 import { SPECS } from '../levels/specs.ts'
 import type { Circuit } from '../sim/types.ts'
 import { Editor } from './Editor.tsx'
@@ -74,6 +74,24 @@ describe('Editor', () => {
     setup(NOT, { palette: ['NAND', 'NOT'], library: new Map([['NOT', { id: 'NOT', name: 'NOT', circuit: NOT }]]) })
     const palette = screen.getByRole('complementary', { name: 'Piezas' })
     expect([...palette.querySelectorAll('h3, button')].map((e) => e.textContent)).toEqual(['Básicas', 'NAND', 'Tus chips', 'NOT'])
+  })
+
+  it('draws logic gates with their symbol and keeps other chips as boxes', () => {
+    const nodes = ['NAND', 'NOT', 'AND', 'OR', 'XOR', 'HALF_ADDER'].map((kind) => ({ id: kind.toLowerCase(), kind }))
+    const { container } = render(<Editor initial={{ nodes, wires: [] }} library={LIBRARY} palette={[]} onChange={() => {}} />)
+    const gates = [...container.querySelectorAll('.gate')]
+    expect(gates.map((g) => g.getAttribute('aria-label'))).toEqual([
+      'Compuerta NAND',
+      'Compuerta NOT',
+      'Compuerta AND',
+      'Compuerta OR',
+      'Compuerta XOR',
+    ])
+    expect(gates.every((g) => g.querySelector('svg'))).toBe(true)
+    const handles = (id: string) => [...container.querySelectorAll(`[data-nodeid="${id}"]`)].map((h) => h.getAttribute('data-handleid'))
+    expect(handles('nand')).toEqual(['a', 'b', 'out'])
+    expect(handles('not')).toEqual(['a', 'out'])
+    expect(container.querySelector('.chip.kind-half_adder .chip-title')).toBeTruthy()
   })
 
   it('shows structural problems in the status bar', () => {
@@ -149,6 +167,22 @@ describe('Editor', () => {
     fireEvent.keyDown(field, { key: 'Enter' })
     expect(last().nodes[0].id).toBe('entrada')
     expect(last().wires.filter((w) => w.from.node === 'entrada')).toHaveLength(2) // feeds both NAND pins
+  })
+
+  it('keeps the new name when the field loses focus, and Escape cancels', () => {
+    const { last } = setup(NOT, { renamePins: true })
+    fireEvent.doubleClick(screen.getByText('a'))
+    fireEvent.change(byLabel('Nuevo nombre para a'), { target: { value: 'x' } })
+    fireEvent.keyDown(byLabel('Nuevo nombre para a'), { key: 'Escape' })
+    expect(last().nodes[0].id).toBe('a')
+
+    fireEvent.doubleClick(screen.getByText('a'))
+    fireEvent.change(byLabel('Nuevo nombre para a'), { target: { value: '9' } })
+    fireEvent.blur(byLabel('Nuevo nombre para a'))
+    expect(screen.getByText(/empezando con letra/)).toBeTruthy()
+    fireEvent.change(byLabel('Nuevo nombre para a'), { target: { value: 'clave' } })
+    fireEvent.blur(byLabel('Nuevo nombre para a'))
+    expect(last().nodes[0].id).toBe('clave')
   })
 
   it('does not rename locked pins', () => {

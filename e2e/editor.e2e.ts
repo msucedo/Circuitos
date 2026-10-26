@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { SHOTS, addPiece, node, watchErrors, wire } from './helpers.ts'
+import { SHOTS, addPiece, node, seedSolved, watchErrors, wire } from './helpers.ts'
 
 const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
 
@@ -97,4 +97,22 @@ test('the status badge does not cover the zoom controls', async ({ page }) => {
     }
   }
   await page.getByRole('button', { name: 'Fit View' }).click()
+})
+
+test('logic gates show their real symbol on the canvas', async ({ page }) => {
+  await seedSolved(page, ['NOT', 'AND', 'OR', 'XOR', 'HALF_ADDER'])
+  await sandbox(page)
+  const spots: [string, string, { x: number; y: number }][] = [
+    ['NAND', 'nand1', { x: 160, y: 140 }],
+    ['NOT', 'not1', { x: 160, y: 300 }],
+    ['AND', 'and1', { x: 360, y: 140 }],
+    ['OR', 'or1', { x: 360, y: 300 }],
+    ['XOR', 'xor1', { x: 560, y: 140 }],
+    ['Medio sumador', 'half_adder1', { x: 560, y: 300 }],
+  ]
+  for (const [label, id, to] of spots) await addPiece(page, label, id, to)
+  await expect(page.locator('.gate')).toHaveCount(5)
+  await wire(page, ['nand1', 'out'], ['and1', 'a'])
+  await page.locator('.react-flow__pane').click({ position: { x: 40, y: 500 } })
+  await page.screenshot({ path: `${SHOTS}/gates.png` })
 })

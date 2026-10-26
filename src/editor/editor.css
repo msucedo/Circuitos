@@ -246,3 +246,22 @@
 @media (prefers-reduced-motion: reduce) {
   .packet { display: none; }
 }
+
+/* React Flow's zoom controls: separate buttons instead of one stacked block. */
+.react-flow__controls { gap: 6px; box-shadow: none; }
+.react-flow__controls-button {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+
+/* Logic gates drawn with their real symbol */
+.gate { display: flex; flex-direction: column; align-items: center; color: var(--text); font-size: 11px; }
+.gate-frame { position: relative; width: 80px; height: 48px; }
+.gate-svg { display: block; overflow: visible; }
+.gate-body { fill: var(--chip); stroke: var(--line-strong); stroke-width: 2; stroke-linejoin: round; }
+.gate.kind-nand .gate-body { fill: var(--chip-nand); }
+.gate-line { fill: none; stroke: var(--line-strong); stroke-width: 2; stroke-linecap: round; }
+.gate.selected .gate-body, .gate.selected .gate-line { stroke: var(--accent); }
+.lead { fill: none; stroke: var(--off-wire); stroke-width: 2; }
+.lead.on { stroke: var(--on); }
+.gate .chip-title { padding: 2px 0 0; color: var(--muted); font-weight: 600; }

@@ -1,11 +1,13 @@
 import { Handle, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { nodePins } from '../sim/flatten.ts'
 import { isPrimitive, widthOf } from '../sim/types.ts'
 import type { Pin, Pins } from '../sim/types.ts'
 import type { ChipFlowNode } from './convert.ts'
 import { binary, kindName, useEditor } from './context.ts'
+import { GATE_H, GATE_SHAPES, GATE_W } from './gates.ts'
+import type { GateShape } from './gates.ts'
 
 const NO_PINS: Pins = { inputs: [], outputs: [] }
 
@@ -16,18 +18,33 @@ function PinName({ id, locked }: { id: string; locked: boolean }) {
   const { rename } = useEditor()
   const [draft, setDraft] = useState<string>()
   const [error, setError] = useState<string>()
+  // Enter or Escape already decided; the blur that follows must not commit again.
+  const settled = useRef(false)
   if (!rename || locked) return <span className="pin-name">{id}</span>
   if (draft === undefined) {
     return (
-      <span className="pin-name renamable" title="Doble clic para renombrar" onDoubleClick={() => setDraft(id)}>
+      <span
+        className="pin-name renamable"
+        title="Doble clic para renombrar"
+        onDoubleClick={() => {
+          settled.current = false
+          setDraft(id)
+        }}
+      >
         {id}
       </span>
     )
   }
+  const close = () => {
+    settled.current = true
+    setDraft(undefined)
+  }
   const commit = () => {
-    const problem = rename(id, draft.trim())
+    const name = draft.trim()
+    if (name === id) return close()
+    const problem = rename(id, name)
     if (problem) setError(problem)
-    else setDraft(undefined)
+    else close()
   }
   return (
     <span className="rename">
@@ -45,12 +62,27 @@ function PinName({ id, locked }: { id: string; locked: boolean }) {
         onKeyDown={(e) => {
           e.stopPropagation()
           if (e.key === 'Enter') commit()
-          if (e.key === 'Escape') setDraft(undefined)
+          if (e.key === 'Escape') close()
         }}
-        onBlur={() => setDraft(undefined)}
+        // Clicking elsewhere keeps the name, like Enter; an invalid one stays open with its error.
+        onBlur={() => settled.current || commit()}
       />
       {error && <span className="rename-error">{error}</span>}
     </span>
+  )
+}
+
+function GateSymbol({ shape, inputsOn, outputOn }: { shape: GateShape; inputsOn: boolean[]; outputOn: boolean }) {
+  return (
+    <svg className="gate-svg" width={GATE_W} height={GATE_H} viewBox={`0 0 ${GATE_W} ${GATE_H}`} aria-hidden="true">
+      {shape.inputs.map((y, i) => (
+        <path key={y} className={`lead${inputsOn[i] ? ' on' : ''}`} d={`M0 ${y}H${shape.leadTo}`} />
+      ))}
+      <path className={`lead${outputOn ? ' on' : ''}`} d={`M${shape.outFrom} 24H${GATE_W}`} />
+      {shape.back && <path className="gate-line" d={shape.back} />}
+      <path className="gate-body" d={shape.body} />
+      {shape.bubble !== undefined && <circle className="gate-body" cx={shape.bubble} cy="24" r="4" />}
+    </svg>
   )
 }
 
@@ -116,6 +148,32 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
   }
 
   const title = data.label ?? kindName(data.kind, library)
+  const shape = known ? GATE_SHAPES[data.kind] : undefined
+  // A chip that only shares the name (different pins) keeps the box.
+  if (shape && width === 1 && pins.inputs.length === shape.inputs.length && pins.outputs.length === 1) {
+    const out = pins.outputs[0]
+    const inputsOn = pins.inputs.map((pin) => incoming(id, pin.name) > 0)
+    const outputOn = signals.pin(id, out.name) > 0
+    return (
+      <div className={`gate kind-${data.kind.toLowerCase()}${selected ? ' selected' : ''}`} aria-label={`Compuerta ${title}`}>
+        <div className="gate-frame">
+          <GateSymbol shape={shape} inputsOn={inputsOn} outputOn={outputOn} />
+          {pins.inputs.map((pin, i) => (
+            <Handle
+              key={pin.name}
+              type="target"
+              position={Position.Left}
+              id={pin.name}
+              className={handleClass(pin, inputsOn[i])}
+              style={{ top: `${(shape.inputs[i] / GATE_H) * 100}%` }}
+            />
+          ))}
+          <Handle type="source" position={Position.Right} id={out.name} className={handleClass(out, outputOn)} />
+        </div>
+        <div className="chip-title">{title}</div>
+      </div>
+    )
+  }
   const showNames = (list: Pin[]) => list.length > 1 && data.kind !== 'NAND'
   return (
     <div className={cls}>
