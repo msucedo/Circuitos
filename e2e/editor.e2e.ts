@@ -269,3 +269,30 @@ test('the theory panel opens the first time, stays closed once closed, and leave
   await toggle.click()
   await expect(theory).toBeVisible()
 })
+
+test('Guardar como chip opens a small name field; Esc closes it and Enter saves', async ({ page }) => {
+  await sandbox(page)
+  const brief = page.locator('.brief')
+  const name = brief.getByRole('textbox', { name: 'Nombre del chip' })
+  await expect(name).toHaveCount(0)
+
+  await brief.getByRole('button', { name: 'Guardar como chip' }).click()
+  await expect(name).toBeFocused()
+  // Same size as the buttons next to it.
+  const buttonSize = await brief.getByRole('button', { name: 'Cancelar' }).evaluate((el) => getComputedStyle(el).fontSize)
+  await expect(name).toHaveCSS('font-size', buttonSize)
+  await page.keyboard.press('Escape')
+  await expect(name).toHaveCount(0)
+
+  await addPiece(page, 'Salida', 'output1', { x: 400, y: 250 })
+  await brief.getByRole('button', { name: 'Guardar como chip' }).click()
+  await name.fill('Mi chip')
+  // Field, Guardar and Cancelar on one row.
+  const tops = await brief.locator('.chip-form > *').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)))
+  expect(new Set(tops).size).toBe(1)
+  await page.screenshot({ path: `${SHOTS}/save-chip.png` })
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('status').filter({ hasText: 'Chip "Mi chip" guardado' })).toBeVisible()
+  await expect(name).toHaveCount(0)
+  await expect(page.getByRole('list', { name: 'Mis chips' })).toContainText('Mi chip')
+})

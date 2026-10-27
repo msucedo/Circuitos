@@ -48,7 +48,10 @@
     "importFailed": "No se pudo importar: {{reason}}",
     "progressWiped": "Progreso borrado. Se guardó una copia en el navegador.",
     "showLevels": "Mostrar niveles",
-    "hideLevels": "Ocultar niveles"
+    "hideLevels": "Ocultar niveles",
+    "confirmReset": "¿Seguro? Reiniciar",
+    "save": "Guardar",
+    "cancel": "Cancelar"
   },
   "result": {
     "works": "¡Funciona!",

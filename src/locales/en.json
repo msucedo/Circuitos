@@ -48,7 +48,10 @@
     "importFailed": "Couldn't import: {{reason}}",
     "progressWiped": "Progress deleted. A copy was kept in the browser.",
     "showLevels": "Show levels",
-    "hideLevels": "Hide levels"
+    "hideLevels": "Hide levels",
+    "confirmReset": "Sure? Reset",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "result": {
     "works": "It works!",

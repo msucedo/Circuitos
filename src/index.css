@@ -22,6 +22,8 @@
   --palette-width: 132px;
   --rail: 44px;
   --fold: 0.3s;
+  /* Text size of buttons and fields, so both read the same. */
+  --control-font: 13px;
   color-scheme: dark;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--text);
@@ -39,7 +41,7 @@ button {
   background: var(--chip);
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--control-font);
   cursor: pointer;
   /* translate/scale, not transform, so they never fight React Flow's own transforms. */
   transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s, translate 0.15s var(--ease), scale 0.15s var(--ease);
@@ -56,6 +58,7 @@ input[type='text'] {
   background: var(--bg);
   color: var(--text);
   font: inherit;
+  font-size: var(--control-font);
 }
 
 /* Shared motion. Short and soft; everything stops when the user asks for less motion. */

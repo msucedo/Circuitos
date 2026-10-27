@@ -200,6 +200,10 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
   .brief h2 { font-size: 18px; }
 }
 
+/* The chip name field, shown after pressing Guardar como chip. */
+.chip-form { display: flex; gap: 8px; align-items: center; }
+.chip-form input { width: 11rem; min-width: 0; }
+
 .my-chips {
   display: flex;
   flex-wrap: wrap;

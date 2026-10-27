@@ -42,6 +42,9 @@ const SHOWN_STEPS = 64
 /** Info notices close by themselves after this; errors stay until closed. */
 const NOTICE_MS = 4000
 
+/** Pieces or wires of the player's own; a level's pins alone are not work to lose. */
+const hasWork = (c: Circuit) => c.wires.length > 0 || c.nodes.some((n) => n.kind !== 'INPUT' && n.kind !== 'OUTPUT')
+
 /** The text is built when rendering, so a notice follows a language change. */
 type Notice = { kind: 'info' | 'warn' | 'error'; text: (t: TFunction) => string }
 
@@ -83,6 +86,17 @@ export default function App() {
   const [result, setResult] = useState<VerifyResult>()
   const [chipName, setChipName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string>()
+  // Reiniciar asks first: the first click arms it, the second resets.
+  const [confirmReset, setConfirmReset] = useState(false)
+  // The chip name field only shows after pressing "Guardar como chip".
+  const [naming, setNaming] = useState(false)
+  const saveChipButton = useRef<HTMLButtonElement>(null)
+  // Closing the name field gives the focus back to the button that opened it.
+  const wasNaming = useRef(false)
+  useEffect(() => {
+    if (wasNaming.current && !naming) saveChipButton.current?.focus()
+    wasNaming.current = naming
+  }, [naming])
   const [welcome, setWelcome] = useState(true)
   const [guide, setGuide] = useState(false)
   // Bumped on every Probar so the result panel animates again.
@@ -146,12 +160,15 @@ export default function App() {
 
   const open = (id: string) => {
     setWorkspace(id)
+    setConfirmReset(false)
+    closeNaming()
     setResult(undefined)
     setNotice(undefined)
     setFresh(new Set())
   }
 
   const test = (lvl: Level) => {
+    setConfirmReset(false)
     const outcome = verify(circuit, library, lvl.spec)
     setResult(outcome)
     setAttempt((a) => a + 1)
@@ -163,6 +180,12 @@ export default function App() {
       solved: s.solved.includes(lvl.id) ? s.solved : [...s.solved, lvl.id],
       chips: lvl.chip === false ? s.chips : [...s.chips.filter((c) => c.id !== lvl.id), { id: lvl.id, name: lvl.id, circuit }],
     }))
+  }
+
+  const askReset = (lvl: Level) => {
+    if (hasWork(circuit) && !confirmReset) return setConfirmReset(true)
+    setConfirmReset(false)
+    reset(lvl)
   }
 
   const reset = (lvl: Level) => {
@@ -191,8 +214,13 @@ export default function App() {
     }
     const id = chipIdFor(name, new Set(save.chips.map((c) => c.id)))
     setSave((s) => ({ ...s, chips: [...s.chips, { id, name, circuit }] }))
-    setChipName('')
+    closeNaming()
     setNotice({ kind: 'info', text: (t) => t('app.chipSaved', { name }) })
+  }
+
+  const closeNaming = () => {
+    setNaming(false)
+    setChipName('')
   }
 
   const deleteChip = (id: string) => {
@@ -255,10 +283,7 @@ export default function App() {
 
   // Opening a level stores its pins as a draft, so only drafts with pieces or wires count.
   const hasProgress =
-    save.solved.length > 0 ||
-    save.chips.length > 0 ||
-    save.sandbox.nodes.length > 0 ||
-    [...save.drafts.values()].some((c) => c.wires.length > 0 || c.nodes.some((n) => n.kind !== 'INPUT' && n.kind !== 'OUTPUT'))
+    save.solved.length > 0 || save.chips.length > 0 || save.sandbox.nodes.length > 0 || [...save.drafts.values()].some(hasWork)
   const solvedCount = MAIN_LEVELS.filter((l) => solved.has(l.id)).length
   const hint = level && levelText(t, level, 'hint')
   const story = level && levelText(t, level, 'story')
@@ -415,8 +440,13 @@ export default function App() {
                 )}
               </div>
               <div className="actions">
-                <button type="button" onClick={() => reset(level)}>
-                  {t('app.reset')}
+                <button
+                  type="button"
+                  className={confirmReset ? 'danger' : ''}
+                  onClick={() => askReset(level)}
+                  onBlur={() => setConfirmReset(false)}
+                >
+                  {confirmReset ? t('app.confirmReset') : t('app.reset')}
                 </button>
                 <button type="button" onClick={exportCurrent}>
                   {t('app.export')}
@@ -434,17 +464,37 @@ export default function App() {
                 <p>{t('app.sandboxGoal')}</p>
               </div>
               <div className="actions">
-                <input
-                  type="text"
-                  value={chipName}
-                  maxLength={LIMITS.text}
-                  placeholder={t('app.chipName')}
-                  aria-label={t('app.chipName')}
-                  onChange={(e) => setChipName(e.target.value)}
-                />
-                <button type="button" className="primary" onClick={saveChip}>
-                  {t('app.saveChip')}
-                </button>
+                {naming ? (
+                  // A form, so Enter saves; Esc gives up.
+                  <form
+                    className="chip-form"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      saveChip()
+                    }}
+                    onKeyDown={(e) => e.key === 'Escape' && closeNaming()}
+                  >
+                    <input
+                      ref={(el) => el?.focus()}
+                      type="text"
+                      value={chipName}
+                      maxLength={LIMITS.text}
+                      placeholder={t('app.chipName')}
+                      aria-label={t('app.chipName')}
+                      onChange={(e) => setChipName(e.target.value)}
+                    />
+                    <button type="submit" className="primary">
+                      {t('app.save')}
+                    </button>
+                    <button type="button" onClick={closeNaming}>
+                      {t('app.cancel')}
+                    </button>
+                  </form>
+                ) : (
+                  <button ref={saveChipButton} type="button" className="primary" onClick={() => setNaming(true)}>
+                    {t('app.saveChip')}
+                  </button>
+                )}
                 <button type="button" onClick={exportCurrent}>
                   {t('app.export')}
                 </button>

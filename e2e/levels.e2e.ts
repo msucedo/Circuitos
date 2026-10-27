@@ -227,3 +227,27 @@ test('memory levels: the counter offers a constant 1 and the RAM starts with a 2
   await expect(page.getByText(`Nivel ${MAIN_LEVELS.length} de ${MAIN_LEVELS.length}`)).toBeVisible()
   expect(errors).toEqual([])
 })
+
+test('Reiniciar asks first when there is something to lose, and blurring it cancels', async ({ page }) => {
+  await start(page)
+  const brief = page.locator('.brief')
+  // An empty level has nothing to lose: one click is enough.
+  await brief.getByRole('button', { name: 'Reiniciar' }).click()
+  await expect(brief.getByRole('button', { name: 'Reiniciar' })).toBeVisible()
+
+  await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
+  await brief.getByRole('button', { name: 'Reiniciar' }).click()
+  const confirm = brief.getByRole('button', { name: '¿Seguro? Reiniciar' })
+  await expect(confirm).toHaveClass(/danger/)
+  await expect(node(page, 'nand1')).toBeVisible()
+  await page.screenshot({ path: `${SHOTS}/reset-confirm.png` })
+  // Clicking elsewhere cancels it.
+  await page.locator('.react-flow__pane').click({ position: { x: 40, y: 500 } })
+  await expect(brief.getByRole('button', { name: 'Reiniciar' })).toBeVisible()
+  await expect(node(page, 'nand1')).toBeVisible()
+
+  await brief.getByRole('button', { name: 'Reiniciar' }).click()
+  await confirm.click()
+  await expect(node(page, 'nand1')).toHaveCount(0)
+  await expect(brief.getByRole('button', { name: 'Reiniciar' })).toBeVisible()
+})
