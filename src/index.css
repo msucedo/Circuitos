@@ -15,6 +15,13 @@
   --warn: #fbbf24;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Gentle ease-out for things that open: starts quick, lands softly. */
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Side columns: open width, folded width and how long folding takes. */
+  --levels-width: 212px;
+  --palette-width: 132px;
+  --rail: 44px;
+  --fold: 0.3s;
   color-scheme: dark;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--text);
@@ -59,7 +66,9 @@ input[type='text'] {
   40%, 80% { translate: 6px 0; }
 }
 @keyframes slide-down { from { opacity: 0; translate: 0 -100%; } }
-@keyframes sheet-in { from { opacity: 0; scale: 0.96; translate: 0 8px; } }
+@keyframes sheet-in { from { opacity: 0; scale: 0.97; translate: 0 16px; } }
+@keyframes sheet-out { to { opacity: 0; scale: 0.98; translate: 0 8px; } }
+@keyframes backdrop-out { to { opacity: 0; } }
 @keyframes backdrop-in { from { opacity: 0; } }
 @keyframes glow {
   30% { box-shadow: 0 0 0 3px rgb(74 222 128 / 0.5), 0 0 16px rgb(74 222 128 / 0.6); }

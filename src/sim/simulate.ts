@@ -162,18 +162,19 @@ export class Simulator {
 
   /**
    * One gate delay: every gate reads the values from before the step, so a
-   * signal moves forward one gate at a time. Returns whether anything changed.
+   * signal moves forward one gate at a time. Returns the signals that changed;
+   * none means the circuit is stable.
    */
-  step(): boolean {
+  step(): number[] {
     const { gateA, gateB, gateOut } = this.compiled
     const v = this.values
     const next = new Uint8Array(gateOut.length)
     for (let i = 0; i < gateOut.length; i++) next[i] = 1 - (v[gateA[i]] & v[gateB[i]])
-    let changed = false
+    const changed: number[] = []
     for (let i = 0; i < gateOut.length; i++) {
       if (v[gateOut[i]] !== next[i]) {
         v[gateOut[i]] = next[i]
-        changed = true
+        changed.push(gateOut[i])
       }
     }
     return changed

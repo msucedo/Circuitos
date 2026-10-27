@@ -49,7 +49,7 @@ export function chooseLanguage(language: Language) {
 export const problemText = (t: TFunction, p: Problem) => t(`problems.${p.code}`, p.params)
 
 /** Level texts live in the translations, keyed by level id. */
-type LevelField = 'name' | 'goal' | 'hint'
+type LevelField = 'name' | 'goal' | 'hint' | 'story'
 export function levelText(t: TFunction, level: Pick<Level, 'id'>, field: LevelField): string {
   const key = `levels.${level.id}.${field}`
   return i18n.exists(key) ? t(key as 'levels.NOT.name') : ''

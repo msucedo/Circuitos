@@ -46,7 +46,9 @@
     "imported_other": "Imported \"{{file}}\" with {{count}} new chips.",
     "importedNoChips": "Imported \"{{file}}\".",
     "importFailed": "Couldn't import: {{reason}}",
-    "progressWiped": "Progress deleted. A copy was kept in the browser."
+    "progressWiped": "Progress deleted. A copy was kept in the browser.",
+    "showLevels": "Show levels",
+    "hideLevels": "Hide levels"
   },
   "result": {
     "works": "It works!",
@@ -106,6 +108,140 @@
       "rename": "Rename a pin"
     }
   },
+  "guide": {
+    "open": "Guide",
+    "title": "Guide",
+    "close": "Close guide",
+    "index": "Contents",
+    "foldLabel": "Fold columns",
+    "howTo": {
+      "title": "How to solve a level",
+      "body": "<b>1. Read the goal.</b> Above the canvas is what the chip must do. Pin names look like this: <pin>a</pin>, and values like this: <v>1</v>. The level's inputs and outputs are already on the canvas and cannot be deleted.\n\n<b>2. Look at the table.</b> The Table button shows, for each combination of inputs, what your circuit gives and what is expected. Rows in red are the ones still missing.\n\n<b>3. Build the circuit.</b> Drag pieces from Pieces (or click to add them). To connect, drag from an output dot (on the right of a piece) to an input dot (on the left). An input takes a single wire; an output can feed several.\n\n<b>4. Try it by hand.</b> Click an input to switch it between <v>0</v> and <v>1</v>; on a bus, type a number. Green wires carry <v>1</v> and grey ones <v>0</v>.\n\n<b>5. Press Test.</b> Every case is checked. If something fails, a table says which row and what came out.\n\n<b>6. If you get stuck:</b> open Show hint, read the level's Theory or use Step by step to watch the signal move.\n\nEvery solved level becomes a chip you can use in the next ones."
+    },
+    "concepts": {
+      "title": "Concepts",
+      "items": {
+        "bit": {
+          "term": "Bit",
+          "text": "The smallest unit of information: <v>0</v> or <v>1</v>. In a real circuit it is a low or high voltage."
+        },
+        "signal": {
+          "term": "Signal and wire",
+          "text": "A wire carries a value from an output to one or more inputs. On the canvas, green is <v>1</v> and grey is <v>0</v>; the travelling dots show which way it goes."
+        },
+        "gate": {
+          "term": "Logic gate",
+          "text": "A small circuit that works out an output from its inputs with a fixed rule: NOT, AND, OR, XOR, NAND."
+        },
+        "truthTable": {
+          "term": "Truth table",
+          "text": "The list of every combination of inputs with the output each one gives. With n 1-bit inputs there are 2ⁿ rows."
+        },
+        "nand": {
+          "term": "Universal NAND",
+          "text": "NAND gives <v>0</v> only if all its inputs are <v>1</v>. Any other gate can be built from NAND alone, which is why it is the game's base piece."
+        },
+        "combinational": {
+          "term": "Combinational and sequential",
+          "text": "A <b>combinational</b> circuit depends only on the current inputs (an adder). A <b>sequential</b> one also depends on what happened before, because it has memory (a counter)."
+        },
+        "delay": {
+          "term": "Gate delay",
+          "text": "A gate takes a moment to change its output. That is why a signal moves gate by gate; Step by step shows that progress."
+        },
+        "binary": {
+          "term": "Binary number",
+          "text": "A number written with bits. Each position is worth twice the previous one: 1, 2, 4, 8… So 1011 is 8 + 2 + 1 = 11."
+        },
+        "bus": {
+          "term": "Bus",
+          "text": "Several wires that travel together and carry a number. Split opens it into single bits and Join groups them back. Bit 0 is the one worth 1."
+        },
+        "carry": {
+          "term": "Carry",
+          "text": "What you \"carry\" to the next column when adding. In binary, 1 + 1 = 10: result <v>0</v> and carry <v>1</v>."
+        },
+        "overflow": {
+          "term": "Overflow",
+          "text": "When a result does not fit in the available bits. With 4 bits, 15 + 1 wraps to 0."
+        },
+        "twosComplement": {
+          "term": "Two's complement",
+          "text": "How computers write negative numbers: −b is NOT b + 1. That way subtracting is adding."
+        },
+        "selector": {
+          "term": "Multiplexer and decoder",
+          "text": "A multiplexer picks which of several inputs reaches the output. A decoder turns on a single output given a number. Together they select data and addresses."
+        },
+        "feedback": {
+          "term": "Feedback",
+          "text": "An output that goes back, directly or not, to an input of the same circuit. It is what makes remembering possible, and also what can make a circuit oscillate."
+        },
+        "oscillation": {
+          "term": "Oscillation",
+          "text": "A circuit that never settles, like a NOT wired to itself: its output keeps changing. The status shows it in yellow."
+        },
+        "clock": {
+          "term": "Clock",
+          "text": "A signal that alternates between <v>0</v> and <v>1</v> at a steady pace. It sets the beat for circuits with memory. You can pause it and step with Tick."
+        },
+        "edge": {
+          "term": "Rising edge",
+          "text": "The instant the clock goes from <v>0</v> to <v>1</v>. Flip-flops only take a new value at that instant."
+        },
+        "latch": {
+          "term": "Latch and flip-flop",
+          "text": "Both store a bit. A latch copies its input while it is enabled; a flip-flop only on the clock's rising edge."
+        },
+        "register": {
+          "term": "Register",
+          "text": "A group of flip-flops that stores a whole word and changes all at once on a tick, only if its load input allows it."
+        },
+        "memory": {
+          "term": "RAM and address",
+          "text": "A memory with many numbered words. The address says which one to read or write."
+        },
+        "chip": {
+          "term": "Chip",
+          "text": "A circuit packaged as a single piece with its pins. What is inside stays hidden: only what it does matters. That is how big things are built from small pieces."
+        }
+      }
+    },
+    "pieces": {
+      "title": "Pieces",
+      "intro": "The basic pieces. Besides these, every solved level adds its chip to Your chips.",
+      "items": {
+        "INPUT": "A value you control with a click (or by typing a number on a bus). It comes out of <pin>out</pin>.",
+        "OUTPUT": "Shows what arrives at <pin>in</pin>. In a level, it is what gets checked when you press Test.",
+        "NAND": "The base gate: <pin>out</pin> is <v>0</v> only if <pin>a</pin> and <pin>b</pin> are <v>1</v>.",
+        "VCC": "Always gives <v>1</v>. Use it to power relays or to hold an input fixed.",
+        "RELAY": "Lets <pin>in</pin> through to the output only while its coil <pin>c</pin> is <v>1</v>.",
+        "RELAY_NC": "The reverse of the relay: lets <pin>in</pin> through only while <pin>c</pin> is <v>0</v>.",
+        "SPLIT": "Opens a bus into its bits: <pin>b0</pin>, <pin>b1</pin>… Pick the width in Bits before adding it.",
+        "JOIN": "The opposite of Split: groups single bits into a bus.",
+        "CLOCK": "Switches between <v>0</v> and <v>1</v> by itself. It is in the Sandbox; in levels with memory, you control <pin>clk</pin>."
+      }
+    },
+    "commands": {
+      "title": "Commands",
+      "items": {
+        "test": "Checks your circuit against every case of the level.",
+        "showHint": "Shows a hint for the level.",
+        "reset": "Puts the level back the way it was at the start.",
+        "table": "Shows the live truth table, with what is expected and what your circuit gives.",
+        "theory": "Opens or closes the level's history and theory.",
+        "stepMode": "Freezes the circuit: when you change an input, the signal waits. Each Step moves it one gate and the wires that changed glow. It is done when the status says stable.",
+        "pauseClock": "Stops the clock; with Tick you switch it by hand, half a cycle at a time.",
+        "bits": "Picks the width (1, 2, 4, 8 or 16 bits) of the Inputs, Outputs, Split and Join you add.",
+        "export": "Downloads the circuit as a JSON file. Import (in the Sandbox) opens it again.",
+        "saveChip": "In the Sandbox, saves your circuit as a chip to use inside others.",
+        "fold": "The arrows next to Circuitos and Pieces fold each column to give the canvas more room."
+      }
+    },
+    "shortcuts": {
+      "title": "Shortcuts"
+    }
+  },
   "editor": {
     "pieces": "Pieces",
     "piecesHelp": "Drag or click to add.",
@@ -147,7 +283,12 @@
       "clockHelp": "The clock flips between 0 and 1 on its own; pause it to step with Tick.",
       "stable": "Stable",
       "stableHelp": "The outputs no longer change with the current inputs."
-    }
+    },
+    "showPieces": "Show pieces",
+    "hidePieces": "Hide pieces",
+    "theory": "Theory",
+    "theoryTitle": "History and theory",
+    "closeTheory": "Close theory"
   },
   "kinds": {
     "INPUT": "Input",
@@ -163,111 +304,133 @@
   "levels": {
     "RELAY_NAND": {
       "name": "Relays",
-      "goal": "Level 0 (optional): build the NAND with relays. A relay lets its input in through only while its coil c is 1; the inverse one, only while it is 0.",
-      "hint": "Two relays in series from the source give a AND b; an inverse relay, also from the source, inverts it."
+      "goal": "Level 0 (optional): build the NAND with relays. A relay lets its input <pin>in</pin> through only while its coil <pin>c</pin> is <v>1</v>; the inverse one, only while it is <v>0</v>.",
+      "hint": "Two relays in series from the Source give <pin>a</pin> AND <pin>b</pin>; an inverse relay, also from the Source, inverts it.",
+      "story": "A <b>relay</b> is a switch moved by an electromagnet: when current flows through the coil, a metal blade moves and closes (or opens) the circuit. It is a mechanical logic gate: you can hear it click.\n\nIn 1937 Claude Shannon showed in his master's thesis that relay circuits follow the rules of Boolean algebra. From then on a circuit could be designed with pen and paper, like an equation.\n\nTelephone exchanges used thousands of relays to connect calls. The first computers were built with them too: Konrad Zuse's Z3 (1941) had about 2,600 relays and the Harvard Mark I (1944) was electromechanical.\n\nRelays are slow (milliseconds per click) and wear out. That is why they were replaced by vacuum tubes and later by transistors, which do the same with no moving parts."
     },
     "NOT": {
       "name": "NOT",
-      "goal": "Output the opposite of the input: 0 → 1 and 1 → 0.",
-      "hint": "NAND gives 0 only when both its inputs are 1."
+      "goal": "Output the opposite of the input: <v>0</v> → <v>1</v> and <v>1</v> → <v>0</v>.",
+      "hint": "NAND gives <v>0</v> only when both its inputs are <v>1</v>.",
+      "story": "<b>NOT</b> (or inverter) is the simplest gate: it outputs the opposite of what it gets. In a real chip it is two transistors, one connecting the output to ground and the other to the supply.\n\nIn 1854 George Boole published <i>The Laws of Thought</i>, where he treated logic as algebra with two values: true and false. His NOT is what here means inverting a bit.\n\nThis game starts from <b>NAND</b> because any other gate can be built from it. Henry Sheffer proved it in 1913, and Charles S. Peirce had noticed it around 1880. Chip factories rely on that idea: a single cell repeated billions of times."
     },
     "AND": {
       "name": "AND",
-      "goal": "The output is 1 only if a and b are 1.",
-      "hint": "It is the opposite of a NAND."
+      "goal": "The output is <v>1</v> only if <pin>a</pin> and <pin>b</pin> are <v>1</v>.",
+      "hint": "It is the opposite of a NAND.",
+      "story": "<b>AND</b> answers \"are both things true?\". Its output is <v>1</v> only when all its inputs are <v>1</v>.\n\nIn real life it shows up in any double condition: an industrial press that only comes down if the operator presses two buttons at once (so no hand can be under it), or a door that opens with a card and a PIN.\n\nIts name comes from Boolean algebra, where it is written as a multiplication: a · b. With <v>0</v> and <v>1</v> the multiplication table is the same as AND's.\n\nThe N in NAND stands for NOT: a NAND is an AND with its output inverted."
     },
     "OR": {
       "name": "OR",
-      "goal": "The output is 1 if a, b or both are 1.",
-      "hint": "Invert both inputs before a NAND."
+      "goal": "The output is <v>1</v> if <pin>a</pin>, <pin>b</pin> or both are <v>1</v>.",
+      "hint": "Invert both inputs before a NAND.",
+      "story": "<b>OR</b> answers \"is at least one true?\". Its output is <v>1</v> if any of its inputs is <v>1</v>.\n\nIt is the <i>inclusive</i> OR: it is also <v>1</v> when both inputs are. In everyday language \"or\" sometimes means one or the other but not both; that is XOR, the next level.\n\nAugustus De Morgan, a contemporary of Boole, described the rules that relate AND, OR and NOT. With them any expression can be rewritten using a single kind of gate.\n\nIn Boole's notation it is written as a sum: a + b, although 1 + 1 gives 1 and not 2."
     },
     "XOR": {
       "name": "XOR",
-      "goal": "The output is 1 if a and b differ.",
-      "hint": "It can be done with 4 NANDs."
+      "goal": "The output is <v>1</v> if <pin>a</pin> and <pin>b</pin> differ.",
+      "hint": "It can be done with 4 NANDs.",
+      "story": "<b>XOR</b> (exclusive OR) is <v>1</v> when its inputs differ. It is a difference detector.\n\nIt has unique properties: applying the same XOR twice gives back the original value. In 1917 Gilbert Vernam used it to encrypt teletype messages, and it is still at the heart of many modern ciphers.\n\nIt is also used to detect errors (parity bits) and, above all, to add, as you will see in the next level."
     },
     "HALF_ADDER": {
       "name": "Half adder",
-      "goal": "Add two bits: sum is the result and carry the carry (1 + 1 = 10)."
+      "goal": "Add two bits: <pin>sum</pin> is the result and <pin>carry</pin> the carry (<v>1</v> + <v>1</v> = <v>10</v>).",
+      "story": "Binary has only two digits, so adding one column is easy: 0 + 0 = 0, 0 + 1 = 1, and 1 + 1 = 10 (that is, <v>0</v> and carry <v>1</v>).\n\nThe <b>half adder</b> does that column: it gives the result bit and the carry. It is called \"half\" because it gets no carry from a previous column. Look at the table of each output: you already know gates with those tables.\n\nGottfried Leibniz described binary arithmetic in 1703. In 1937 George Stibitz built a 1-bit relay adder on his kitchen table, the \"Model K\", which led to the relay calculators of Bell Labs."
     },
     "FULL_ADDER": {
       "name": "Full adder",
-      "goal": "Add a + b + cin, the carry coming from the previous column.",
-      "hint": "Two half adders and an OR."
+      "goal": "Add <pin>a</pin> + <pin>b</pin> + <pin>cin</pin>, the carry coming from the previous column.",
+      "hint": "Two half adders and an OR.",
+      "story": "The <b>full adder</b> adds three bits: the two of the column and the carry coming from the previous column. It is what you do when adding by hand, column by column, right to left.\n\nThe result is still a single bit plus a carry, because the largest case is 1 + 1 + 1 = 11 in binary.\n\nIt is the piece repeated in any adder: for 32- or 64-bit numbers, 32 or 64 of these are chained, or faster variants of them."
     },
     "ADDER4": {
       "name": "4-bit adder",
-      "goal": "Add two 4-bit numbers (a3..a0 and b3..b0) plus cin.",
-      "hint": "Chain the cout of each adder to the cin of the next one."
+      "goal": "Add two 4-bit numbers (<pin>a3</pin>..<pin>a0</pin> and <pin>b3</pin>..<pin>b0</pin>) plus <pin>cin</pin>. The result comes out of <pin>s3</pin>..<pin>s0</pin> and the carry left over out of <pin>cout</pin>.",
+      "hint": "Chain the <pin>cout</pin> of each adder to the <pin>cin</pin> of the next one.",
+      "story": "Chaining full adders, the carry of each column goes into the next one. This is called a <b>ripple-carry adder</b>.\n\nIts weakness is speed: the top bit does not know its result until the carry has gone through every column. With 64 bits that is a lot. Processors use <i>carry-lookahead</i> adders, which work out the carries in parallel with more gates.\n\nIn the 1960s and 70s a 4-bit adder came in a single chip, like the 74283, and several were combined to build wider adders."
     },
     "SR_LATCH": {
       "name": "SR latch",
-      "goal": "Your first memory. The inputs are active at 0: s=0 stores 1, r=0 stores 0, and with both at 1 it remembers. Q and QB are opposite.",
-      "hint": "Two NANDs that feed each other."
+      "goal": "Your first memory. The inputs are active at <v>0</v>: <pin>s</pin> = <v>0</v> stores <v>1</v>, <pin>r</pin> = <v>0</v> stores <v>0</v>, and with both at <v>1</v> it remembers. <pin>Q</pin> and <pin>QB</pin> are opposite.",
+      "hint": "Two NANDs that feed each other.",
+      "story": "Until now every circuit was <b>combinational</b>: the output depends only on the inputs at that moment. A latch breaks that rule with a simple idea: wire the outputs back into the inputs.\n\nA circuit with feedback can have two stable states and stay in whichever it is in. That is <b>memory</b>: the circuit remembers which input was active last.\n\nWilliam Eccles and F. W. Jordan invented this \"bistable\" circuit in 1918 with vacuum tubes. Computers of the 1940s and 50s kept their registers in tube flip-flops.\n\nHaving <pin>s</pin> and <pin>r</pin> at <v>0</v> at the same time is forbidden: it forces both outputs to <v>1</v>, and when both are released the result depends on which one changes first."
     },
     "D_LATCH": {
       "name": "D latch",
-      "goal": "While en=1, q copies d; when en=0, q remembers the last value."
+      "goal": "While <pin>en</pin> = <v>1</v>, <pin>q</pin> copies <pin>d</pin>; when <pin>en</pin> = <v>0</v>, <pin>q</pin> remembers the last value.",
+      "story": "The SR latch has two awkward inputs and a forbidden state. The <b>D latch</b> fixes it: a single data input <pin>d</pin> and an enable input <pin>en</pin>.\n\nWhile <pin>en</pin> is <v>1</v> the latch is \"transparent\": the output follows the input. When <pin>en</pin> drops to <v>0</v>, it keeps the last value.\n\nThe trouble with transparency: if a latch's output feeds, through other circuits, the input of another latch that is open at the same time, the data can go around several times in one cycle. The flip-flop in the next level solves that."
     },
     "D_FLIPFLOP": {
       "name": "D flip-flop",
-      "goal": "q takes the value of d only when clk rises from 0 to 1.",
-      "hint": "Two D latches: one open with clk=0 and the other with clk=1."
+      "goal": "<pin>q</pin> takes the value of <pin>d</pin> only when <pin>clk</pin> rises from <v>0</v> to <v>1</v>.",
+      "hint": "Two D latches: one open with <pin>clk</pin> = <v>0</v> and the other with <pin>clk</pin> = <v>1</v>.",
+      "story": "A <b>D flip-flop</b> copies its input only at the instant the clock rises from <v>0</v> to <v>1</v>: the <b>rising edge</b>. The rest of the time it ignores the input.\n\nThat way data moves a single step per cycle, even if the flip-flop's output ends up, through other circuits, back at its own input.\n\nThis is what makes <b>synchronous</b> design possible: the whole processor moves to the beat of a clock and on every tick each flip-flop takes a new value. A modern processor has billions of transistors and a clock of several gigahertz."
     },
     "MUX": {
       "name": "Multiplexer",
-      "goal": "Pick one of two inputs: with sel=0 the output copies a, with sel=1 it copies b.",
-      "hint": "(a AND NOT sel) OR (b AND sel)."
+      "goal": "Pick one of two inputs: with <pin>sel</pin> = <v>0</v> the output copies <pin>a</pin>, with <pin>sel</pin> = <v>1</v> it copies <pin>b</pin>.",
+      "hint": "(<pin>a</pin> AND NOT <pin>sel</pin>) OR (<pin>b</pin> AND <pin>sel</pin>).",
+      "story": "A <b>multiplexer</b> is a selector: depending on <pin>sel</pin>, it lets <pin>a</pin> or <pin>b</pin> through. It is like a railway switch controlled by a signal.\n\nIt is everywhere inside a processor: it picks which register goes to the ALU, whether the counter's next value is the next number or a jump, or which memory word is read.\n\nIn telecommunications, multiplexing means sending several signals over one wire by taking turns in time. The principle is the same: a selector that switches between sources."
     },
     "DMUX": {
       "name": "Demultiplexer",
-      "goal": "The opposite of the multiplexer: send in to output a (sel=0) or b (sel=1); the other one stays 0.",
-      "hint": "Each output is an AND of in with sel or with its opposite."
+      "goal": "The opposite of the multiplexer: send <pin>in</pin> to output <pin>a</pin> (<pin>sel</pin> = <v>0</v>) or <pin>b</pin> (<pin>sel</pin> = <v>1</v>); the other one stays <v>0</v>.",
+      "hint": "Each output is an AND of <pin>in</pin> with <pin>sel</pin> or with its opposite.",
+      "story": "The <b>demultiplexer</b> does the opposite of the multiplexer: it takes one input and sends it to one of several outputs. The others stay at <v>0</v>.\n\nIt is used to distribute: for example, to decide which register gets the order to store. The RAM at the end of the block uses a version of this idea so that only one word is written.\n\nMultiplexer and demultiplexer together make a shared link: several sources, one wire, several destinations."
     },
     "NOT4": {
       "name": "4-bit NOT",
-      "goal": "Your first bus: invert the 4 bits of in. Split the bus into bits, invert each one and join them back.",
-      "hint": "Split → four NOTs → Join. Pick 4 in Bits before adding Split and Join."
+      "goal": "Your first bus: invert the 4 bits of <pin>in</pin>. Split the bus into bits, invert each one and join them back.",
+      "hint": "Split → four NOTs → Join. Pick <b>4</b> in Bits before adding Split and Join.",
+      "story": "A <b>bus</b> is a group of wires that travel together and carry a number. Here each bus has 4 bits, so it carries a number from <v>0</v> to <v>15</v>.\n\nSplit and Join compute nothing: they only spread the bus wires into single bits and group them back. Bit 0 is the least significant (worth 1), bit 3 the most (worth 8).\n\nBus width defines a processor. The Intel 4004 (1971), the first commercial microprocessor, worked with 4-bit words like the ones in this game. Then came 8, 16, 32 and today 64 bits."
     },
     "MUX4": {
       "name": "4-bit multiplexer",
-      "goal": "Like the multiplexer, but with 4-bit numbers: out is a when sel=0 and b when sel=1.",
-      "hint": "One multiplexer per bit, all sharing sel."
+      "goal": "Like the multiplexer, but with 4-bit numbers: <pin>out</pin> is <pin>a</pin> when <pin>sel</pin> = <v>0</v> and <pin>b</pin> when <pin>sel</pin> = <v>1</v>.",
+      "hint": "One multiplexer per bit, all sharing <pin>sel</pin>.",
+      "story": "Picking between two <b>numbers</b> instead of two bits is the most common operation inside a processor: which register goes into the ALU, whether the counter moves on or jumps, which value is written to memory.\n\nOne idea keeps coming back in hardware design: what solves 1 bit becomes N bits by repeating it side by side. That is why 64-bit processors are no harder to understand than a 4-bit one: they are just wider."
     },
     "DECODER": {
       "name": "Decoder",
-      "goal": "sel is a 2-bit number (0 to 3). Turn on only the output with that number: y0, y1, y2 or y3.",
-      "hint": "Each output is an AND of the two bits of sel, or of their opposites."
+      "goal": "<pin>sel</pin> is a 2-bit number (<v>0</v> to <v>3</v>). Turn on only the output with that number: <pin>y0</pin>, <pin>y1</pin>, <pin>y2</pin> or <pin>y3</pin>.",
+      "hint": "Each output is an AND of the two bits of <pin>sel</pin>, or of their opposites.",
+      "story": "A <b>decoder</b> turns a binary number into \"a single line on\". With 2 input bits there are 4 outputs, and only the one with the received number is <v>1</v>.\n\nIt is the piece that translates addresses: when the processor asks for memory address 2, a decoder turns on row 2 and nothing else. It also decodes instructions, to activate the part of the circuit that belongs to each one.\n\nClassic chips like the 74139 (two 2-to-4) and the 74138 (3-to-8) were used to pick which memory chip answered in an 8-bit computer."
     },
     "INC4": {
       "name": "Incrementer",
-      "goal": "Add 1 to a 4-bit number. After 15 it wraps around to 0.",
-      "hint": "Bit 0 always flips; every following bit is a half adder with the carry from the bit before."
+      "goal": "Add <v>1</v> to a 4-bit number. After <v>15</v> it wraps around to <v>0</v>.",
+      "hint": "Bit 0 always flips; every following bit is a half adder with the carry from the bit before.",
+      "story": "An <b>incrementer</b> always adds 1. It is a simplified adder: since the second number is fixed, each bit needs fewer gates than in a full adder.\n\nIts most important use is the <b>program counter</b>: the register that says which instruction to run. After each instruction, the processor moves to the next one by adding 1.\n\nPast <v>15</v> it wraps to <v>0</v>, because the carry from the last bit has nowhere to go. That is <b>overflow</b>: the same effect as an odometer going from 99999 to 00000."
     },
     "ALU4": {
       "name": "4-bit ALU",
-      "goal": "The heart of the CPU. op picks the operation: 0 add, 1 subtract (a − b), 2 AND and 3 OR, bit by bit. zero is 1 when the result is 0.",
-      "hint": "a − b is a + NOT b + 1: bit 0 of op can invert b and be that carry-in 1. Bit 1 of op picks arithmetic or logic."
+      "goal": "The heart of the CPU. <pin>op</pin> picks the operation: <v>0</v> add, <v>1</v> subtract (<pin>a</pin> − <pin>b</pin>), <v>2</v> AND and <v>3</v> OR, bit by bit. <pin>zero</pin> is <v>1</v> when the result is <v>0</v>.",
+      "hint": "<i>a − b</i> is <i>a + NOT b + 1</i>: bit 0 of <pin>op</pin> can invert <pin>b</pin> and be that carry-in <v>1</v>. Bit 1 of <pin>op</pin> picks arithmetic or logic.",
+      "story": "The <b>ALU</b> (arithmetic logic unit) is the processor's calculator. It takes two numbers and an operation code, and gives back the result.\n\nSubtracting needs no new circuit: in <b>two's complement</b>, <i>a − b</i> is <i>a + NOT b + 1</i>. That is how computers represent negative numbers and subtract with the same adder.\n\nThe <pin>zero</pin> flag says whether the result was zero. The processor uses it to make decisions: \"if a − b is zero, then a and b are equal, jump\".\n\nIn 1970 Texas Instruments released the 74181, a 4-bit ALU in a single chip, and several of them made up the processors of many 1970s minicomputers. John von Neumann had already described in 1945 a computer with an arithmetic unit separate from memory."
     },
     "BIT": {
       "name": "Bit",
-      "goal": "A 1-bit memory you control: when clk rises from 0 to 1, out stores in if load=1; if load=0, it keeps what it had.",
-      "hint": "A multiplexer picks what goes into the D flip-flop: its own output (keep) or in (store)."
+      "goal": "A 1-bit memory you control: when <pin>clk</pin> rises from <v>0</v> to <v>1</v>, <pin>out</pin> stores <pin>in</pin> if <pin>load</pin> = <v>1</v>; if <pin>load</pin> = <v>0</v>, it keeps what it had.",
+      "hint": "A multiplexer picks what goes into the D flip-flop: its own output (keep) or <pin>in</pin> (store).",
+      "story": "A <b>1-bit register</b> stores a value and only changes it when you want: on the clock edge, if <pin>load</pin> is <v>1</v>.\n\nThe D flip-flop from before stores something on every tick, like it or not. The challenge here is that, when <pin>load</pin> is <v>0</v>, what it stores is the same value it already had.\n\nIt is the basic cell of all the memory that follows: registers, counters and RAM."
     },
     "REGISTER4": {
       "name": "4-bit register",
-      "goal": "Store a 4-bit number: when clk rises and load=1, out takes the value of in.",
-      "hint": "One Bit per bit of the bus, all sharing load and clk."
+      "goal": "Store a 4-bit number: when <pin>clk</pin> rises and <pin>load</pin> = <v>1</v>, <pin>out</pin> takes the value of <pin>in</pin>.",
+      "hint": "One Bit per bit of the bus, all sharing <pin>load</pin> and <pin>clk</pin>.",
+      "story": "A <b>register</b> stores a whole word: several bits that change together on the same clock tick.\n\nRegisters are a processor's fastest memory: they are inside it and are read in a single cycle. The Intel 4004 had 16 4-bit registers; a current processor has dozens of 64-bit registers and wider ones for parallel math.\n\nThe whole state of the processor at any instant (which instruction is next, which values it is working with) lives in registers like this one."
     },
     "COUNTER4": {
       "name": "Counter",
-      "goal": "Counts by itself: on every rise of clk, out adds 1 (after 15 it wraps to 0). With load=1 it jumps to in, and with reset=1 it goes back to 0. reset wins over load.",
-      "hint": "A register that always stores (load from the Source) the next value: 0 on reset, in on load, otherwise the count + 1. A bus of 0s is the opposite of a bus of 1s."
+      "goal": "Counts by itself: on every rise of <pin>clk</pin>, <pin>out</pin> adds <v>1</v> (after <v>15</v> it wraps to <v>0</v>). With <pin>load</pin> = <v>1</v> it jumps to <pin>in</pin>, and with <pin>reset</pin> = <v>1</v> it goes back to <v>0</v>. <pin>reset</pin> wins over <pin>load</pin>.",
+      "hint": "A register that always stores (its load wired to the Source) the next value: <v>0</v> on <pin>reset</pin>, <pin>in</pin> on <pin>load</pin>, otherwise the count + <v>1</v>. A bus of <v>0</v>s is the opposite of a bus of 1s.",
+      "story": "A <b>counter</b> is a register that feeds itself its own value + 1. On every tick it moves on by itself.\n\nWith <pin>load</pin> it jumps to a given value and with <pin>reset</pin> it goes back to zero. That is exactly what the <b>program counter</b> needs: move on instruction by instruction, jump to another part of the program and start from zero at power-up.\n\nOutside processors, counters measure time and divide frequencies: a digital wristwatch counts the vibrations of a quartz crystal (32,768 per second) to know when a second has passed. The 74161 chip is a 4-bit counter with load and clear, very much like this one."
     },
     "RAM4": {
       "name": "RAM",
-      "goal": "Four 4-bit words. out shows the word at address addr; when clk rises and load=1, in is stored at that address.",
-      "hint": "Four registers. The decoder decides which one gets load, and two levels of multiplexers pick which one is read."
+      "goal": "Four 4-bit words. <pin>out</pin> shows the word at address <pin>addr</pin>; when <pin>clk</pin> rises and <pin>load</pin> = <v>1</v>, <pin>in</pin> is stored at that address.",
+      "hint": "Four registers. The decoder decides which one gets <pin>load</pin>, and two levels of multiplexers pick which one is read.",
+      "story": "<b>RAM</b> (random-access memory) holds many words and lets you read or write any of them in the same time, just by giving its address.\n\nThis RAM is <b>static</b> (SRAM): each bit is a flip-flop, as in a processor's cache. A computer's main memory is <b>dynamic</b> (DRAM): each bit is a tiny capacitor that has to be recharged thousands of times per second, but takes much less space.\n\nBefore chips, memory was made of cathode-ray tubes (the Williams tube, 1947) and then of ferrite cores, magnetic rings threaded by wires (from 1953). In 1970 Intel released the 1103, the first commercial DRAM chip, which put an end to core memory.\n\nWith RAM, a counter, registers and an ALU you have the parts of a computer: what is left is wiring them so they read and run a program."
     }
   },
   "problems": {

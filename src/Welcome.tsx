@@ -1,31 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
 import { LANGUAGES, chooseLanguage, currentLanguage } from './i18n.ts'
 import type { Language } from './i18n.ts'
-import { Logo } from './icons.tsx'
-import type es from './locales/es.json'
-
-const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
-
-type KeyName = keyof (typeof es)['welcome']['keys']
-type ActionName = keyof (typeof es)['welcome']['actions']
-
-/** Literal keys stay as they are; named ones (`{ name }`) are translated. */
-const SHORTCUTS: [keys: (string | { name: KeyName })[], action: ActionName][] = [
-  [[MOD, 'Z'], 'undo'],
-  [[MOD, 'Shift', 'Z'], 'redo'],
-  [[MOD, 'C'], 'copy'],
-  [[MOD, 'V'], 'paste'],
-  [[{ name: 'delete' }], 'delete'],
-  [[MOD, { name: 'click' }], 'multiSelect'],
-  [[{ name: 'drag' }], 'boxSelect'],
-  [[{ name: 'space' }, { name: 'dragLower' }], 'pan'],
-  [[MOD, { name: 'scroll' }], 'zoom'],
-  [[{ name: 'doubleClick' }], 'rename'],
-]
-
-const keyLabel = (t: TFunction, key: string | { name: KeyName }) => (typeof key === 'string' ? key : t(`welcome.keys.${key.name}`))
+import { BookIcon, Logo } from './icons.tsx'
+import { Shortcuts } from './Shortcuts.tsx'
+import { useDialog } from './useDialog.ts'
 
 /** Each language is named in itself, so anyone can find theirs. */
 const LANGUAGE_NAMES: Record<Language, string> = { es: 'Español', en: 'English' }
@@ -49,25 +28,16 @@ interface Props {
   hasProgress: boolean
   onClose: () => void
   onResetAll: () => void
+  onOpenGuide: () => void
 }
 
-/** Native modal dialog: the browser traps focus, closes it on Esc and hides the page behind it. */
-export function Welcome({ open, hasProgress, onClose, onResetAll }: Props) {
+/** Shown on every load: how to play, progress, shortcuts and the language. */
+export function Welcome({ open, hasProgress, onClose, onResetAll, onOpenGuide }: Props) {
   const { t } = useTranslation()
-  const dialog = useRef<HTMLDialogElement>(null)
+  // The language picker comes first in the dialog; the main action keeps the focus.
   const start = useRef<HTMLButtonElement>(null)
+  const { dialog } = useDialog(open, onClose, start)
   const [confirmReset, setConfirmReset] = useState(false)
-
-  useEffect(() => {
-    const el = dialog.current
-    if (!el) return
-    if (open && !el.open) {
-      el.showModal()
-      // The language picker comes first in the dialog; the main action keeps the focus.
-      start.current?.focus()
-    }
-    if (!open && el.open) el.close()
-  }, [open])
 
   return (
     <dialog
@@ -110,22 +80,15 @@ export function Welcome({ open, hasProgress, onClose, onResetAll }: Props) {
       <p>{t('welcome.progressText')}</p>
 
       <h3>{t('welcome.shortcuts')}</h3>
-      <dl className="shortcuts">
-        {SHORTCUTS.map(([keys, action]) => (
-          <div key={action}>
-            <dt>
-              {keys.map((k, i) => (
-                <kbd key={i}>{keyLabel(t, k)}</kbd>
-              ))}
-            </dt>
-            <dd>{t(`welcome.actions.${action}`)}</dd>
-          </div>
-        ))}
-      </dl>
+      <Shortcuts />
 
       <div className="actions">
         <button ref={start} type="button" className="primary" onClick={onClose}>
           {hasProgress ? t('welcome.continue') : t('welcome.start')}
+        </button>
+        <button type="button" className="with-icon" onClick={onOpenGuide}>
+          <BookIcon />
+          {t('guide.open')}
         </button>
         {hasProgress && (
           <button

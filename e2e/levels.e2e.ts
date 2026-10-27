@@ -16,7 +16,7 @@ test('level 0: a NAND made of relays passes', async ({ page }) => {
   await start(page)
   await openLevel(page, 'Relés')
   const palette = page.getByRole('complementary', { name: 'Piezas' })
-  await expect(palette.getByRole('button')).toHaveText(['Fuente', 'Relé', 'Relé inverso'])
+  await expect(palette.locator('.palette-body').getByRole('button')).toHaveText(['Fuente', 'Relé', 'Relé inverso'])
 
   // The level's pins sit at the left (a, b) and right (out) of the canvas.
   await addPiece(page, 'Fuente', 'vcc1', { x: 260, y: 520 })
@@ -79,7 +79,7 @@ test('NOT by hand: the LED follows the input, Probar unlocks AND, and progress s
   await expect(page.getByRole('heading', { level: 2, name: 'AND' })).toBeVisible()
   await expect(nav.getByRole('button', { name: 'AND', exact: true })).not.toHaveClass(/fresh/)
   const palette = page.getByRole('complementary', { name: 'Piezas' })
-  await expect(palette.getByRole('button')).toHaveText(['NAND', 'NOT'])
+  await expect(palette.locator('.palette-body').getByRole('button')).toHaveText(['NAND', 'NOT'])
   await expect(palette.getByRole('heading')).toHaveText(['Piezas', 'Básicas', 'Tus chips'])
   await expect(palette.locator('h3:has-text("Tus chips") ~ button')).toHaveText(['NOT'])
   expect(errors).toEqual([])
@@ -177,7 +177,7 @@ test('Probar lists the passing tests in green next to the failing ones', async (
   await page.screenshot({ path: `${SHOTS}/probar-mixed.png` })
 })
 
-test('the hint starts folded and folds again on another level; the ? button is round', async ({ page }) => {
+test('the hint starts folded and folds again on another level; the ? button is square', async ({ page }) => {
   await seedSolved(page, ['NOT'])
   await start(page)
   const hint = page.getByText('Es lo contrario de un NAND.')
@@ -186,8 +186,12 @@ test('the hint starts folded and folds again on another level; the ? button is r
   await expect(hint).toBeVisible()
   await openLevel(page, 'NOT')
   await expect(page.getByText('NAND da 0 solo cuando sus dos entradas son 1.')).toBeHidden()
-  const box = await page.getByRole('button', { name: 'Acerca de Circuitos' }).boundingBox()
-  expect(box && box.width === box.height).toBe(true)
+  // Same square as the fold buttons next to it.
+  const about = page.getByRole('button', { name: 'Acerca de Circuitos' })
+  const fold = page.getByRole('button', { name: 'Ocultar niveles' })
+  const [a, f] = [await about.boundingBox(), await fold.boundingBox()]
+  expect(a && f && a.width === a.height && a.width === f.width).toBe(true)
+  await expect(about).toHaveCSS('border-radius', await fold.evaluate((el) => getComputedStyle(el).borderRadius))
 })
 
 test('bus levels start with bus pins and a live table of the cases Probar checks', async ({ page }) => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as examples from '../sim/examples.ts'
+import { nodePins } from '../sim/flatten.ts'
 import { verify } from '../sim/verify.ts'
 import type { ChipDef, Circuit } from '../sim/types.ts'
 import en from '../locales/en.json'
@@ -135,12 +136,26 @@ describe('block 3 levels', () => {
     expect(levelPalette(levelById('ALU4')!, new Map())).toEqual(['NAND', 'SPLIT', 'JOIN'])
   })
 
-  it('have a name and a goal in every language', () => {
+  it('only mark as pins the names of the level or of the pieces it offers', () => {
     for (const [language, texts] of Object.entries({ es, en })) {
-      const levels: Record<string, { name?: string; goal?: string }> = texts.levels
+      const levels: Record<string, Record<string, string>> = texts.levels
+      for (const level of LEVELS) {
+        const parts = (level.parts ?? ['NAND']).map((kind) => nodePins({ kind }, new Map()))
+        const known = new Set([...level.spec.inputs, ...level.spec.outputs, ...parts.flatMap((p) => [...p.inputs, ...p.outputs].map((pin) => pin.name))])
+        for (const text of Object.values(levels[level.id] ?? {})) {
+          for (const [, pin] of text.matchAll(/<pin>(.*?)<\/pin>/g)) expect(known, `${language} ${level.id}: ${pin}`).toContain(pin)
+        }
+      }
+    }
+  })
+
+  it('have a name, a goal and a story in every language', () => {
+    for (const [language, texts] of Object.entries({ es, en })) {
+      const levels: Record<string, { name?: string; goal?: string; story?: string }> = texts.levels
       for (const level of LEVELS) {
         expect(levels[level.id]?.name, `${language} ${level.id}`).toBeTruthy()
         expect(levels[level.id]?.goal, `${language} ${level.id}`).toBeTruthy()
+        expect(levels[level.id]?.story, `${language} ${level.id}`).toBeTruthy()
       }
     }
   })

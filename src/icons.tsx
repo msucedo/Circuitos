@@ -91,3 +91,22 @@ export const StepIcon = () => (
     <path d="M4 3.5v9M7 3.5l5 4.5-5 4.5z" />
   </Icon>
 )
+
+/** Points left: "fold towards the edge". CSS turns it around while folded. */
+export const ChevronIcon = () => (
+  <Icon>
+    <path d="M10 3.5L5.5 8l4.5 4.5" />
+  </Icon>
+)
+
+export const BookIcon = () => (
+  <Icon>
+    <path d="M8 4.5C6.5 3.3 4.5 3 2.5 3.2v9.3c2-.2 4 .1 5.5 1.3 1.5-1.2 3.5-1.5 5.5-1.3V3.2c-2-.2-4 .1-5.5 1.3zM8 4.5v9.3" />
+  </Icon>
+)
+
+export const HelpIcon = () => (
+  <Icon>
+    <path d="M5.75 6a2.25 2.25 0 1 1 3.3 2c-.6.32-1.05.8-1.05 1.5v.5M8 12.25v.01" />
+  </Icon>
+)

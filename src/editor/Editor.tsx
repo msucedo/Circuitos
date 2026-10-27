@@ -9,10 +9,10 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react'
-import type { Connection, Edge, EdgeTypes, NodeTypes, OnBeforeDelete, XYPosition } from '@xyflow/react'
+import type { Connection, Edge, EdgeTypes, FitViewOptions, NodeTypes, OnBeforeDelete, XYPosition } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DragEvent, ReactNode } from 'react'
+import type { CSSProperties, DragEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { problemText } from '../i18n.ts'
 import type { Bit, ChipLibrary, Circuit } from '../sim/types.ts'
@@ -21,7 +21,8 @@ import { ChipNode } from './ChipNode.tsx'
 import { canConnect, copySelection, edgeId, nextId, pasteCircuit, pinWidth, renameNode, toCircuit, toFlow } from './convert.ts'
 import type { ChipFlowNode } from './convert.ts'
 import { EditorContext, SIZED_KINDS, isBasicKind, kindName } from './context.ts'
-import { CopyIcon, PasteIcon, RedoIcon, StepIcon, TableIcon, TrashIcon, UndoIcon } from '../icons.tsx'
+import { CollapseToggle } from '../CollapseToggle.tsx'
+import { BookIcon, CopyIcon, PasteIcon, RedoIcon, StepIcon, TableIcon, TrashIcon, UndoIcon } from '../icons.tsx'
 import { History } from './history.ts'
 import { TruthTable } from './TruthTable.tsx'
 import { useSimulation } from './useSimulation.ts'
@@ -33,9 +34,31 @@ const nodeTypes: NodeTypes = { chip: ChipNode }
 const edgeTypes: EdgeTypes = { wire: WireEdge }
 const DRAG_TYPE = 'application/x-circuitos-kind'
 const CLOCK_MS = 500
+/** Theory panel size in px; app.css reads it through --theory-width and --panel-margin. */
+export const THEORY_WIDTH = 320
+export const PANEL_MARGIN = 10
 const WIDTHS = [1, 2, 4, 8, 16]
 /** On touch screens a one-finger drag keeps moving the canvas; box selection is for mouse and trackpad. */
 const TOUCH = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+
+/** Matches the phone layout in app.css: the side panels cover the whole canvas there. */
+const NARROW = typeof matchMedia === 'function' && matchMedia('(max-width: 720px)').matches
+const FIT_PADDING = 0.1
+/** Width of the theory panel plus its margins; the first fit leaves that room so the panel covers no piece. */
+const THEORY_ROOM = `${THEORY_WIDTH + 2 * PANEL_MARGIN}px` as const
+const MAX_FIT_ZOOM = 1.2
+/** Fits the pieces in view, leaving room for the theory panel when it is beside them. */
+const fitOptions = (theoryRoom: boolean): FitViewOptions => ({
+  maxZoom: MAX_FIT_ZOOM,
+  padding: { x: FIT_PADDING, y: FIT_PADDING, ...(theoryRoom ? { right: THEORY_ROOM } : {}) },
+})
+/** The view keeps following the canvas a little after the fold transition, for the last frames. */
+const FOLD_SLACK_MS = 150
+/** How long a column takes to fold, from `--fold` in index.css (so CSS stays the single source). */
+function foldMs(): number {
+  const value = getComputedStyle(document.documentElement).getPropertyValue('--fold').trim()
+  return value.endsWith('ms') ? parseFloat(value) : (parseFloat(value) || 0) * 1000
+}
 
 /** Shared by every editor, so a selection can be pasted into another level or the sandbox. */
 let clipboard: Circuit | undefined
@@ -52,6 +75,15 @@ export interface EditorProps {
   spec?: Spec
   /** Allows renaming INPUT/OUTPUT pins with a double click. */
   renamePins?: boolean
+  /** The level's history and theory, shown in a side panel; adds a toolbar button when given. */
+  theory?: ReactNode
+  theoryOpen?: boolean
+  onTheoryOpenChange?: (open: boolean) => void
+  /** Changes when a side column folds or opens; the view then follows the canvas and ends framed. */
+  refitKey?: string
+  /** The pieces column is folded; it shows a fold button only when `onTogglePalette` is given. */
+  paletteCollapsed?: boolean
+  onTogglePalette?: () => void
   onChange: (circuit: Circuit) => void
 }
 
@@ -103,7 +135,21 @@ function freeSpot(at: XYPosition, nodes: ChipFlowNode[]): XYPosition {
   return spot
 }
 
-function Canvas({ initial, library, palette, locked, spec, renamePins = false, onChange }: EditorProps) {
+function Canvas({
+  initial,
+  library,
+  palette,
+  locked,
+  spec,
+  renamePins = false,
+  theory,
+  theoryOpen = false,
+  onTheoryOpenChange,
+  refitKey,
+  paletteCollapsed = false,
+  onTogglePalette,
+  onChange,
+}: EditorProps) {
   const { t } = useTranslation()
   const [start] = useState(() => toFlow(initial, locked))
   const [nodes, setNodes, onNodesChange] = useNodesState<ChipFlowNode>(start.nodes)
@@ -113,12 +159,44 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
   const [clockRunning, setClockRunning] = useState(true)
   const [stepMode, setStepMode] = useState(false)
   const [showTable, setShowTable] = useState(false)
+  // While pieces move, wire lengths change every frame and would restart their packets.
+  const [dragging, setDragging] = useState(false)
   const [width, setWidth] = useState(1)
   const [history] = useState(() => new History<Circuit>())
   const [, setHistoryVersion] = useState(0)
   const canvas = useRef<HTMLDivElement>(null)
-  const { screenToFlowPosition, deleteElements } = useReactFlow()
+  const { screenToFlowPosition, deleteElements, fitView } = useReactFlow()
 
+  // Read once: React Flow fits the view only when it mounts, and the pieces stay where that fit put them.
+  const [theoryRoom] = useState(() => !!theory && theoryOpen && !NARROW)
+  const [mountFit] = useState(() => fitOptions(theoryRoom))
+
+  // Folding a column resizes the canvas. While it moves the view follows it, and it ends framed.
+  // Only then: resizing the window keeps the user's own zoom.
+  const lastRefitKey = useRef(refitKey)
+  const besideTheory = !!theory && theoryOpen && !NARROW
+  useEffect(() => {
+    const el = canvas.current
+    if (refitKey === lastRefitKey.current || !el) return
+    lastRefitKey.current = refitKey
+    const options = fitOptions(besideTheory)
+    let frame = 0
+    // A frame later, so React Flow has measured the new size first.
+    const refit = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => void fitView(options))
+    }
+    const observer = new ResizeObserver(refit)
+    observer.observe(el)
+    const stop = setTimeout(() => {
+      observer.disconnect()
+      refit()
+    }, foldMs() + FOLD_SLACK_MS)
+    return () => {
+      observer.disconnect()
+      clearTimeout(stop)
+    }
+  }, [refitKey, besideTheory, fitView])
   const circuit = useMemo(() => toCircuit(nodes, edges), [nodes, edges])
   const { signals, step } = useSimulation(circuit, library, inputs, clock, stepMode)
   const allowed = useMemo(() => new Set(palette), [palette])
@@ -207,6 +285,12 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
     setEdges((es) => addEdge({ ...c, id: edgeId(c) }, es))
   }
 
+  const startDrag = () => {
+    record()
+    setDragging(true)
+  }
+  const stopDrag = () => setDragging(false)
+
   const onBeforeDelete: OnBeforeDelete<ChipFlowNode> = async () => {
     record()
     return true
@@ -245,7 +329,8 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
     data: {
       value: signals.pin(e.source, e.sourceHandle ?? 'out'),
       width: pinWidth(byId.get(e.source), e.sourceHandle, 'outputs', library) ?? 1,
-      animate: true,
+      animate: !dragging,
+      changed: stepMode && signals.changed(e.source, e.sourceHandle ?? 'out'),
     },
   }))
 
@@ -301,30 +386,43 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
   const chips = palette.filter((k) => !isBasicKind(k))
 
   return (
-    <div className="editor">
-      <aside className="palette" aria-labelledby="palette-title">
-        <h2 id="palette-title" className="palette-title">
-          {t('editor.pieces')}
-        </h2>
-        <p className="palette-help">{t('editor.piecesHelp')}</p>
-        <h3>{t('editor.basics')}</h3>
-        {palette.some((k) => SIZED_KINDS.has(k)) && (
-          <label className="width-picker">
-            {t('editor.bits')}
-            <select value={width} onChange={(e) => setWidth(Number(e.target.value))}>
-              {WIDTHS.map((w) => (
-                <option key={w} value={w}>
-                  {w}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {basics.map(pieceButton)}
-        <h3>{t('editor.yourChips')}</h3>
-        {chips.length > 0 ? chips.map(pieceButton) : <p className="palette-help">{t('editor.noChips')}</p>}
+    <div className="editor" style={{ '--theory-width': `${THEORY_WIDTH}px`, '--panel-margin': `${PANEL_MARGIN}px` } as CSSProperties}>
+      <aside className={`palette${paletteCollapsed ? ' collapsed' : ''}`} aria-labelledby="palette-title">
+        <div className="palette-head">
+          <h2 id="palette-title" className="palette-title">
+            {t('editor.pieces')}
+          </h2>
+          {onTogglePalette && (
+            <CollapseToggle
+              collapsed={paletteCollapsed}
+              controls="palette-body"
+              showLabel={t('editor.showPieces')}
+              hideLabel={t('editor.hidePieces')}
+              onToggle={onTogglePalette}
+            />
+          )}
+        </div>
+        <div id="palette-body" className="palette-body">
+          <p className="palette-help">{t('editor.piecesHelp')}</p>
+          <h3>{t('editor.basics')}</h3>
+          {palette.some((k) => SIZED_KINDS.has(k)) && (
+            <label className="width-picker">
+              {t('editor.bits')}
+              <select value={width} onChange={(e) => setWidth(Number(e.target.value))}>
+                {WIDTHS.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {basics.map(pieceButton)}
+          <h3>{t('editor.yourChips')}</h3>
+          {chips.length > 0 ? chips.map(pieceButton) : <p className="palette-help">{t('editor.noChips')}</p>}
+        </div>
       </aside>
-      <div className="canvas" ref={canvas} onDrop={onDrop} onDragOver={(e) => e.preventDefault()}>
+      <div className={`canvas${theoryRoom ? ' theory-room' : ''}`} ref={canvas} onDrop={onDrop} onDragOver={(e) => e.preventDefault()}>
         <div className="toolbar" role="toolbar" aria-label={t('editor.tools')}>
           <ToolButton label={t('editor.undo')} icon={<UndoIcon />} keys="Ctrl/⌘ + Z" onClick={undo} disabled={!history.canUndo} />
           <ToolButton label={t('editor.redo')} icon={<RedoIcon />} keys="Ctrl/⌘ + Shift + Z" onClick={redo} disabled={!history.canRedo} />
@@ -333,6 +431,9 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
           <ToolButton label={t('editor.delete')} icon={<TrashIcon />} keys={t('editor.deleteKeys')} onClick={deleteSelection} disabled={!canDelete} />
           <span className="separator" />
           <ToolButton label={t('editor.table')} icon={<TableIcon />} pressed={showTable} onClick={() => setShowTable((v) => !v)} />
+          {theory && (
+            <ToolButton label={t('editor.theory')} icon={<BookIcon />} pressed={theoryOpen} onClick={() => onTheoryOpenChange?.(!theoryOpen)} />
+          )}
           <ToolButton label={t('editor.stepMode')} icon={<StepIcon />} pressed={stepMode} onClick={() => setStepMode((v) => !v)} />
           {stepMode && (
             <button type="button" className="primary" onClick={step} disabled={signals.settled}>
@@ -363,7 +464,10 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onBeforeDelete={onBeforeDelete}
-            onNodeDragStart={record}
+            onNodeDragStart={startDrag}
+            onNodeDragStop={stopDrag}
+            onSelectionDragStart={startDrag}
+            onSelectionDragStop={stopDrag}
             isValidConnection={(c) => canConnect(edges, c, nodes, library)}
             deleteKeyCode={['Backspace', 'Delete']}
             // Like most apps: drag on empty space draws a selection box; the canvas pans with
@@ -374,17 +478,30 @@ function Canvas({ initial, library, palette, locked, spec, renamePins = false, o
             selectionMode={SelectionMode.Partial}
             colorMode="dark"
             fitView
-            fitViewOptions={{ maxZoom: 1.2 }}
+            fitViewOptions={mountFit}
           >
             <Background />
             <Controls showInteractive={false} />
           </ReactFlow>
         </EditorContext.Provider>
-        {showTable && (
-          <aside className="table-panel" aria-label={t('editor.truthTable')}>
-            <TruthTable circuit={circuit} library={library} spec={spec} />
-          </aside>
-        )}
+        <div className="side-panels">
+          {showTable && (
+            <aside className="table-panel" aria-label={t('editor.truthTable')}>
+              <TruthTable circuit={circuit} library={library} spec={spec} />
+            </aside>
+          )}
+          {theory && theoryOpen && (
+            <aside className="theory-panel" aria-labelledby="theory-title">
+              <div className="theory-head">
+                <h2 id="theory-title">{t('editor.theoryTitle')}</h2>
+                <button type="button" aria-label={t('editor.closeTheory')} onClick={() => onTheoryOpenChange?.(false)}>
+                  ×
+                </button>
+              </div>
+              {theory}
+            </aside>
+          )}
+        </div>
         {blank && (
           <p className="canvas-guide">
             {t('editor.guide')}

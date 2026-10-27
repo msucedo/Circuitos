@@ -10,6 +10,8 @@ export interface Signals {
   hasClock: boolean
   /** Step mode only: the last step changed nothing. */
   settled: boolean
+  /** Step mode only: the last event (a step, or an input or clock change) changed what this source pin carries. */
+  changed: (node: string, pin: string) => boolean
   /** Value on a source pin (what its wires carry), or received by an OUTPUT node (pin `in`). */
   pin: (node: string, pin: string) => number
 }
@@ -20,7 +22,7 @@ export interface Simulation {
   step: () => void
 }
 
-const OFF: Signals = { oscillating: false, hasClock: false, settled: true, pin: () => 0 }
+const OFF: Signals = { oscillating: false, hasClock: false, settled: true, changed: () => false, pin: () => 0 }
 
 /**
  * Recompiles only when the structure changes (not when nodes move), and keeps
@@ -44,6 +46,10 @@ export function useSimulation(
 
   const signals = useMemo((): Signals => {
     if (harness instanceof CircuitError) return { ...OFF, error: harness }
+    // In step mode, a new token after the first is an input or clock change. A change made
+    // outside step mode settles at once, and a new circuit starts fresh: nothing to compare with.
+    const seen = harness.lastEvent
+    if (!stepMode || seen !== token) harness.remember(token, stepMode && seen !== undefined)
     for (const pin of harness.inputs) harness.set(pin.name, inputs.get(pin.name) ?? 0)
     harness.sim.setClock(clock)
     const oscillating = stepMode ? false : harness.sim.settle().status === 'oscillating'
@@ -51,6 +57,7 @@ export function useSimulation(
       oscillating,
       hasClock: harness.sim.compiled.clockSignals.length > 0,
       settled,
+      changed: (node, pin) => harness.changedSinceEvent(node, pin),
       pin: (node, pin) => read(harness, node, pin),
     }
     // `last` changes on every step: the simulator was mutated, so the values must be read again.
@@ -58,8 +65,8 @@ export function useSimulation(
 
   const step = useCallback(() => {
     if (harness instanceof CircuitError) return
-    const changed = harness.sim.step()
-    setLast({ token, settled: !changed })
+    harness.remember(token, true)
+    setLast({ token, settled: harness.sim.step().length === 0 })
   }, [harness, token])
 
   return { signals, step }

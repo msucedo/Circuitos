@@ -34,10 +34,26 @@ export const wrappedShortcuts = (welcome: Locator) =>
     items.filter((dd) => dd.getBoundingClientRect().height > parseFloat(getComputedStyle(dd).lineHeight) * 1.5).map((dd) => dd.textContent),
   )
 
-/** The welcome opens on every load; these get past it. */
-export async function start(page: Page) {
+/**
+ * The welcome opens on every load; these get past it. The theory panel starts
+ * closed on every level so it covers no piece; `theory: true` keeps the real first visit.
+ */
+export async function start(page: Page, { theory = false } = {}) {
+  if (!theory) await closeTheory(page)
   await page.goto('/')
   await closeWelcome(page)
+}
+
+/** Stores the preference "theory closed" for every level before the first load (only once, like `seedSolved`). */
+async function closeTheory(page: Page) {
+  const { PREFS_KEY, DEFAULT_PREFS } = await import('../src/storage.ts')
+  const raw = JSON.stringify({ ...DEFAULT_PREFS, theoryClosed: LEVELS.map((l) => l.id) })
+  await page.addInitScript(([key, value]) => {
+    if (!sessionStorage.getItem('prefs-seeded')) {
+      localStorage.setItem(key, value)
+      sessionStorage.setItem('prefs-seeded', '1')
+    }
+  }, [PREFS_KEY, raw] as const)
 }
 
 export async function restart(page: Page) {

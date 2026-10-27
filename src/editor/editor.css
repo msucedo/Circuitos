@@ -9,13 +9,16 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 132px;
+  width: var(--palette-width);
   padding: 10px;
   overflow-y: auto;
   border-right: 1px solid var(--line);
   background: var(--panel);
 }
 
+.palette-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.palette-body { display: flex; flex-direction: column; gap: 6px; }
+.palette .collapse-toggle { cursor: pointer; }
 .palette button {
   cursor: grab;
   text-align: left;
@@ -47,6 +50,8 @@
   text-align: center;
   pointer-events: none;
 }
+/* Centered on the room the first fit left beside the theory panel, like the pins. */
+.theory-room .canvas-guide { left: calc((100% - var(--theory-width) - 2 * var(--panel-margin)) / 2); }
 
 .canvas {
   position: relative;
@@ -167,6 +172,8 @@
 .react-flow__edge-path.wire { stroke: var(--off-wire); stroke-width: 2; }
 .react-flow__edge-path.wire.on { stroke: var(--on); }
 .react-flow__edge-path.wire.selected { stroke-dasharray: 5 3; }
+/* Step mode: the wires the last event changed, solid red whatever they carry; their packet too. */
+.react-flow__edge-path.wire.just-changed { stroke: var(--bad); }
 
 /* Toolbar and panels */
 .toolbar {
@@ -201,18 +208,37 @@
   font: inherit;
 }
 
-.table-panel {
+/* Truth table and theory stack on the right of the canvas, so they never cover each other. */
+.side-panels {
   position: absolute;
   top: 52px;
-  right: 10px;
+  right: var(--panel-margin);
+  bottom: 58px;
   z-index: 5;
-  max-height: calc(100% - 110px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: calc(100% - 2 * var(--panel-margin));
+  pointer-events: none;
+}
+.table-panel, .theory-panel {
+  min-height: 0;
+  max-width: 100%;
   overflow: auto;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+  pointer-events: auto;
+  animation: fade-in 0.2s var(--ease);
 }
+.theory-panel { width: var(--theory-width); padding: 12px 14px; font-size: 13px; line-height: 1.55; }
+.theory-head { position: sticky; top: -12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: -12px -14px 8px; padding: 10px 14px 6px; background: var(--panel); }
+.theory-head h2 { margin: 0; color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.theory-head button { padding: 0 8px; }
+.theory-panel p { margin: 0 0 8px; color: var(--text); }
+.theory-panel p:last-child { margin-bottom: 0; }
 .truth-table { border-collapse: collapse; font-family: ui-monospace, monospace; font-size: 13px; }
 .truth-table th, .truth-table td { padding: 2px 10px; text-align: center; border-bottom: 1px solid var(--line); }
 .truth-table th { color: var(--muted); font-weight: 500; }
@@ -251,6 +277,7 @@
 /* Packets travelling along wires */
 .packet { fill: var(--off-wire); pointer-events: none; }
 .packet.on { fill: var(--on); filter: drop-shadow(0 0 4px var(--on)); }
+.packet.changed { fill: var(--bad); filter: drop-shadow(0 0 4px var(--bad)); }
 @media (prefers-reduced-motion: reduce) {
   .packet { display: none; }
 }

@@ -169,7 +169,35 @@ describe('unit-delay step', () => {
     sim.settle()
     sim.setInput('a', 1)
     const trace = []
-    while (sim.step()) trace.push([sim.read('n1'), sim.read('n2'), sim.read('n3')].join(''))
+    const changed = []
+    for (let moved = sim.step(); moved.length > 0; moved = sim.step()) {
+      trace.push([sim.read('n1'), sim.read('n2'), sim.read('n3')].join(''))
+      changed.push(moved)
+    }
     expect(trace).toEqual(['001', '011', '010'])
+    // Each step reports the one signal it moved.
+    const of = (id: string) => sim.compiled.signalOf.get(id)!
+    expect(changed).toEqual([[of('n1')], [of('n2')], [of('n3')]])
+  })
+
+  it('tells what a pin carries differently since the last remembered event', () => {
+    const chain = build({ inputs: ['a'], parts: { n1: nand('a', 'a') }, outputs: { out: 'n1' } })
+    const h = new Harness(chain, new Map())
+    const event = {}
+    h.remember(event, false)
+    h.set('a', 1)
+    expect(h.lastEvent).toBe(event)
+    expect(h.changedSinceEvent('a', 'out')).toBe(false) // nothing compared
+    h.remember({}, true)
+    h.set('a', 0)
+    expect(h.changedSinceEvent('a', 'out')).toBe(true)
+    expect(h.changedSinceEvent('n1', 'out')).toBe(false)
+  })
+
+  it('names the signals behind a top-level pin', () => {
+    const chain = build({ inputs: ['a'], parts: { n1: nand('a', 'a') }, outputs: { out: 'n1' } })
+    const h = new Harness(chain, new Map())
+    expect(h.signalsOf('n1', 'out')).toEqual([h.sim.compiled.signalOf.get('n1')])
+    expect(h.signalsOf('missing', 'out')).toEqual([])
   })
 })

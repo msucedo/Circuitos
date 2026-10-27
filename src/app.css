@@ -7,13 +7,14 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 200px;
+  width: var(--levels-width);
   padding: 16px 12px;
   overflow-y: auto;
   border-right: 1px solid var(--line);
   background: var(--panel);
 }
 .levels h1 { flex: 1; margin: 0; font-size: 20px; }
+.levels-body { display: flex; flex-direction: column; flex: 1; gap: 8px; }
 .tagline { margin: 0; color: var(--muted); font-size: 13px; }
 .progress { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 8px; color: var(--muted); font-size: 12px; }
 .progress .bar { height: 4px; overflow: hidden; border-radius: 2px; background: var(--line); }
@@ -33,11 +34,12 @@
   width: 100%;
   text-align: left;
 }
-.levels button.current { border-color: var(--accent); background: #26304a; }
+.levels button.current, .guide-index button[aria-current='true'] { border-color: var(--accent); background: #26304a; }
 .levels ol button:not([aria-disabled='true']):hover, .levels .sandbox:hover { background: #26304a; translate: 3px 0; }
 .levels button[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; }
 .levels button.fresh { animation: glow 1.2s var(--ease); }
-.levels .sandbox { margin-top: 4px; }
+/* Guide and Free mode, then a gap before the levels. */
+.levels .sandbox { margin-bottom: 6px; }
 .mark { display: flex; align-items: center; color: var(--on); transition: scale 0.15s var(--spring); }
 .levels button:not([aria-disabled='true']):hover .mark { scale: 1.15; }
 /* The lock of a level that was just unlocked lifts off and fades; it rests invisible. */
@@ -70,13 +72,20 @@ main {
 .pins div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .pins dt { margin-right: 2px; color: var(--muted); }
 .pins dd { display: contents; }
-.pins code {
+/* A pin's name, in the pin list and inside texts. */
+.pin-ref {
   padding: 1px 6px;
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   background: var(--bg);
+  color: var(--accent);
   font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  white-space: nowrap;
 }
+/* A value (0, 1, a number) inside texts. */
+.bit { color: var(--on); font-family: ui-monospace, monospace; font-weight: 600; }
+.goal p { font-size: 15px; line-height: 1.6; }
 .brief .hint {
   margin-top: 4px;
   padding: 4px 10px;
@@ -141,7 +150,29 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .optional { color: var(--muted); font-size: 11px; }
 
+/* Folded columns. Only on wide screens: a phone already shows both columns compact. */
+.collapse-toggle .icon { transition: rotate var(--fold) var(--ease-soft); }
+.collapsed .collapse-toggle .icon { rotate: 180deg; }
+@media (min-width: 721px) {
+  .levels, .palette { overflow-x: hidden; transition: width var(--fold) var(--ease-soft), padding var(--fold) var(--ease-soft); }
+  /* The content keeps its open width, so the text never rewraps while the column grows. It fades
+     in once the column is open and fades out quickly when folding. */
+  .levels-body { min-width: calc(var(--levels-width) - 24px); }
+  .palette-body { min-width: calc(var(--palette-width) - 20px); }
+  .levels-body, .palette-body { transition: opacity 0.25s var(--ease-soft) var(--fold), translate 0.25s var(--ease-soft) var(--fold), visibility 0s linear var(--fold); }
+  .collapsed .levels-body, .collapsed .palette-body { opacity: 0; translate: -6px 0; visibility: hidden; transition: opacity 0.12s, translate 0.12s, visibility 0s linear 0.12s; }
+  .levels.collapsed { width: var(--rail); padding-inline: 8px; overflow-y: hidden; }
+  .levels.collapsed .title, .levels.collapsed .title-actions { flex-direction: column; }
+  .levels.collapsed .title-actions { gap: 8px; }
+  .levels.collapsed h1 { display: none; }
+  .app .palette.collapsed { width: var(--rail); padding-inline: 8px; overflow-y: hidden; }
+  .palette.collapsed .palette-head { justify-content: center; }
+  .palette.collapsed .palette-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+
 @media (max-width: 720px) {
+  .app .collapse-toggle { display: none; }
+  .app .palette-head, .app .palette-body { display: contents; }
   .app { flex-direction: column; }
   .app .editor { flex-direction: column; min-height: 70vh; }
   .app .palette {
@@ -191,12 +222,15 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
 button.danger { border-color: var(--bad); color: var(--bad); }
 
 .levels .title { display: flex; align-items: center; gap: 8px; }
+.title-actions { display: flex; flex: none; gap: 4px; }
 .logo { flex: none; }
-.levels .title button { flex: none; justify-content: center; align-items: center; width: 26px; height: 26px; padding: 0; border-radius: 50%; }
+/* Square icon buttons: About, and folding each column. */
+.icon-button { display: flex; flex: none; justify-content: center; align-items: center; width: 26px; height: 26px; padding: 0; }
+.levels .title .icon-button { width: 26px; justify-content: center; }
 .credit { margin: auto 0 0; padding-top: 8px; color: var(--muted); font-size: 12px; }
 .credit a, .welcome a { color: var(--accent); }
 
-.welcome {
+.welcome, .guide {
   width: min(560px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   padding: 20px 24px;
@@ -206,8 +240,46 @@ button.danger { border-color: var(--bad); color: var(--bad); }
   color: var(--text);
   line-height: 1.5;
 }
-.welcome[open] { animation: sheet-in 0.3s var(--ease); }
-.welcome::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(6px); animation: backdrop-in 0.3s var(--ease); }
+.welcome[open], .guide[open] { animation: sheet-in 0.45s var(--ease-soft); }
+.welcome::backdrop, .guide::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(6px); animation: backdrop-in 0.45s var(--ease-soft); }
+/* useDialog plays this before closing. */
+.welcome.closing, .guide.closing { animation: sheet-out 0.2s var(--ease) forwards; }
+.welcome.closing::backdrop, .guide.closing::backdrop { animation: backdrop-out 0.2s var(--ease) forwards; }
+
+/* Icon plus text in one button. */
+button.with-icon { display: inline-flex; align-items: center; gap: 6px; }
+.levels button.guide-button { justify-content: flex-start; }
+
+/* The guide: an index beside content that scrolls on its own. */
+.guide[open] { display: flex; flex-direction: column; width: min(880px, calc(100vw - 32px)); height: min(720px, calc(100vh - 32px)); padding: 0; }
+.guide-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+.guide-head h2 { margin: 0; font-size: 20px; }
+.guide-head button { padding: 0 10px; font-size: 16px; }
+.guide-body { display: flex; flex: 1; min-height: 0; }
+.guide-index { flex: none; width: 200px; padding: 12px; border-right: 1px solid var(--line); overflow-y: auto; }
+.guide-index ol { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.guide-index button { width: 100%; text-align: left; }
+/* Air above a title the index jumps to; less than the offset Guide.tsx reads, so it still counts as reached. */
+.guide-content section { scroll-margin-top: 16px; }
+.guide-content { flex: 1; min-width: 0; padding: 4px 24px 24px; overflow-y: auto; outline: none; }
+.guide-content h3 { margin: 20px 0 8px; color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.guide-content p { margin: 0 0 10px; max-width: 70ch; }
+.glossary { display: grid; gap: 10px; margin: 0; }
+.glossary div { display: grid; grid-template-columns: minmax(9rem, 12rem) 1fr; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.glossary dt { font-weight: 600; }
+.glossary dd { margin: 0; color: var(--muted); }
+.glossary dd p { margin: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .guide-content { scroll-behavior: smooth; }
+}
+@media (max-width: 720px) {
+  .guide-body { flex-direction: column; }
+  .guide-index { width: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .guide-index ol { flex-direction: row; overflow-x: auto; }
+  .guide-index button { width: auto; white-space: nowrap; }
+  .guide-content { padding: 4px 16px 16px; }
+  .glossary div { grid-template-columns: 1fr; gap: 2px; }
+}
 .welcome h2 { margin: 0 0 4px; font-size: 22px; }
 .welcome h3 { margin: 16px 0 4px; font-size: 15px; color: var(--muted); font-weight: 600; }
 .welcome p, .welcome ol { margin: 0 0 6px; }

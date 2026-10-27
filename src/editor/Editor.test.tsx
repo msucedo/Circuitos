@@ -159,6 +159,21 @@ describe('Editor', () => {
     expect(button('Avanzar').hasAttribute('disabled')).toBe(true)
   })
 
+  it('shows the level theory in a side panel that can be closed and reopened', () => {
+    const onTheoryOpenChange = vi.fn<(open: boolean) => void>()
+    const props = { theory: <p>Historia</p>, onTheoryOpenChange }
+    setup(NOT, { ...props, theoryOpen: true })
+    expect(screen.getByRole('complementary', { name: 'Historia y teoría' }).textContent).toContain('Historia')
+    expect(button('Teoría').getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(button('Cerrar teoría'))
+    expect(onTheoryOpenChange).toHaveBeenLastCalledWith(false)
+    cleanup()
+    setup(NOT, { ...props, theoryOpen: false })
+    expect(screen.queryByRole('complementary', { name: 'Historia y teoría' })).toBeNull()
+    fireEvent.click(button('Teoría'))
+    expect(onTheoryOpenChange).toHaveBeenLastCalledWith(true)
+  })
+
   it('shows a live truth table with the expected values of a level', () => {
     // Input wired straight to the output: right for a=0? no (expects 1); right for a=1? no (expects 0).
     const wire = { from: { node: 'a', pin: 'out' }, to: { node: 'out', pin: 'in' } }

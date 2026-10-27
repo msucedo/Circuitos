@@ -1,3 +1,4 @@
+import { levelById } from './levels/levels.ts'
 import { LIMITS, byteLength, emptySave, parseSave, serializeSave } from './sim/schema.ts'
 import type { SaveData } from './sim/schema.ts'
 import { problem } from './sim/types.ts'
@@ -53,5 +54,48 @@ export function backupSave(data: SaveData, store = browserStorage()): Problem | 
     store?.setItem(`${STORAGE_KEY}:respaldo`, serializeSave(data))
   } catch {
     return problem('backupFailed')
+  }
+}
+
+/** How the interface looks for this viewer; kept apart from the progress, so wiping or exporting never touches it. */
+export const PREFS_KEY = 'circuitos:ui'
+
+export interface Prefs {
+  levelsCollapsed: boolean
+  piecesCollapsed: boolean
+  /** Levels whose theory panel the user closed; it no longer opens by itself there. */
+  theoryClosed: string[]
+}
+
+export const DEFAULT_PREFS: Prefs = { levelsCollapsed: false, piecesCollapsed: false, theoryClosed: [] }
+
+/** Stored data is untrusted: only known fields with the right type survive, and only ids of real levels. */
+function parsePrefs(raw: string): Prefs {
+  const data: unknown = JSON.parse(raw)
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return DEFAULT_PREFS
+  const flag = (key: 'levelsCollapsed' | 'piecesCollapsed') => {
+    const value = (data as Record<string, unknown>)[key]
+    return typeof value === 'boolean' ? value : DEFAULT_PREFS[key]
+  }
+  const closed = (data as Record<string, unknown>).theoryClosed
+  const ids = Array.isArray(closed) ? closed.filter((id): id is string => typeof id === 'string' && levelById(id) !== undefined) : []
+  return { levelsCollapsed: flag('levelsCollapsed'), piecesCollapsed: flag('piecesCollapsed'), theoryClosed: [...new Set(ids)] }
+}
+
+export function loadPrefs(store = browserStorage()): Prefs {
+  try {
+    const raw = store?.getItem(PREFS_KEY)
+    return raw ? parsePrefs(raw) : DEFAULT_PREFS
+  } catch {
+    return DEFAULT_PREFS
+  }
+}
+
+/** Losing a preference is harmless, so a failed write is ignored. */
+export function writePrefs(prefs: Prefs, store = browserStorage()) {
+  try {
+    store?.setItem(PREFS_KEY, JSON.stringify(prefs))
+  } catch {
+    /* nothing else to do */
   }
 }

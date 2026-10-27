@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { emptySave, serializeSave } from './sim/schema.ts'
 import { LIBRARY, NOT } from './sim/examples.ts'
-import { STORAGE_KEY, backupSave, loadSave, writeSave } from './storage.ts'
+import { DEFAULT_PREFS, PREFS_KEY, STORAGE_KEY, backupSave, loadPrefs, loadSave, writePrefs, writeSave } from './storage.ts'
 
 class MemoryStorage {
   items = new Map<string, string>()
@@ -68,5 +68,41 @@ describe('storage', () => {
     const big = { ...emptySave(), sandbox: { nodes: [{ id: 'a', kind: 'INPUT', label: 'x'.repeat(40) }], wires: [] } }
     big.sandbox.nodes = Array.from({ length: 30_000 }, (_, i) => ({ id: `n${i}`, kind: 'NAND', label: 'x'.repeat(40) }))
     expect(writeSave(big, memory())?.code).toBe('saveTooBig')
+  })
+})
+
+describe('interface preferences', () => {
+  it('saves and loads them apart from the progress', () => {
+    const store = memory()
+    const prefs = { levelsCollapsed: true, piecesCollapsed: false, theoryClosed: ['NOT', 'AND'] }
+    writePrefs(prefs, store)
+    expect(store.items.has(STORAGE_KEY)).toBe(false)
+    expect(loadPrefs(store)).toEqual(prefs)
+  })
+
+  it('falls back to the defaults on missing, broken or blocked storage', () => {
+    expect(loadPrefs(memory())).toEqual(DEFAULT_PREFS)
+    expect(loadPrefs(undefined)).toEqual(DEFAULT_PREFS)
+    const store = memory()
+    store.items.set(PREFS_KEY, '{nope')
+    expect(loadPrefs(store)).toEqual(DEFAULT_PREFS)
+    const blocked = {
+      getItem: () => {
+        throw new DOMException('denied', 'SecurityError')
+      },
+      setItem: () => {
+        throw new DOMException('denied', 'SecurityError')
+      },
+    } as unknown as Storage
+    expect(loadPrefs(blocked)).toEqual(DEFAULT_PREFS)
+    expect(() => writePrefs(DEFAULT_PREFS, blocked)).not.toThrow()
+  })
+
+  it('keeps only valid fields and known levels', () => {
+    const store = memory()
+    store.items.set(PREFS_KEY, JSON.stringify({ levelsCollapsed: 'yes', piecesCollapsed: true, theoryClosed: ['NOT', 'NOT', 'HACK', 7] }))
+    expect(loadPrefs(store)).toEqual({ ...DEFAULT_PREFS, piecesCollapsed: true, theoryClosed: ['NOT'] })
+    store.items.set(PREFS_KEY, JSON.stringify(['not', 'an', 'object']))
+    expect(loadPrefs(store)).toEqual(DEFAULT_PREFS)
   })
 })

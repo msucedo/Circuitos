@@ -25,11 +25,15 @@ import { CircuitError, problem, toLibrary } from './sim/types.ts'
 import type { ChipDef, Circuit, Problem } from './sim/types.ts'
 import { verify } from './sim/verify.ts'
 import type { VerifyResult } from './sim/verify.ts'
-import { backupSave, loadSave, writeSave } from './storage.ts'
-import { CheckIcon, LockIcon, Logo } from './icons.tsx'
+import { backupSave, loadPrefs, loadSave, writePrefs, writeSave } from './storage.ts'
+import type { Prefs } from './storage.ts'
+import { CollapseToggle } from './CollapseToggle.tsx'
+import { BookIcon, CheckIcon, HelpIcon, LockIcon, Logo } from './icons.tsx'
+import { Guide } from './Guide.tsx'
 import { Confetti } from './Confetti.tsx'
 import { Credit, Welcome } from './Welcome.tsx'
 import { levelText, problemText } from './i18n.ts'
+import { RichText } from './RichText.tsx'
 import './app.css'
 
 const SANDBOX = 'sandbox'
@@ -58,7 +62,9 @@ function Pins({ label, ids, widths }: { label: string; ids: string[]; widths?: R
       <dt>{label}</dt>
       <dd>
         {ids.map((id) => (
-          <code key={id}>{widths?.[id] ? `${id}[${widths[id]}]` : id}</code>
+          <code key={id} className="pin-ref">
+            {widths?.[id] ? `${id}[${widths[id]}]` : id}
+          </code>
         ))}
       </dd>
     </div>
@@ -69,6 +75,7 @@ export default function App() {
   const { t } = useTranslation()
   const [loaded] = useState(loadSave)
   const [save, setSave] = useState<SaveData>(loaded.data)
+  const [prefs, setPrefs] = useState<Prefs>(loadPrefs)
   const [notice, setNotice] = useState<Notice | undefined>(loaded.warning && problemNotice(loaded.warning))
   const solved = useMemo(() => new Set(save.solved), [save.solved])
   const [workspace, setWorkspace] = useState(() => firstOpenLevel(new Set(loaded.data.solved)))
@@ -77,6 +84,7 @@ export default function App() {
   const [chipName, setChipName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string>()
   const [welcome, setWelcome] = useState(true)
+  const [guide, setGuide] = useState(false)
   // Bumped on every Probar so the result panel animates again.
   const [attempt, setAttempt] = useState(0)
   // Levels the last Probar unlocked, so their buttons can celebrate once.
@@ -115,6 +123,12 @@ export default function App() {
       window.removeEventListener('pagehide', flush)
     }
   }, [save])
+
+  useEffect(() => writePrefs(prefs), [prefs])
+  const togglePref = (key: 'levelsCollapsed' | 'piecesCollapsed') => setPrefs((p) => ({ ...p, [key]: !p[key] }))
+  // The theory opens by itself until the user closes it on that level.
+  const setTheoryOpen = (id: string, open: boolean) =>
+    setPrefs((p) => ({ ...p, theoryClosed: open ? p.theoryClosed.filter((c) => c !== id) : [...new Set([...p.theoryClosed, id])] }))
 
   useEffect(() => {
     if (!notice || notice.kind === 'error') return
@@ -247,6 +261,7 @@ export default function App() {
     [...save.drafts.values()].some((c) => c.wires.length > 0 || c.nodes.some((n) => n.kind !== 'INPUT' && n.kind !== 'OUTPUT'))
   const solvedCount = MAIN_LEVELS.filter((l) => solved.has(l.id)).length
   const hint = level && levelText(t, level, 'hint')
+  const story = level && levelText(t, level, 'story')
   const noticeText = notice?.text(t)
   const next = level && nextLevel(level)
   const failures = result?.steps.filter((s) => !s.ok) ?? []
@@ -259,94 +274,119 @@ export default function App() {
 
   return (
     <div className="app">
-      <nav className="levels" aria-label={t('app.levels')}>
+      <nav className={`levels${prefs.levelsCollapsed ? ' collapsed' : ''}`} aria-label={t('app.levels')}>
         <div className="title">
           <Logo />
           <h1>{t('app.name')}</h1>
-          <button type="button" aria-label={t('app.about')} onClick={() => setWelcome(true)}>
-            ?
-          </button>
-        </div>
-        <p className="tagline">{t('app.tagline')}</p>
-        <div className="progress">
-          <span>{t('app.solvedCount', { count: solvedCount, total: MAIN_LEVELS.length })}</span>
-          <div
-            className="bar"
-            role="progressbar"
-            aria-label={t('app.solvedLabel')}
-            aria-valuemin={0}
-            aria-valuemax={MAIN_LEVELS.length}
-            aria-valuenow={solvedCount}
-          >
-            <span style={{ width: `${(solvedCount / MAIN_LEVELS.length) * 100}%` }} />
+          <div className="title-actions">
+            <button type="button" className="icon-button" aria-label={t('app.about')} title={t('app.about')} onClick={() => setWelcome(true)}>
+              <HelpIcon />
+            </button>
+            <CollapseToggle
+              collapsed={prefs.levelsCollapsed}
+              controls="levels-body"
+              showLabel={t('app.showLevels')}
+              hideLabel={t('app.hideLevels')}
+              onToggle={() => togglePref('levelsCollapsed')}
+            />
           </div>
         </div>
-        {/* Shown instead of the list on a phone. */}
-        <div className="level-picker">
-          <label htmlFor="level-picker">{t('app.levelPicker')}</label>
-          <select id="level-picker" value={workspace} onChange={(e) => open(e.target.value)}>
-            {LEVELS.map((l) => (
-              <option key={l.id} value={l.id} disabled={!isUnlocked(l, solved)}>
-                {[
-                  levelName(l),
-                  l.optional && t('app.tag.optional'),
-                  solved.has(l.id) ? t('app.tag.solved') : !isUnlocked(l, solved) && t('app.tag.locked'),
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              </option>
-            ))}
-            <option value={SANDBOX}>{t('app.sandbox')}</option>
-          </select>
-        </div>
-        <ol>
-          {LEVELS.map((l) => {
-            const unlocked = isUnlocked(l, solved)
-            const needs = unlockedBy(l)
-            return (
-              <li key={l.id}>
-                <button
-                  type="button"
-                  className={`${workspace === l.id ? 'current' : ''}${fresh.has(l.id) ? ' fresh' : ''}`}
-                  aria-disabled={!unlocked}
-                  aria-current={workspace === l.id}
-                  title={unlocked || !needs ? undefined : t('app.lockedTitle', { needs: levelName(needs) })}
-                  onClick={() =>
-                    unlocked
-                      ? open(l.id)
-                      : setNotice({
-                          kind: 'warn',
-                          text: (t) => t('app.lockedNotice', { name: levelText(t, l, 'name'), needs: needs && levelText(t, needs, 'name') }),
-                        })
-                  }
-                >
-                  <span>
-                    {levelName(l)}
-                    {l.optional && <small className="optional"> {t('app.optional')}</small>}
-                  </span>
-                  <span className="mark" aria-label={solved.has(l.id) ? t('app.solved') : unlocked ? '' : t('app.locked')}>
-                    {solved.has(l.id) ? (
-                      <CheckIcon />
-                    ) : !unlocked ? (
-                      <LockIcon />
-                    ) : fresh.has(l.id) ? (
-                      <span className="unlocking">
+        <div id="levels-body" className="levels-body">
+          <p className="tagline">{t('app.tagline')}</p>
+          <div className="progress">
+            <span>{t('app.solvedCount', { count: solvedCount, total: MAIN_LEVELS.length })}</span>
+            <div
+              className="bar"
+              role="progressbar"
+              aria-label={t('app.solvedLabel')}
+              aria-valuemin={0}
+              aria-valuemax={MAIN_LEVELS.length}
+              aria-valuenow={solvedCount}
+            >
+              <span style={{ width: `${(solvedCount / MAIN_LEVELS.length) * 100}%` }} />
+            </div>
+          </div>
+          <button type="button" className="guide-button with-icon" onClick={() => setGuide(true)}>
+            <BookIcon />
+            {t('guide.open')}
+          </button>
+          <button type="button" className={`sandbox${workspace === SANDBOX ? ' current' : ''}`} onClick={() => open(SANDBOX)}>
+            {t('app.sandbox')}
+          </button>
+          {/* Shown instead of the list on a phone. */}
+          <div className="level-picker">
+            <label htmlFor="level-picker">{t('app.levelPicker')}</label>
+            <select id="level-picker" value={workspace} onChange={(e) => open(e.target.value)}>
+              {LEVELS.map((l) => (
+                <option key={l.id} value={l.id} disabled={!isUnlocked(l, solved)}>
+                  {[
+                    levelName(l),
+                    l.optional && t('app.tag.optional'),
+                    solved.has(l.id) ? t('app.tag.solved') : !isUnlocked(l, solved) && t('app.tag.locked'),
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                </option>
+              ))}
+              <option value={SANDBOX}>{t('app.sandbox')}</option>
+            </select>
+          </div>
+          <ol>
+            {LEVELS.map((l) => {
+              const unlocked = isUnlocked(l, solved)
+              const needs = unlockedBy(l)
+              return (
+                <li key={l.id}>
+                  <button
+                    type="button"
+                    className={`${workspace === l.id ? 'current' : ''}${fresh.has(l.id) ? ' fresh' : ''}`}
+                    aria-disabled={!unlocked}
+                    aria-current={workspace === l.id}
+                    title={unlocked || !needs ? undefined : t('app.lockedTitle', { needs: levelName(needs) })}
+                    onClick={() =>
+                      unlocked
+                        ? open(l.id)
+                        : setNotice({
+                            kind: 'warn',
+                            text: (t) => t('app.lockedNotice', { name: levelText(t, l, 'name'), needs: needs && levelText(t, needs, 'name') }),
+                          })
+                    }
+                  >
+                    <span>
+                      {levelName(l)}
+                      {l.optional && <small className="optional"> {t('app.optional')}</small>}
+                    </span>
+                    <span className="mark" aria-label={solved.has(l.id) ? t('app.solved') : unlocked ? '' : t('app.locked')}>
+                      {solved.has(l.id) ? (
+                        <CheckIcon />
+                      ) : !unlocked ? (
                         <LockIcon />
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ol>
-        <button type="button" className={`sandbox${workspace === SANDBOX ? ' current' : ''}`} onClick={() => open(SANDBOX)}>
-          {t('app.sandbox')}
-        </button>
-        <Credit className="credit" />
+                      ) : fresh.has(l.id) ? (
+                        <span className="unlocking">
+                          <LockIcon />
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+          <Credit className="credit" />
+        </div>
       </nav>
 
-      <Welcome open={welcome} hasProgress={hasProgress} onClose={closeWelcome} onResetAll={resetAll} />
+      <Welcome
+        open={welcome}
+        hasProgress={hasProgress}
+        onClose={closeWelcome}
+        onResetAll={resetAll}
+        onOpenGuide={() => {
+          closeWelcome()
+          setGuide(true)
+        }}
+      />
+      <Guide open={guide} onClose={() => setGuide(false)} />
 
       <main>
         <section className="brief">
@@ -359,7 +399,9 @@ export default function App() {
                     : t('app.optionalLevel')}
                 </p>
                 <h2>{levelName(level)}</h2>
-                <p>{levelText(t, level, 'goal')}</p>
+                <div className="goal">
+                  <RichText text={levelText(t, level, 'goal')} />
+                </div>
                 <dl className="pins">
                   <Pins label={t('app.inputs')} ids={level.spec.inputs} widths={level.spec.widths} />
                   <Pins label={t('app.outputs')} ids={level.spec.outputs} widths={level.spec.widths} />
@@ -368,7 +410,7 @@ export default function App() {
                   // Folded so the player tries first; the key folds it again on another level.
                   <details className="hint" key={level.id}>
                     <summary>{t('app.showHint')}</summary>
-                    <p>{hint}</p>
+                    <RichText text={hint} />
                   </details>
                 )}
               </div>
@@ -539,6 +581,12 @@ export default function App() {
           locked={locked}
           spec={level?.spec}
           renamePins={!level}
+          theory={story ? <RichText text={story} /> : undefined}
+          theoryOpen={!!level && !prefs.theoryClosed.includes(level.id)}
+          onTheoryOpenChange={(open) => level && setTheoryOpen(level.id, open)}
+          refitKey={`${prefs.levelsCollapsed}-${prefs.piecesCollapsed}`}
+          paletteCollapsed={prefs.piecesCollapsed}
+          onTogglePalette={() => togglePref('piecesCollapsed')}
           onChange={onChange}
         />
       </main>

@@ -2,7 +2,8 @@ import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@xyflow/react'
 import type { Edge, EdgeProps } from '@xyflow/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-export type WireData = { value: number; width: number; animate: boolean }
+/** `changed`: the last step of step mode moved this wire's value. */
+export type WireData = { value: number; width: number; animate: boolean; changed?: boolean }
 export type WireFlowEdge = Edge<WireData, 'wire'>
 
 /** Packets move at the same speed on every wire, so long wires don't look faster. */
@@ -63,13 +64,13 @@ export function WireEdge({ id, sourceX, sourceY, targetX, targetY, sourcePositio
     ? { dur: `${loopMs}ms`, repeatCount: 'indefinite', keyTimes: `0;${cross};1` }
     : { dur: `${packetMs}ms`, repeatCount: '1', keyTimes: '0;1' }
 
-  const cls = `wire${on ? ' on' : ''}${width > 1 ? ' bus' : ''}${selected ? ' selected' : ''}`
+  const cls = `wire${on ? ' on' : ''}${width > 1 ? ' bus' : ''}${data?.changed ? ' just-changed' : ''}${selected ? ' selected' : ''}`
   return (
     <>
       <BaseEdge id={id} path={path} className={cls} />
       <path d={path} className="wire-flash" />
       {visible && (
-        <circle key={run} r={width > 1 ? 5 : 4} className={`packet${on ? ' on' : ''}`} opacity={0}>
+        <circle key={run} r={width > 1 ? 5 : 4} className={`packet${on ? ' on' : ''}${data?.changed ? ' changed' : ''}`} opacity={0}>
           <animateMotion
             ref={motion}
             begin="indefinite"

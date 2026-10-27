@@ -46,4 +46,32 @@ export class Harness {
     const bits = this.flat.probes.get(pinKey(node, pin)) ?? []
     return bits.reduce((value, end, i) => (end ? value | (this.sim.read(end.node) << i) : value), 0)
   }
+
+  /** The signals right before the last event (a step or an input change), and that event. */
+  private memory?: { event: object; values?: Uint8Array }
+
+  /** Call before an event changes the signals; without `compare`, only the event is recorded. */
+  remember(event: object, compare: boolean) {
+    this.memory = { event, values: compare ? this.sim.values.slice() : undefined }
+  }
+
+  /** The event passed to the last `remember`. */
+  get lastEvent(): object | undefined {
+    return this.memory?.event
+  }
+
+  /** Whether what a top-level source pin carries changed since `remember` (false if it did not compare). */
+  changedSinceEvent(node: string, pin: string): boolean {
+    const before = this.memory?.values
+    return !!before && this.signalsOf(node, pin).some((s) => before[s] !== this.sim.values[s])
+  }
+
+  /** Simulator signals carried by the wires leaving a top-level source pin. */
+  signalsOf(node: string, pin: string): number[] {
+    const bits = this.flat.probes.get(pinKey(node, pin)) ?? []
+    return bits.flatMap((end) => {
+      const signal = end && this.sim.compiled.signalOf.get(end.node)
+      return signal === undefined ? [] : [signal]
+    })
+  }
 }

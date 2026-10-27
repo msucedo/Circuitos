@@ -3,6 +3,7 @@ import i18next from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { I18N_OPTIONS, LANGUAGE_KEY } from './i18n.ts'
+import { RICH_TAGS } from './richTags.ts'
 import en from './locales/en.json'
 import es from './locales/es.json'
 
@@ -25,6 +26,39 @@ describe('translations', () => {
     const english = keys(en)
     expect([...english.keys()].sort()).toEqual([...spanish.keys()].sort())
     for (const [key, params] of spanish) expect(english.get(key), key).toEqual(params)
+  })
+})
+
+/** Every leaf text by its full key. */
+function texts(tree: object, prefix = ''): [string, string][] {
+  return Object.entries(tree).flatMap(([k, v]): [string, string][] =>
+    typeof v === 'string' ? [[`${prefix}${k}`, v]] : texts(v, `${prefix}${k}.`),
+  )
+}
+
+/** Tags in order of appearance, `/x` for closing ones; anything else that looks like markup comes back as is. */
+const tagsOf = (text: string) => [...text.matchAll(/<[^>]*>/g)].map((m) => m[0].match(/^<(\/?)([a-z]+)>$/)?.slice(1).join('') ?? m[0])
+
+describe('markup in translations', () => {
+  for (const [language, tree] of [['es', es], ['en', en]] as const) {
+    it(`only uses the allowed tags, without attributes and well closed (${language})`, () => {
+      for (const [key, text] of texts(tree)) {
+        const open: string[] = []
+        for (const tag of tagsOf(text)) {
+          const name = tag.replace('/', '')
+          expect(RICH_TAGS as readonly string[], `${key}: ${tag}`).toContain(name)
+          if (tag.startsWith('/')) expect(open.pop(), `${key}: ${tag}`).toBe(name)
+          else open.push(name)
+        }
+        expect(open, key).toEqual([])
+      }
+    })
+  }
+
+  it('names the same pins in Spanish and English', () => {
+    const pins = (text: string) => [...text.matchAll(/<pin>(.*?)<\/pin>/g)].map((m) => m[1]).sort()
+    const english = new Map(texts(en))
+    for (const [key, text] of texts(es)) expect(pins(english.get(key) ?? ''), key).toEqual(pins(text))
   })
 })
 

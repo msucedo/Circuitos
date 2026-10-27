@@ -67,3 +67,60 @@ test('wiping the progress keeps a copy and starts over', async ({ page }) => {
   // Info notices close by themselves.
   await expect(notice).toBeHidden({ timeout: 6000 })
 })
+
+test('the guide opens from the levels column and from the welcome, and its index jumps to each section', async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto('/')
+  const welcome = page.getByRole('dialog', { name: 'Circuitos' })
+  const guide = page.getByRole('dialog', { name: 'Guía' })
+  await welcome.getByRole('button', { name: 'Guía', exact: true }).click()
+  await expect(welcome).toBeHidden()
+  await expect(guide).toBeVisible()
+  await expect(guide.getByRole('heading', { name: 'Cómo resolver un nivel' })).toBeVisible()
+  await expect(guide.locator('.pin-ref').first()).toBeVisible()
+
+  const index = guide.getByRole('navigation', { name: 'Índice' })
+  await expect(index.getByRole('button', { name: 'Cómo resolver un nivel' })).toHaveAttribute('aria-current', 'true')
+  const pieces = guide.getByRole('heading', { name: 'Piezas' })
+  await expect(pieces).not.toBeInViewport()
+  await index.getByRole('button', { name: 'Piezas' }).click()
+  await expect(pieces).toBeInViewport()
+  // The jump leaves some air above the title instead of pinning it to the top edge.
+  const air = () => pieces.evaluate((h) => h.getBoundingClientRect().top - h.closest('.guide-content')!.getBoundingClientRect().top)
+  // Measured once the smooth scroll has stopped moving.
+  await expect
+    .poll(async () => {
+      const first = await air()
+      await page.waitForTimeout(100)
+      return first === (await air())
+    })
+    .toBe(true)
+  expect(await air()).toBeGreaterThanOrEqual(12)
+  expect(await air()).toBeLessThan(40)
+  await expect(index.getByRole('button', { name: 'Piezas' })).toHaveAttribute('aria-current', 'true')
+  // Scrolling by hand moves the mark along with the reading.
+  await guide.getByRole('heading', { name: 'Comandos' }).evaluate((h) => h.scrollIntoView({ block: 'start' }))
+  await expect(index.getByRole('button', { name: 'Comandos' })).toHaveAttribute('aria-current', 'true')
+  await expect(index.getByRole('button', { name: 'Piezas' })).toHaveAttribute('aria-current', 'false')
+  await guide.getByRole('heading', { name: 'Piezas' }).evaluate((h) => h.scrollIntoView({ block: 'start' }))
+  await expect(guide.getByRole('definition').filter({ hasText: 'Siempre da 1' })).toBeVisible()
+  await page.screenshot({ path: `${SHOTS}/guide.png`, animations: 'disabled' })
+
+  // Esc plays the exit and then closes.
+  await page.keyboard.press('Escape')
+  await expect(guide).toHaveClass(/closing/)
+  await expect(guide).toBeHidden()
+  await expect(page.locator('dialog.guide')).not.toHaveClass(/closing/)
+  await page.getByRole('navigation', { name: 'Niveles' }).getByRole('button', { name: 'Guía' }).click()
+  await expect(guide).toBeVisible()
+  await guide.getByRole('button', { name: 'Cerrar guía' }).click()
+  await expect(guide).toBeHidden()
+
+  // On a phone the guide button stays reachable and nothing scrolls sideways.
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('navigation', { name: 'Niveles' }).getByRole('button', { name: 'Guía' }).click()
+  await expect(guide).toBeVisible()
+  expect(await guide.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+  await page.screenshot({ path: `${SHOTS}/guide-phone.png`, animations: 'disabled' })
+  expect(errors).toEqual([])
+})
