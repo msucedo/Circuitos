@@ -2,6 +2,8 @@
 
 Arma una computadora desde una compuerta NAND. Cada nivel resuelto se vuelve un chip que puedes usar en los siguientes.
 
+![Nivel 6, Sumador completo: dos medios sumadores y una OR en el lienzo, con el panel de teoría abierto](docs/img/nivel.webp)
+
 ```
 npm install
 npm run dev        # app en http://localhost:5173
@@ -21,6 +23,7 @@ Niveles: compuertas (NOT a XOR), sumadores, memoria (latches y flip-flop D) y el
 - `src/levels/`: niveles y lo que prueba cada uno.
 - `src/storage.ts`, `src/project.ts`: progreso en localStorage, exportar e importar.
 - `src/locales/`: textos en español e inglés (i18next); el idioma sale del navegador o del selector de la bienvenida.
+- `src/sound.ts`: efectos de sonido generados con Web Audio (sin archivos); se apagan con el botón de la bienvenida.
 
 No hay cuentas: el progreso vive solo en el localStorage del navegador (`circuitos:v1`). La bienvenida sale en cada carga y se reabre con "?". Desde ahí, "Borrar mi progreso" deja una copia en `circuitos:v1:respaldo` antes de empezar de cero.
 
@@ -33,3 +36,20 @@ No hay cuentas: el progreso vive solo en el localStorage del navegador (`circuit
 - "Tabla": tabla de verdad en vivo (hasta 6 bits de entrada); en los niveles pone al lado lo esperado por salida y marca en rojo cada valor incorrecto.
 - "Paso a paso": la señal avanza una compuerta por clic con "Avanzar".
 - Cada cambio de valor manda un paquete por el cable (se desactiva con "reducir movimiento" del sistema).
+- Las compuertas, las piezas básicas, los sumadores y los multiplexores llevan su símbolo en la paleta y en la Guía.
+- "Teoría": la historia y la idea de cada nivel, en un panel junto a la tabla. "Ver pista" se despliega debajo del objetivo.
+- "Guía": cómo resolver un nivel, conceptos, piezas, comandos y atajos.
+
+## Capturas
+
+Modo libre: arma lo que quieras con los chips que ya desbloqueaste y guárdalo como chip.
+
+![Modo libre con XOR, AND y un sumador de 4 bits en el lienzo, y la paleta con los chips desbloqueados](docs/img/modo-libre.webp)
+
+Guía: piezas, conceptos y comandos, cada uno con su icono.
+
+![La Guía abierta en la sección Piezas, con el símbolo de cada pieza junto a su descripción](docs/img/guia.webp)
+
+Bienvenida: cómo se juega, el idioma, el sonido y los atajos.
+
+![La ventana de bienvenida con los pasos para jugar, el selector de idioma, el botón de sonido y los atajos](docs/img/bienvenida.webp)
