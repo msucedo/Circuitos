@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { RefObject } from 'react'
+import type { ComponentType, RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { kindName } from './editor/context.ts'
+import { PieceIcon } from './editor/PieceIcon.tsx'
+import { BookIcon, ChevronIcon, StepIcon, TableIcon } from './icons.tsx'
 import es from './locales/es.json'
 import { RichText } from './RichText.tsx'
 import { Shortcuts } from './Shortcuts.tsx'
@@ -11,21 +13,24 @@ import { useDialog } from './useDialog.ts'
 /** The Spanish texts set which entries exist; the tests keep English with the same keys. */
 const CONCEPTS = Object.keys(es.guide.concepts.items)
 const PIECES = Object.keys(es.guide.pieces.items)
+/** Concepts that are also a piece wear that piece's symbol. */
+const CONCEPT_PIECES: Partial<Record<string, string>> = { nand: 'NAND', clock: 'CLOCK' }
+const NO_CHIPS = new Map()
 type Command = keyof (typeof es)['guide']['commands']['items']
 
-/** Each command with the label it has on screen, so the guide always names it the same way. */
-const COMMANDS: [command: Command, label: string][] = [
+/** Each command with the label and icon it has on screen, so the guide always shows it the same way. */
+const COMMANDS: [command: Command, label: string, Icon?: ComponentType][] = [
   ['test', 'app.test'],
   ['showHint', 'app.showHint'],
   ['reset', 'app.reset'],
-  ['table', 'editor.table'],
-  ['theory', 'editor.theory'],
-  ['stepMode', 'editor.stepMode'],
+  ['table', 'editor.table', TableIcon],
+  ['theory', 'editor.theory', BookIcon],
+  ['stepMode', 'editor.stepMode', StepIcon],
   ['pauseClock', 'editor.pauseClock'],
   ['bits', 'editor.bits'],
   ['export', 'app.export'],
   ['saveChip', 'app.saveChip'],
-  ['fold', 'guide.foldLabel'],
+  ['fold', 'guide.foldLabel', ChevronIcon],
 ]
 
 const SECTIONS = ['howTo', 'concepts', 'pieces', 'commands', 'shortcuts'] as const
@@ -127,7 +132,10 @@ function GuideContent({ content, onClose }: { content: RefObject<HTMLDivElement 
             <dl className="glossary">
               {CONCEPTS.map((id) => (
                 <div key={id}>
-                  <dt>{text(t, `guide.concepts.items.${id}.term`)}</dt>
+                  <dt>
+                    {CONCEPT_PIECES[id] && <PieceIcon kind={CONCEPT_PIECES[id]} library={NO_CHIPS} />}
+                    {text(t, `guide.concepts.items.${id}.term`)}
+                  </dt>
                   <dd>
                     <RichText text={text(t, `guide.concepts.items.${id}.text`)} />
                   </dd>
@@ -141,7 +149,10 @@ function GuideContent({ content, onClose }: { content: RefObject<HTMLDivElement 
             <dl className="glossary">
               {PIECES.map((kind) => (
                 <div key={kind}>
-                  <dt>{kindName(t, kind, new Map())}</dt>
+                  <dt>
+                    <PieceIcon kind={kind} library={NO_CHIPS} />
+                    {kindName(t, kind, NO_CHIPS)}
+                  </dt>
                   <dd>
                     <RichText text={text(t, `guide.pieces.items.${kind}`)} />
                   </dd>
@@ -152,9 +163,12 @@ function GuideContent({ content, onClose }: { content: RefObject<HTMLDivElement 
           <section id={sectionId('commands')} aria-labelledby="guide-commands-title">
             <h3 id="guide-commands-title">{t('guide.commands.title')}</h3>
             <dl className="glossary">
-              {COMMANDS.map(([command, label]) => (
+              {COMMANDS.map(([command, label, Icon]) => (
                 <div key={command}>
-                  <dt>{text(t, label)}</dt>
+                  <dt>
+                    {Icon && <Icon />}
+                    {text(t, label)}
+                  </dt>
                   <dd>
                     <RichText text={t(`guide.commands.items.${command}`)} />
                   </dd>

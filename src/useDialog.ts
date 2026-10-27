@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
+import { afterAnimations } from './usePresence.ts'
 
 /**
  * Shows a native modal dialog while `open` is true: the browser traps focus and
@@ -38,22 +39,16 @@ export function useDialog(open: boolean, onClose: () => void, focus?: RefObject<
       return
     }
     if (!el.open) return
-    let cancelled = false
     el.classList.add('closing')
     setClosing(true)
-    const finish = () => {
-      if (cancelled) return
+    const cancel = afterAnimations(el, () => {
       el.classList.remove('closing')
       el.close()
       setClosing(false)
-    }
-    // Reading the animations applies the new class first. None (reduced motion, or no browser support): close now.
-    const animations = el.getAnimations?.() ?? []
-    if (animations.length === 0) finish()
-    else void Promise.all(animations.map((a) => a.finished)).then(finish, finish)
+    })
     // Opened again before the exit ended: stop it where it is.
     return () => {
-      cancelled = true
+      cancel()
       el.classList.remove('closing')
       setClosing(false)
     }

@@ -87,6 +87,9 @@
     "continue": "Continuar",
     "wipe": "Borrar mi progreso",
     "confirmWipe": "¿Seguro? Borrar todo",
+    "mute": "Silenciar sonidos",
+    "soundOff": "Sonidos apagados",
+    "soundOn": "Sonidos encendidos",
     "language": "Idioma",
     "credit": "Hecho por",
     "keys": {

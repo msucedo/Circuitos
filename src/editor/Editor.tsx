@@ -24,6 +24,9 @@ import { EditorContext, SIZED_KINDS, isBasicKind, kindName } from './context.ts'
 import { CollapseToggle } from '../CollapseToggle.tsx'
 import { BookIcon, CopyIcon, PasteIcon, RedoIcon, StepIcon, TableIcon, TrashIcon, UndoIcon } from '../icons.tsx'
 import { History } from './history.ts'
+import { PieceIcon } from './PieceIcon.tsx'
+import { play } from '../sound.ts'
+import { usePresence } from '../usePresence.ts'
 import { TruthTable } from './TruthTable.tsx'
 import { useSimulation } from './useSimulation.ts'
 import { WireEdge } from './WireEdge.tsx'
@@ -159,6 +162,11 @@ function Canvas({
   const [clockRunning, setClockRunning] = useState(true)
   const [stepMode, setStepMode] = useState(false)
   const [showTable, setShowTable] = useState(false)
+  // Both side panels slide out before they go.
+  const tableRef = useRef<HTMLDivElement>(null)
+  const table = usePresence(showTable, tableRef)
+  const theoryRef = useRef<HTMLDivElement>(null)
+  const theoryPanel = usePresence(theoryOpen ? theory : undefined, theoryRef)
   // While pieces move, wire lengths change every frame and would restart their packets.
   const [dragging, setDragging] = useState(false)
   const [width, setWidth] = useState(1)
@@ -232,8 +240,16 @@ function Canvas({
     },
     [locked, setNodes, setEdges],
   )
-  const undo = useCallback(() => restore(history.undo(current.current)), [history, restore])
-  const redo = useCallback(() => restore(history.redo(current.current)), [history, restore])
+  const undo = useCallback(() => {
+    const snapshot = history.undo(current.current)
+    if (snapshot) play('undo')
+    restore(snapshot)
+  }, [history, restore])
+  const redo = useCallback(() => {
+    const snapshot = history.redo(current.current)
+    if (snapshot) play('redo')
+    restore(snapshot)
+  }, [history, restore])
 
   const copy = useCallback(() => {
     clipboard = copySelection(nodes, edges) ?? clipboard
@@ -243,6 +259,7 @@ function Canvas({
     const pasted = pasteCircuit(clipboard, nodes, allowed)
     if (pasted.nodes.length === 0) return
     record()
+    play('drop')
     setNodes((ns) => [...ns.map((n) => (n.selected ? { ...n, selected: false } : n)), ...pasted.nodes])
     setEdges((es) => [...es, ...pasted.edges])
   }, [nodes, allowed, record, setNodes, setEdges])
@@ -268,6 +285,7 @@ function Canvas({
     const rect = canvas.current?.getBoundingClientRect()
     const point = screen ?? { x: (rect?.left ?? 0) + (rect?.width ?? 0) / 2, y: (rect?.top ?? 0) + (rect?.height ?? 0) / 2 }
     record()
+    play('drop')
     setNodes((ns) => [
       ...ns,
       {
@@ -282,6 +300,7 @@ function Canvas({
   const onConnect = (c: Connection) => {
     if (!canConnect(edges, c, nodes, library)) return
     record()
+    play('connect')
     setEdges((es) => addEdge({ ...c, id: edgeId(c) }, es))
   }
 
@@ -291,8 +310,10 @@ function Canvas({
   }
   const stopDrag = () => setDragging(false)
 
-  const onBeforeDelete: OnBeforeDelete<ChipFlowNode> = async () => {
+  // React Flow only hands over what can be deleted, so the level's locked pins never make a sound.
+  const onBeforeDelete: OnBeforeDelete<ChipFlowNode> = async ({ nodes: removed }) => {
     record()
+    if (removed.length > 0) play('poof')
     return true
   }
 
@@ -340,7 +361,10 @@ function Canvas({
       signals,
       incoming: (node: string, pin: string) => wires.find((w) => w.target === node && w.targetHandle === pin)?.data?.value ?? 0,
       inputs,
-      setInput: (id: string, value: number) => setInputs((m) => new Map(m).set(id, value)),
+      setInput: (id: string, value: number) => {
+        play(value ? 'toggleOn' : 'toggleOff')
+        setInputs((m) => new Map(m).set(id, value))
+      },
       rename: renamePins ? rename : undefined,
     }),
     // `rename` changes with every render; it only needs the latest nodes when called.
@@ -377,6 +401,7 @@ function Canvas({
         onClick={() => addNode(kind)}
         title={needsBus ? t('editor.pickBus') : t('editor.addPiece')}
       >
+        <PieceIcon kind={kind} library={library} />
         {kindName(t, kind, library)}
         {SIZED_KINDS.has(kind) && width > 1 ? ` ${width}` : ''}
       </button>
@@ -436,7 +461,15 @@ function Canvas({
           )}
           <ToolButton label={t('editor.stepMode')} icon={<StepIcon />} pressed={stepMode} onClick={() => setStepMode((v) => !v)} />
           {stepMode && (
-            <button type="button" className="primary" onClick={step} disabled={signals.settled}>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                play('tick')
+                step()
+              }}
+              disabled={signals.settled}
+            >
               {t('editor.advance')}
             </button>
           )}
@@ -447,7 +480,13 @@ function Canvas({
                 {clockRunning ? t('editor.pauseClock') : t('editor.resumeClock')}
               </button>
               {!clockRunning && (
-                <button type="button" onClick={() => setClock((c) => (c ? 0 : 1))}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    play('tick')
+                    setClock((c) => (c ? 0 : 1))
+                  }}
+                >
                   {t('editor.tick')}
                 </button>
               )}
@@ -485,21 +524,26 @@ function Canvas({
           </ReactFlow>
         </EditorContext.Provider>
         <div className="side-panels">
-          {showTable && (
-            <aside className="table-panel" aria-label={t('editor.truthTable')}>
-              <TruthTable circuit={circuit} library={library} spec={spec} />
-            </aside>
+          {/* Each panel sits in a slot that grows and shrinks, so the other one slides to its new place. */}
+          {table.shown && (
+            <div ref={tableRef} className={`panel-slot${table.closing ? ' closing' : ''}`} inert={table.closing}>
+              <aside className="table-panel" aria-label={t('editor.truthTable')}>
+                <TruthTable circuit={circuit} library={library} spec={spec} />
+              </aside>
+            </div>
           )}
-          {theory && theoryOpen && (
-            <aside className="theory-panel" aria-labelledby="theory-title">
-              <div className="theory-head">
-                <h2 id="theory-title">{t('editor.theoryTitle')}</h2>
-                <button type="button" aria-label={t('editor.closeTheory')} onClick={() => onTheoryOpenChange?.(false)}>
-                  ×
-                </button>
-              </div>
-              {theory}
-            </aside>
+          {theoryPanel.shown && (
+            <div ref={theoryRef} className={`panel-slot${theoryPanel.closing ? ' closing' : ''}`} inert={theoryPanel.closing}>
+              <aside className="theory-panel" aria-labelledby="theory-title">
+                <div className="theory-head">
+                  <h2 id="theory-title">{t('editor.theoryTitle')}</h2>
+                  <button type="button" aria-label={t('editor.closeTheory')} onClick={() => onTheoryOpenChange?.(false)}>
+                    ×
+                  </button>
+                </div>
+                {theoryPanel.shown}
+              </aside>
+            </div>
           )}
         </div>
         {blank && (

@@ -22,6 +22,10 @@
   --palette-width: 132px;
   --rail: 44px;
   --fold: 0.3s;
+  /* Content fading in or out once its box has moved; also how long exits take. */
+  --fade: 0.25s;
+  /* Space between the stacked side panels. */
+  --panel-gap: 8px;
   /* Text size of buttons and fields, so both read the same. */
   --control-font: 13px;
   color-scheme: dark;
@@ -69,6 +73,19 @@ input[type='text'] {
   40%, 80% { translate: 6px 0; }
 }
 @keyframes slide-down { from { opacity: 0; translate: 0 -100%; } }
+@keyframes slide-up-out { to { opacity: 0; translate: 0 -100%; } }
+/* Side panels come in from the right edge and leave the same way. */
+@keyframes panel-in { from { opacity: 0; translate: 24px 0; } }
+@keyframes panel-out { to { opacity: 0; translate: 24px 0; } }
+/* The slot around a side panel; margin-bottom is the gap to the next one. */
+@keyframes slot-open { from { grid-template-rows: minmax(0, 0fr); margin-bottom: 0; } }
+@keyframes slot-close { to { grid-template-rows: minmax(0, 0fr); margin-bottom: 0; } }
+/* Boxes that grow open from nothing and fold back. They end at the box's own max-height. */
+@keyframes grow { from { max-height: 0; padding-block: 0; opacity: 0; } }
+@keyframes shrink { to { max-height: 0; padding-block: 0; border-width: 0; opacity: 0; } }
+/* Inline rows that unroll from the left and roll back. */
+@keyframes unroll { from { clip-path: inset(0 100% 0 0); opacity: 0; } }
+@keyframes roll-up { to { clip-path: inset(0 100% 0 0); opacity: 0; } }
 @keyframes sheet-in { from { opacity: 0; scale: 0.97; translate: 0 16px; } }
 @keyframes sheet-out { to { opacity: 0; scale: 0.98; translate: 0 8px; } }
 @keyframes backdrop-out { to { opacity: 0; } }

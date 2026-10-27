@@ -2,11 +2,14 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { build, nand } from '../sim/build.ts'
-import { LIBRARY, NOT, SR_LATCH } from '../sim/examples.ts'
+import { LIBRARY, MUX, NOT, SR_LATCH } from '../sim/examples.ts'
 import { SPECS } from '../levels/specs.ts'
 import type { Circuit } from '../sim/types.ts'
 import { Editor } from './Editor.tsx'
 import type { EditorProps } from './Editor.tsx'
+import { play } from '../sound.ts'
+
+vi.mock('../sound.ts', () => ({ play: vi.fn() }))
 
 beforeAll(() => {
   // jsdom has no ResizeObserver; React Flow only needs it to exist.
@@ -16,7 +19,10 @@ beforeAll(() => {
     disconnect() {}
   }
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.mocked(play).mockClear()
+})
 
 // Unmeasured React Flow nodes stay `visibility: hidden` in jsdom, so role queries skip them; labels still work.
 const byLabel = (name: string) => screen.getByLabelText(name)
@@ -107,6 +113,61 @@ describe('Editor', () => {
     expect([blade('no'), blade('nc')]).toEqual([open, closed])
     fireEvent.click(byLabel('entrada c: 0'))
     expect([blade('no'), blade('nc')]).toEqual([closed, open])
+  })
+
+  it('shows the symbol of gates and basic pieces next to their name, and none on other chips', () => {
+    const palette = ['INPUT', 'NAND', 'NOT', 'D_LATCH']
+    setup(NOT, { palette, library: LIBRARY })
+    const pieces = [...screen.getByRole('complementary', { name: 'Piezas' }).querySelectorAll('button')]
+    expect(pieces.map((b) => !!b.querySelector('svg.piece-icon'))).toEqual([true, true, true, false])
+  })
+
+  it('a chip that only shares a gate name gets no gate icon', () => {
+    setup(NOT, { palette: ['NOT'], library: new Map() })
+    expect(button('NOT').querySelector('svg.piece-icon')).toBeNull()
+  })
+
+  it('draws the adders and multiplexers with their symbol, and other chips without one', () => {
+    const palette = ['HALF_ADDER', 'FULL_ADDER', 'ADDER4', 'MUX', 'MUX4', 'D_LATCH']
+    setup(NOT, { palette, library: LIBRARY })
+    const pieces = [...screen.getByRole('complementary', { name: 'Piezas' }).querySelectorAll('button')]
+    expect(pieces.map((b) => !!b.querySelector('svg.piece-icon'))).toEqual([true, true, true, true, true, false])
+  })
+
+  it('a sandbox chip named like a level chip gets no symbol', () => {
+    setup(NOT, { palette: ['U_MUX'], library: new Map([['U_MUX', { id: 'U_MUX', name: 'MUX', circuit: MUX }]]) })
+    expect(button('MUX').querySelector('svg.piece-icon')).toBeNull()
+  })
+
+  it('plays a sound for adding, toggling, undoing, redoing and stepping', () => {
+    setup(NOT, { palette: ['NAND'] })
+    fireEvent.click(button('NAND'))
+    expect(play).toHaveBeenLastCalledWith('drop')
+    fireEvent.click(byLabel('entrada a: 0'))
+    expect(play).toHaveBeenLastCalledWith('toggleOn')
+    fireEvent.click(byLabel('entrada a: 1'))
+    expect(play).toHaveBeenLastCalledWith('toggleOff')
+    fireEvent.click(button('Deshacer'))
+    expect(play).toHaveBeenLastCalledWith('undo')
+    fireEvent.click(button('Rehacer'))
+    expect(play).toHaveBeenLastCalledWith('redo')
+    fireEvent.click(button('Paso a paso'))
+    fireEvent.click(button('Avanzar'))
+    expect(play).toHaveBeenLastCalledWith('tick')
+  })
+
+  it('stays quiet when there is nothing to undo', () => {
+    setup(NOT)
+    fireEvent.keyDown(window, { key: 'z', metaKey: true })
+    expect(play).not.toHaveBeenCalled()
+  })
+
+  it('goes poof when a piece is deleted', async () => {
+    const { last } = setup(NOT)
+    fireEvent.click(document.querySelector('.react-flow__node[data-id="n"]')!)
+    await act(async () => fireEvent.click(button('Borrar')))
+    expect(nandIds(last())).toEqual([])
+    expect(play).toHaveBeenLastCalledWith('poof')
   })
 
   it('shows structural problems in the status bar', () => {

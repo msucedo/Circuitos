@@ -87,6 +87,9 @@
     "continue": "Continue",
     "wipe": "Delete my progress",
     "confirmWipe": "Sure? Delete everything",
+    "mute": "Mute sounds",
+    "soundOff": "Sounds off",
+    "soundOn": "Sounds on",
     "language": "Language",
     "credit": "Made by",
     "keys": {

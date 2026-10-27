@@ -1,12 +1,12 @@
 # Handoff: Circuitos (2026-10-26)
 
 ## Dónde quedamos
-- Todo está subido: `main` = `origin/main` en `ad69d25` ("new memory lvls + fixes audit").
+- Todo está subido: `main` = `origin/main` en `74e1f6f` ("more general fixes"), con las mejoras de UX de abajo.
 - Verificado en ese estado: `tsc`, 130 pruebas unitarias, lint, build sin aviso de tamaño, 24 e2e en Chrome real (con CSP) y `npm audit` en 0.
 - 21 niveles (20 principales y el 0 opcional de relés): compuertas → sumadores → latches y flip-flop → bloque 3 combinacional (MUX, DMUX, NOT4, MUX4, DECODER, INC4, ALU4) → bloque 3 memoria (BIT, REGISTER4, COUNTER4, RAM4).
 
-## Mejoras de UX (2026-10-26, sin commit: las sube el usuario)
-Verificado (tras la ronda 2 de ajustes): `tsc`, 146 unitarias, lint sin avisos, build, 29 e2e y `npm audit` en 0.
+## Mejoras de UX (2026-10-26, subidas por el usuario)
+Verificado al final: `tsc`, 146 unitarias, lint sin avisos, build, 31 e2e y `npm audit` en 0.
 - **Arrastre:** mientras se mueve una pieza los paquetes de los cables se ocultan (`dragging` en `Editor.tsx`) y vuelven al soltar.
 - **Paso a paso:** los cables que cambió el último evento (un Avanzar o un cambio de entrada o de reloj) se pintan rojo sólido, con su paquete también en rojo (`.wire.just-changed`, `.packet.changed`). `Harness.remember(event, compare)` guarda las señales antes de cada evento y `changedSinceEvent(node, pin)` compara. Un circuito nuevo, o un cambio hecho fuera de paso a paso, no marca nada.
 - **Textos con marcas:** `RichText` (sobre `Trans`) admite solo `<pin>`, `<v>`, `<b>`, `<i>` (`src/richTags.ts`). Las pruebas exigen etiquetas válidas, los mismos pines en es/en y que cada `<pin>` de un nivel exista en su spec o en sus piezas.
@@ -17,6 +17,27 @@ Verificado (tras la ronda 2 de ajustes): `tsc`, 146 unitarias, lint sin avisos, 
 - **Reiniciar** pide confirmación ("¿Seguro? Reiniciar", se cancela al salir del botón) solo si el nivel tiene piezas o cables tuyos (`hasWork` en `App.tsx`). **Guardar como chip** en Modo libre abre un formulario (Enter guarda, Esc cancela). Botones y campos comparten `--control-font`. 31 e2e.
 - **e2e:** `start(page)` abre los niveles con la teoría cerrada para no tapar piezas; `start(page, { theory: true })` prueba la primera visita real.
 - **Pendiente del usuario:** revisar los textos de teoría y guía (los escribió Claude, en es y en). Las historias evitan decir la solución del nivel.
+
+## Iconos, animaciones y sonidos (2026-10-26, sin subir)
+Verificado: `tsc`, 158 unitarias, lint sin avisos, build, 36 e2e (5 nuevas en `e2e/effects.e2e.ts`) y `npm audit` en 0.
+- **Iconos en la paleta:** `src/editor/PieceIcon.tsx`. Las compuertas y los relés usan el mismo dibujo que el lienzo (`src/editor/symbols.tsx`, que sale de `ChipNode`); las demás piezas básicas usan `BASIC_SYMBOLS` en `gates.ts`. `gateShape(kind, pins)` es la regla compartida: un chip que solo comparte el nombre no toma el símbolo. Los chips como sumadores o MUX no llevan icono.
+- **Animaciones:**
+  - La pista abre y cierra solo con CSS (`::details-content` + `interpolate-size`). Si el navegador no las tiene, abre como antes.
+  - `src/usePresence.ts` (`usePresence(value, ref)`) deja montado lo que se cierra, con `.closing` e `inert`, hasta que termina su animación. Lo usan Tabla, Teoría, avisos, resultado y el formulario de chip. `afterAnimations` lo comparte con `useDialog`.
+  - El resultado ahora es `src/ResultPanel.tsx`.
+  - Token nuevo: `--fade`. Keyframes nuevos en `index.css`.
+- **Sonidos:**
+  - `src/sound.ts` con Web Audio, sin archivos; la CSP no cambia. `play(name)` toma uno de estos nombres: poof, reset, win, fail, unlock, drop, connect, toggleOn/Off, tick, undo, redo. Las recetas son datos.
+  - El reloj automático no suena.
+  - Silencio: `Prefs.muted` en `circuitos:ui`, con un botón solo en la bienvenida.
+
+### Ajustes de la ronda 5 (2026-10-26, sin subir)
+Verificado: `tsc`, 161 unitarias, lint sin avisos, build, 39 e2e y `npm audit` en 0.
+- **Iconos de chips:** `CHIP_SYMBOLS` en `gates.ts`. Los sumadores son una caja con "+"; MUX y MUX4 un trapecio, DMUX el trapecio al revés. Los buses llevan la rayita diagonal. Los chips de Modo libre tienen id `U_…`, así que nunca toman el símbolo de un nivel. En la paleta, las palabras largas se dividen con guion.
+- **Guía con iconos:** las piezas usan `PieceIcon`; los comandos Tabla, Teoría, Paso a paso y Plegar usan su icono de la barra (como dato en `COMMANDS`); y los conceptos NAND y Reloj usan el de su pieza.
+- **Pista:** el triángulo se dibuja con CSS (`clip-path`) a `0.6em`.
+- **Tabla y Teoría:** cada una va en una `.panel-slot` que crece o se encoge con `grid-template-rows`, así la otra se recorre suave. El espacio entre ellas es el token `--panel-gap`.
+- **Poof:** ahora es ruido pasa-banda con ataque lento más un golpe grave, y suena más bajo. Cada capa acepta su propio `attack`.
 
 ## Lo siguiente: la mini CPU
 Es el último nivel del bloque 3. **Antes de escribir código hay que decidir con el usuario** (con plan y preguntas):

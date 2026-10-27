@@ -110,3 +110,15 @@ export const HelpIcon = () => (
     <path d="M5.75 6a2.25 2.25 0 1 1 3.3 2c-.6.32-1.05.8-1.05 1.5v.5M8 12.25v.01" />
   </Icon>
 )
+
+export const SoundIcon = () => (
+  <Icon>
+    <path d="M2.5 6v4h2.5l3.5 3V3L5 6zM11 5.5a3.5 3.5 0 0 1 0 5M12.75 3.5a6 6 0 0 1 0 9" />
+  </Icon>
+)
+
+export const MutedIcon = () => (
+  <Icon>
+    <path d="M2.5 6v4h2.5l3.5 3V3L5 6zM10.5 6l3.5 4M14 6l-3.5 4" />
+  </Icon>
+)

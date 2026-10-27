@@ -8,8 +8,8 @@ import { isPrimitive, widthOf } from '../sim/types.ts'
 import type { Pin, Pins, Problem } from '../sim/types.ts'
 import type { ChipFlowNode } from './convert.ts'
 import { binary, kindName, useEditor } from './context.ts'
-import { GATE_H, GATE_SHAPES, GATE_W, RELAY_KINDS, RELAY_PIN_Y } from './gates.ts'
-import type { GateShape } from './gates.ts'
+import { GATE_H, RELAY_KINDS, RELAY_PIN_Y, gateShape } from './gates.ts'
+import { GateSymbol, RelaySymbol } from './symbols.tsx'
 
 const NO_PINS: Pins = { inputs: [], outputs: [] }
 
@@ -72,45 +72,6 @@ function PinName({ id, locked }: { id: string; locked: boolean }) {
       />
       {error && <span className="rename-error">{problemText(t, error)}</span>}
     </span>
-  )
-}
-
-function GateSymbol({ shape, inputsOn, outputOn }: { shape: GateShape; inputsOn: boolean[]; outputOn: boolean }) {
-  return (
-    <svg className="gate-svg" width={GATE_W} height={GATE_H} viewBox={`0 0 ${GATE_W} ${GATE_H}`} aria-hidden="true">
-      {shape.inputs.map((y, i) => (
-        <path key={y} className={`lead${inputsOn[i] ? ' on' : ''}`} d={`M0 ${y}H${shape.leadTo}`} />
-      ))}
-      <path className={`lead${outputOn ? ' on' : ''}`} d={`M${shape.outFrom} 24H${GATE_W}`} />
-      {shape.back && <path className="gate-line" d={shape.back} />}
-      <path className="gate-body" d={shape.body} />
-      {shape.bubble !== undefined && <circle className="gate-body" cx={shape.bubble} cy="24" r="4" />}
-    </svg>
-  )
-}
-
-interface RelayState {
-  /** The contact touches: in passes to out. */
-  closed: boolean
-  coilOn: boolean
-  inOn: boolean
-  outOn: boolean
-}
-
-/** The blade moves with the coil, so the player sees the switch close or open. */
-function RelaySymbol({ closed, coilOn, inOn, outOn }: RelayState) {
-  return (
-    <svg className="gate-svg" width={GATE_W} height={GATE_H} viewBox={`0 0 ${GATE_W} ${GATE_H}`} aria-hidden="true">
-      <path className={`lead${inOn ? ' on' : ''}`} d="M0 14H22" />
-      <path className={`lead${outOn ? ' on' : ''}`} d="M58 14H80" />
-      <path className={`lead${coilOn ? ' on' : ''}`} d="M0 36H20" />
-      <path className="relay-link" d={closed ? 'M30 30V15' : 'M30 30V12'} />
-      <path className={`relay-blade${outOn ? ' on' : ''}`} d={closed ? 'M24 14L55 14' : 'M24 14L52 3'} />
-      <circle className="relay-contact" cx="24" cy="14" r="2.5" />
-      <circle className="relay-contact" cx="56" cy="14" r="2.5" />
-      <rect className={`gate-body relay-coil${coilOn ? ' on' : ''}`} x="20" y="30" width="22" height="12" rx="1" />
-      <path className="gate-line" d="M20 42L42 30" />
-    </svg>
   )
 }
 
@@ -177,9 +138,8 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
   }
 
   const title = data.label ?? kindName(t, data.kind, library)
-  const shape = known ? GATE_SHAPES[data.kind] : undefined
-  // A chip that only shares the name (different pins) keeps the box.
-  if (shape && width === 1 && pins.inputs.length === shape.inputs.length && pins.outputs.length === 1) {
+  const shape = known && width === 1 ? gateShape(data.kind, pins) : undefined
+  if (shape) {
     const out = pins.outputs[0]
     const inputsOn = pins.inputs.map((pin) => incoming(id, pin.name) > 0)
     const outputOn = signals.pin(id, out.name) > 0

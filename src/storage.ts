@@ -65,21 +65,28 @@ export interface Prefs {
   piecesCollapsed: boolean
   /** Levels whose theory panel the user closed; it no longer opens by itself there. */
   theoryClosed: string[]
+  /** The sound effects are off. */
+  muted: boolean
 }
 
-export const DEFAULT_PREFS: Prefs = { levelsCollapsed: false, piecesCollapsed: false, theoryClosed: [] }
+export const DEFAULT_PREFS: Prefs = { levelsCollapsed: false, piecesCollapsed: false, theoryClosed: [], muted: false }
 
 /** Stored data is untrusted: only known fields with the right type survive, and only ids of real levels. */
 function parsePrefs(raw: string): Prefs {
   const data: unknown = JSON.parse(raw)
   if (typeof data !== 'object' || data === null || Array.isArray(data)) return DEFAULT_PREFS
-  const flag = (key: 'levelsCollapsed' | 'piecesCollapsed') => {
+  const flag = (key: 'levelsCollapsed' | 'piecesCollapsed' | 'muted') => {
     const value = (data as Record<string, unknown>)[key]
     return typeof value === 'boolean' ? value : DEFAULT_PREFS[key]
   }
   const closed = (data as Record<string, unknown>).theoryClosed
   const ids = Array.isArray(closed) ? closed.filter((id): id is string => typeof id === 'string' && levelById(id) !== undefined) : []
-  return { levelsCollapsed: flag('levelsCollapsed'), piecesCollapsed: flag('piecesCollapsed'), theoryClosed: [...new Set(ids)] }
+  return {
+    levelsCollapsed: flag('levelsCollapsed'),
+    piecesCollapsed: flag('piecesCollapsed'),
+    theoryClosed: [...new Set(ids)],
+    muted: flag('muted'),
+  }
 }
 
 export function loadPrefs(store = browserStorage()): Prefs {

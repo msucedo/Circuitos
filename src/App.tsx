@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { TFunction } from 'i18next'
-import { Trans, useTranslation } from 'react-i18next'
+import { useTranslation } from 'react-i18next'
 import { Editor } from './editor/Editor.tsx'
 import {
   LEVELS,
@@ -13,7 +13,6 @@ import {
   levelLibrary,
   levelNumber,
   levelPalette,
-  nextLevel,
   unlockedBy,
 } from './levels/levels.ts'
 import type { Level } from './levels/levels.ts'
@@ -30,7 +29,9 @@ import type { Prefs } from './storage.ts'
 import { CollapseToggle } from './CollapseToggle.tsx'
 import { BookIcon, CheckIcon, HelpIcon, LockIcon, Logo } from './icons.tsx'
 import { Guide } from './Guide.tsx'
-import { Confetti } from './Confetti.tsx'
+import { ResultPanel } from './ResultPanel.tsx'
+import { play, setMuted } from './sound.ts'
+import { usePresence } from './usePresence.ts'
 import { Credit, Welcome } from './Welcome.tsx'
 import { levelText, problemText } from './i18n.ts'
 import { RichText } from './RichText.tsx'
@@ -38,7 +39,6 @@ import './app.css'
 
 const SANDBOX = 'sandbox'
 const SAVE_DELAY_MS = 400
-const SHOWN_STEPS = 64
 /** Info notices close by themselves after this; errors stay until closed. */
 const NOTICE_MS = 4000
 
@@ -90,13 +90,15 @@ export default function App() {
   const [confirmReset, setConfirmReset] = useState(false)
   // The chip name field only shows after pressing "Guardar como chip".
   const [naming, setNaming] = useState(false)
+  const chipFormRef = useRef<HTMLFormElement>(null)
+  const chipForm = usePresence(naming, chipFormRef)
   const saveChipButton = useRef<HTMLButtonElement>(null)
-  // Closing the name field gives the focus back to the button that opened it.
+  // Once the name field has rolled up, the focus goes back to the button that opened it.
   const wasNaming = useRef(false)
   useEffect(() => {
-    if (wasNaming.current && !naming) saveChipButton.current?.focus()
-    wasNaming.current = naming
-  }, [naming])
+    if (wasNaming.current && !chipForm.shown) saveChipButton.current?.focus()
+    wasNaming.current = !!chipForm.shown
+  }, [chipForm.shown])
   const [welcome, setWelcome] = useState(true)
   const [guide, setGuide] = useState(false)
   // Bumped on every Probar so the result panel animates again.
@@ -113,6 +115,12 @@ export default function App() {
   const customChips = chips.filter((c) => !levelById(c.id))
 
   const level = workspace === SANDBOX ? undefined : levelById(workspace)
+  // The notice and the result keep showing what they said while they animate out.
+  const noticeRef = useRef<HTMLParagraphElement>(null)
+  const shownNotice = usePresence(notice, noticeRef)
+  const resultRef = useRef<HTMLElement>(null)
+  const levelResult = useMemo(() => (result && level ? { result, level } : undefined), [result, level])
+  const shownResult = usePresence(levelResult, resultRef)
   const fullLibrary = useMemo(() => toLibrary(chips), [chips])
   const library = useMemo(
     () => (level ? levelLibrary(level, solved, chips) : fullLibrary),
@@ -139,7 +147,8 @@ export default function App() {
   }, [save])
 
   useEffect(() => writePrefs(prefs), [prefs])
-  const togglePref = (key: 'levelsCollapsed' | 'piecesCollapsed') => setPrefs((p) => ({ ...p, [key]: !p[key] }))
+  useEffect(() => setMuted(prefs.muted), [prefs.muted])
+  const togglePref = (key: 'levelsCollapsed' | 'piecesCollapsed' | 'muted') => setPrefs((p) => ({ ...p, [key]: !p[key] }))
   // The theory opens by itself until the user closes it on that level.
   const setTheoryOpen = (id: string, open: boolean) =>
     setPrefs((p) => ({ ...p, theoryClosed: open ? p.theoryClosed.filter((c) => c !== id) : [...new Set([...p.theoryClosed, id])] }))
@@ -172,9 +181,12 @@ export default function App() {
     const outcome = verify(circuit, library, lvl.spec)
     setResult(outcome)
     setAttempt((a) => a + 1)
+    play(outcome.passed ? 'win' : 'fail')
     if (!outcome.passed) return
     const after = new Set([...solved, lvl.id])
-    setFresh(new Set(LEVELS.filter((l) => !isUnlocked(l, solved) && isUnlocked(l, after)).map((l) => l.id)))
+    const unlocked = LEVELS.filter((l) => !isUnlocked(l, solved) && isUnlocked(l, after)).map((l) => l.id)
+    if (unlocked.length > 0) play('unlock')
+    setFresh(new Set(unlocked))
     setSave((s) => ({
       ...s,
       solved: s.solved.includes(lvl.id) ? s.solved : [...s.solved, lvl.id],
@@ -189,6 +201,7 @@ export default function App() {
   }
 
   const reset = (lvl: Level) => {
+    play('reset')
     setSave((s) => {
       const drafts = new Map(s.drafts)
       drafts.delete(lvl.id)
@@ -236,6 +249,7 @@ export default function App() {
       })
     }
     if (confirmDelete !== id) return setConfirmDelete(id)
+    play('poof')
     setSave((s) => ({ ...s, chips: s.chips.filter((c) => c.id !== id) }))
     setConfirmDelete(undefined)
     setNotice({ kind: 'info', text: (t) => t('app.chipDeleted') })
@@ -287,15 +301,7 @@ export default function App() {
   const solvedCount = MAIN_LEVELS.filter((l) => solved.has(l.id)).length
   const hint = level && levelText(t, level, 'hint')
   const story = level && levelText(t, level, 'story')
-  const noticeText = notice?.text(t)
-  const next = level && nextLevel(level)
-  const failures = result?.steps.filter((s) => !s.ok) ?? []
-  // Long test lists put every failure first so none is cut off.
-  const shownSteps = !result
-    ? []
-    : result.steps.length <= SHOWN_STEPS
-      ? result.steps
-      : [...failures, ...result.steps.filter((s) => s.ok)].slice(0, SHOWN_STEPS)
+  const noticeText = shownNotice.shown?.text(t)
 
   return (
     <div className="app">
@@ -404,6 +410,8 @@ export default function App() {
       <Welcome
         open={welcome}
         hasProgress={hasProgress}
+        muted={prefs.muted}
+        onToggleMuted={() => togglePref('muted')}
         onClose={closeWelcome}
         onResetAll={resetAll}
         onOpenGuide={() => {
@@ -464,10 +472,12 @@ export default function App() {
                 <p>{t('app.sandboxGoal')}</p>
               </div>
               <div className="actions">
-                {naming ? (
+                {chipForm.shown ? (
                   // A form, so Enter saves; Esc gives up.
                   <form
-                    className="chip-form"
+                    ref={chipFormRef}
+                    className={`chip-form${chipForm.closing ? ' closing' : ''}`}
+                    inert={chipForm.closing}
                     onSubmit={(e) => {
                       e.preventDefault()
                       saveChip()
@@ -491,7 +501,7 @@ export default function App() {
                     </button>
                   </form>
                 ) : (
-                  <button ref={saveChipButton} type="button" className="primary" onClick={() => setNaming(true)}>
+                  <button ref={saveChipButton} type="button" className="primary save-chip" onClick={() => setNaming(true)}>
                     {t('app.saveChip')}
                   </button>
                 )}
@@ -526,8 +536,14 @@ export default function App() {
           )}
         </section>
 
-        {notice && (
-          <p key={noticeText} className={`notice ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
+        {shownNotice.shown && (
+          <p
+            key={noticeText}
+            ref={noticeRef}
+            className={`notice ${shownNotice.shown.kind}${shownNotice.closing ? ' closing' : ''}`}
+            inert={shownNotice.closing}
+            role={shownNotice.shown.kind === 'error' ? 'alert' : 'status'}
+          >
             {noticeText}
             <button type="button" aria-label={t('app.closeNotice')} onClick={() => setNotice(undefined)}>
               ×
@@ -535,92 +551,17 @@ export default function App() {
           </p>
         )}
 
-        {result && level && (
-          <section key={attempt} className={`result ${result.passed ? 'pass' : 'fail'}`} aria-live="polite">
-            <button type="button" className="close" aria-label={t('app.closeResult')} onClick={() => setResult(undefined)}>
-              ×
-            </button>
-            {result.passed ? (
-              <p>
-                <span className="pass-check">
-                  <CheckIcon />
-                </span>
-                {t('result.works')}{' '}
-                {level.chip === false ? (
-                  t('result.levelSolved')
-                ) : (
-                  <Trans t={t} i18nKey="result.inPalette" values={{ name: levelName(level) }} components={{ b: <strong /> }} />
-                )}
-                {next ? (
-                  <>
-                    <Confetti />
-                    <button type="button" className="primary" onClick={() => open(next.id)}>
-                      {t('result.next', { name: levelName(next) })}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    {' '}
-                    {t('result.allDone')}
-                    <Confetti />{' '}
-                    <button type="button" className="primary" onClick={() => open(SANDBOX)}>
-                      {t('result.toSandbox')}
-                    </button>
-                  </>
-                )}
-              </p>
-            ) : result.error ? (
-              <p>{problemText(t, result.error)}</p>
-            ) : (
-              <>
-                <p>{t('result.passing', { passed: result.steps.length - failures.length, count: result.steps.length })}</p>
-                <table>
-                  <thead>
-                    <tr className="groups">
-                      <th colSpan={level.spec.inputs.length}>{t('result.inputs')}</th>
-                      <th colSpan={level.spec.outputs.length}>{t('result.expected')}</th>
-                      <th colSpan={level.spec.outputs.length}>{t('result.yours')}</th>
-                      <th />
-                    </tr>
-                    <tr>
-                      {[...level.spec.inputs, ...level.spec.outputs, ...level.spec.outputs].map((id, i) => (
-                        <th key={i}>{id}</th>
-                      ))}
-                      <th>
-                        <span className="sr-only">{t('result.verdict')}</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shownSteps.map((f, i) => (
-                      <tr key={i} className={f.ok ? 'ok' : 'wrong'}>
-                        {level.spec.inputs.map((id) => (
-                          <td key={id}>{f.step.set[id] ?? '·'}</td>
-                        ))}
-                        {level.spec.outputs.map((id) => (
-                          <td key={id}>{f.step.expect[id] ?? '·'}</td>
-                        ))}
-                        {level.spec.outputs.map((id) => {
-                          const want = f.step.expect[id]
-                          const bad = f.status === 'oscillating' || (want !== undefined && want !== f.actual[id])
-                          return (
-                            <td key={id} className={bad ? 'bad' : 'got'}>
-                              {f.status === 'oscillating' ? '~' : f.actual[id]}
-                            </td>
-                          )
-                        })}
-                        <td className="verdict">{f.ok ? '✓' : '✗'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {failures.some((f) => f.status === 'oscillating') && <p className="hint">{t('result.oscillates')}</p>}
-                {result.steps.length > shownSteps.length && (
-                  <p className="hint">{t('result.morePassing', { count: result.steps.length - shownSteps.length })}</p>
-                )}
-              </>
-            )}
-          </section>
+        {shownResult.shown && (
+          <ResultPanel
+            key={attempt}
+            ref={resultRef}
+            result={shownResult.shown.result}
+            level={shownResult.shown.level}
+            closing={shownResult.closing}
+            onClose={() => setResult(undefined)}
+            onOpen={open}
+            onToSandbox={() => open(SANDBOX)}
+          />
         )}
 
         <Editor

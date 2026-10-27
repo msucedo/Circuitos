@@ -74,7 +74,7 @@ describe('storage', () => {
 describe('interface preferences', () => {
   it('saves and loads them apart from the progress', () => {
     const store = memory()
-    const prefs = { levelsCollapsed: true, piecesCollapsed: false, theoryClosed: ['NOT', 'AND'] }
+    const prefs = { levelsCollapsed: true, piecesCollapsed: false, theoryClosed: ['NOT', 'AND'], muted: true }
     writePrefs(prefs, store)
     expect(store.items.has(STORAGE_KEY)).toBe(false)
     expect(loadPrefs(store)).toEqual(prefs)
@@ -100,8 +100,11 @@ describe('interface preferences', () => {
 
   it('keeps only valid fields and known levels', () => {
     const store = memory()
-    store.items.set(PREFS_KEY, JSON.stringify({ levelsCollapsed: 'yes', piecesCollapsed: true, theoryClosed: ['NOT', 'NOT', 'HACK', 7] }))
+    store.items.set(PREFS_KEY, JSON.stringify({ levelsCollapsed: 'yes', piecesCollapsed: true, theoryClosed: ['NOT', 'NOT', 'HACK', 7], muted: 1 }))
     expect(loadPrefs(store)).toEqual({ ...DEFAULT_PREFS, piecesCollapsed: true, theoryClosed: ['NOT'] })
+    // Saved before the sound existed: the field is missing and the sound stays on.
+    store.items.set(PREFS_KEY, JSON.stringify({ levelsCollapsed: true }))
+    expect(loadPrefs(store)).toEqual({ ...DEFAULT_PREFS, levelsCollapsed: true, muted: false })
     store.items.set(PREFS_KEY, JSON.stringify(['not', 'an', 'object']))
     expect(loadPrefs(store)).toEqual(DEFAULT_PREFS)
   })

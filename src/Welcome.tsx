@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LANGUAGES, chooseLanguage, currentLanguage } from './i18n.ts'
 import type { Language } from './i18n.ts'
-import { BookIcon, Logo } from './icons.tsx'
+import { BookIcon, Logo, MutedIcon, SoundIcon } from './icons.tsx'
 import { Shortcuts } from './Shortcuts.tsx'
 import { useDialog } from './useDialog.ts'
 
@@ -26,13 +26,15 @@ export function Credit({ className }: { className?: string }) {
 interface Props {
   open: boolean
   hasProgress: boolean
+  muted: boolean
+  onToggleMuted: () => void
   onClose: () => void
   onResetAll: () => void
   onOpenGuide: () => void
 }
 
 /** Shown on every load: how to play, progress, shortcuts and the language. */
-export function Welcome({ open, hasProgress, onClose, onResetAll, onOpenGuide }: Props) {
+export function Welcome({ open, hasProgress, muted, onToggleMuted, onClose, onResetAll, onOpenGuide }: Props) {
   const { t } = useTranslation()
   // The language picker comes first in the dialog; the main action keeps the focus.
   const start = useRef<HTMLButtonElement>(null)
@@ -65,6 +67,16 @@ export function Welcome({ open, hasProgress, onClose, onResetAll, onOpenGuide }:
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          className="icon-button sound-toggle"
+          aria-pressed={muted}
+          aria-label={t('welcome.mute')}
+          title={muted ? t('welcome.soundOff') : t('welcome.soundOn')}
+          onClick={onToggleMuted}
+        >
+          {muted ? <MutedIcon /> : <SoundIcon />}
+        </button>
       </div>
       <p>{t('welcome.intro')}</p>
 

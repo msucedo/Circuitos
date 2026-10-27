@@ -109,8 +109,9 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
   padding: 8px 16px;
   font-size: 14px;
   border-bottom: 1px solid var(--line);
-  animation: slide-down 0.25s var(--ease);
+  animation: slide-down var(--fade) var(--ease);
 }
+.notice.closing { animation: slide-up-out var(--fade) var(--ease) forwards; }
 .notice.error { color: var(--bad); }
 .notice.info { color: var(--on); }
 .notice.warn { color: var(--warn); }
@@ -122,9 +123,11 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
   font-size: 14px;
-  animation: fade-in 0.25s var(--ease);
+  animation: grow var(--fold) var(--ease-soft);
 }
-.result.fail { animation: shake 0.4s var(--ease); }
+/* It shakes once it has opened. */
+.result.fail { animation: grow var(--fold) var(--ease-soft), shake 0.4s var(--ease) var(--fold); }
+.result.closing { overflow: hidden; animation: shrink var(--fade) var(--ease) forwards; }
 .result p { margin: 0 0 6px; }
 .pass-check { display: inline-flex; margin-right: 6px; vertical-align: -2px; animation: pop 0.35s var(--spring); }
 /* The passing panel is short, so it can let the confetti out instead of scrolling. */
@@ -146,6 +149,31 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
 .result tr.ok td.got, .result tr.ok .verdict { color: var(--on); font-weight: 700; }
 .result tr.wrong .verdict { color: var(--bad); }
 .brief details.hint summary { color: var(--accent); cursor: pointer; }
+/* The hint unfolds like the side columns. Without ::details-content support it just opens. */
+.brief details.hint { interpolate-size: allow-keywords; }
+.brief details.hint::details-content {
+  block-size: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: block-size var(--fold) var(--ease-soft), opacity var(--fade) var(--ease-soft), content-visibility var(--fold) allow-discrete;
+}
+.brief details.hint[open]::details-content { block-size: auto; opacity: 1; }
+.brief details.hint summary { list-style: none; }
+.brief details.hint summary::-webkit-details-marker { display: none; }
+/* Drawn instead of a text character, so it keeps the size of the browser's own marker in any font. */
+.brief details.hint summary::before {
+  --hint-marker: 0.6em;
+  content: '';
+  display: inline-block;
+  width: var(--hint-marker);
+  height: var(--hint-marker);
+  margin-right: 6px;
+  background: currentColor;
+  clip-path: polygon(10% 0, 100% 50%, 10% 100%);
+  vertical-align: 0.05em;
+  transition: rotate var(--fold) var(--ease-soft);
+}
+.brief details.hint[open] summary::before { rotate: 90deg; }
 .brief details.hint p { margin-top: 4px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .optional { color: var(--muted); font-size: 11px; }
@@ -159,7 +187,7 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
      in once the column is open and fades out quickly when folding. */
   .levels-body { min-width: calc(var(--levels-width) - 24px); }
   .palette-body { min-width: calc(var(--palette-width) - 20px); }
-  .levels-body, .palette-body { transition: opacity 0.25s var(--ease-soft) var(--fold), translate 0.25s var(--ease-soft) var(--fold), visibility 0s linear var(--fold); }
+  .levels-body, .palette-body { transition: opacity var(--fade) var(--ease-soft) var(--fold), translate var(--fade) var(--ease-soft) var(--fold), visibility 0s linear var(--fold); }
   .collapsed .levels-body, .collapsed .palette-body { opacity: 0; translate: -6px 0; visibility: hidden; transition: opacity 0.12s, translate 0.12s, visibility 0s linear 0.12s; }
   .levels.collapsed { width: var(--rail); padding-inline: 8px; overflow-y: hidden; }
   .levels.collapsed .title, .levels.collapsed .title-actions { flex-direction: column; }
@@ -201,7 +229,10 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
 }
 
 /* The chip name field, shown after pressing Guardar como chip. */
-.chip-form { display: flex; gap: 8px; align-items: center; }
+.chip-form { display: flex; gap: 8px; align-items: center; animation: unroll var(--fold) var(--ease-soft); }
+.chip-form.closing { animation: roll-up var(--fade) var(--ease) forwards; }
+/* Back after the form rolls up. */
+.save-chip { animation: fade-in var(--fade) var(--ease); }
 .chip-form input { width: 11rem; min-width: 0; }
 
 .my-chips {
@@ -270,7 +301,8 @@ button.with-icon { display: inline-flex; align-items: center; gap: 6px; }
 .guide-content p { margin: 0 0 10px; max-width: 70ch; }
 .glossary { display: grid; gap: 10px; margin: 0; }
 .glossary div { display: grid; grid-template-columns: minmax(9rem, 12rem) 1fr; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
-.glossary dt { font-weight: 600; }
+.glossary dt { display: flex; align-items: center; align-self: start; gap: 6px; font-weight: 600; }
+.glossary dt svg { flex: none; }
 .glossary dd { margin: 0; color: var(--muted); }
 .glossary dd p { margin: 0; }
 @media (prefers-reduced-motion: no-preference) {
@@ -307,6 +339,7 @@ select {
 .language button:first-child { border-radius: 6px 0 0 6px; }
 .language button:last-child { border-left: 0; border-radius: 0 6px 6px 0; }
 .language button[aria-pressed='true'] { border-color: var(--accent); background: #26304a; }
+.sound-toggle[aria-pressed='true'] { color: var(--muted); }
 .shortcuts {
   display: grid;
   --gap: 20px;

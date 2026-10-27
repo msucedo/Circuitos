@@ -20,9 +20,27 @@
 .palette-body { display: flex; flex-direction: column; gap: 6px; }
 .palette .collapse-toggle { cursor: pointer; }
 .palette button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   cursor: grab;
   text-align: left;
+  /* Long single words (Demultiplexor) break with a hyphen instead of spilling out beside the icon. */
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
+/* The canvas symbols, drawn small in the piece's text color; strokes keep their width at this size. */
+.piece-icon { flex: none; width: auto; height: 14px; overflow: visible; }
+.piece-icon path, .piece-icon circle, .piece-icon rect {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.piece-icon .relay-link { stroke-dasharray: none; opacity: 0.5; }
+.piece-icon .relay-contact { fill: currentColor; }
 .palette button:hover { translate: 0 -1px; box-shadow: 0 3px 8px rgb(0 0 0 / 0.35); }
 .palette-title { margin: 0; font-size: 14px; }
 .palette-help { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.35; }
@@ -218,7 +236,6 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
   max-width: calc(100% - 2 * var(--panel-margin));
   pointer-events: none;
 }
@@ -231,8 +248,21 @@
   border-radius: 8px;
   background: var(--panel);
   pointer-events: auto;
-  animation: fade-in 0.2s var(--ease);
+  animation: panel-in var(--fold) var(--ease-soft);
 }
+.panel-slot.closing > aside { animation: panel-out var(--fold) var(--ease-soft) forwards; }
+/* The slot's row grows from nothing and folds back, carrying the panel below it along. */
+.panel-slot {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  justify-items: end;
+  min-height: 0;
+  max-width: 100%;
+  animation: slot-open var(--fold) var(--ease-soft);
+  transition: margin-bottom var(--fold) var(--ease-soft);
+}
+.panel-slot:not(:last-child) { margin-bottom: var(--panel-gap); }
+.panel-slot.closing { animation: slot-close var(--fold) var(--ease-soft) forwards; }
 .theory-panel { width: var(--theory-width); padding: 12px 14px; font-size: 13px; line-height: 1.55; }
 .theory-head { position: sticky; top: -12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: -12px -14px 8px; padding: 10px 14px 6px; background: var(--panel); }
 .theory-head h2 { margin: 0; color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
