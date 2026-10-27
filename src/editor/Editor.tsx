@@ -252,7 +252,10 @@ function Canvas({
   }, [history, restore])
 
   const copy = useCallback(() => {
-    clipboard = copySelection(nodes, edges) ?? clipboard
+    const copied = copySelection(nodes, edges)
+    if (!copied) return
+    clipboard = copied
+    play('tick')
   }, [nodes, edges])
   const paste = useCallback(() => {
     if (!clipboard) return
@@ -455,7 +458,12 @@ function Canvas({
           <ToolButton label={t('editor.paste')} icon={<PasteIcon />} keys="Ctrl/⌘ + V" onClick={paste} />
           <ToolButton label={t('editor.delete')} icon={<TrashIcon />} keys={t('editor.deleteKeys')} onClick={deleteSelection} disabled={!canDelete} />
           <span className="separator" />
-          <ToolButton label={t('editor.table')} icon={<TableIcon />} pressed={showTable} onClick={() => setShowTable((v) => !v)} />
+          <ToolButton label={t('editor.table')} icon={<TableIcon />} pressed={showTable} 
+            onClick={() => {
+              play(showTable ? 'fold' : 'unfold')
+              setShowTable(!showTable)
+            }}
+          />
           {theory && (
             <ToolButton label={t('editor.theory')} icon={<BookIcon />} pressed={theoryOpen} onClick={() => onTheoryOpenChange?.(!theoryOpen)} />
           )}

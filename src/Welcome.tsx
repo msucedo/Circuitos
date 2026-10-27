@@ -4,6 +4,7 @@ import { LANGUAGES, chooseLanguage, currentLanguage } from './i18n.ts'
 import type { Language } from './i18n.ts'
 import { BookIcon, Logo, MutedIcon, SoundIcon } from './icons.tsx'
 import { Shortcuts } from './Shortcuts.tsx'
+import { play } from './sound.ts'
 import { useDialog } from './useDialog.ts'
 
 /** Each language is named in itself, so anyone can find theirs. */
@@ -61,7 +62,10 @@ export function Welcome({ open, hasProgress, muted, onToggleMuted, onClose, onRe
               type="button"
               lang={language}
               aria-pressed={currentLanguage() === language}
-              onClick={() => chooseLanguage(language)}
+              onClick={() => {
+                if (language !== currentLanguage()) play('snap')
+                chooseLanguage(language)
+              }}
             >
               {LANGUAGE_NAMES[language]}
             </button>

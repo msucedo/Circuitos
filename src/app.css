@@ -261,6 +261,7 @@ button.danger { border-color: var(--bad); color: var(--bad); }
 .logo { flex: none; }
 /* Square icon buttons: About, and folding each column. */
 .icon-button { display: flex; flex: none; justify-content: center; align-items: center; width: 26px; height: 26px; padding: 0; }
+.icon-button:not(:disabled):hover { translate: 0 -1px; box-shadow: 0 3px 8px rgb(0 0 0 / 0.35); }
 .levels .title .icon-button { width: 26px; justify-content: center; }
 .credit { margin: auto 0 0; padding-top: 8px; color: var(--muted); font-size: 12px; }
 .credit a, .welcome a { color: var(--accent); }

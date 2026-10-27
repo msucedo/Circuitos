@@ -374,14 +374,14 @@ export default function App() {
                     aria-disabled={!unlocked}
                     aria-current={workspace === l.id}
                     title={unlocked || !needs ? undefined : t('app.lockedTitle', { needs: levelName(needs) })}
-                    onClick={() =>
-                      unlocked
-                        ? open(l.id)
-                        : setNotice({
-                            kind: 'warn',
-                            text: (t) => t('app.lockedNotice', { name: levelText(t, l, 'name'), needs: needs && levelText(t, needs, 'name') }),
-                          })
-                    }
+                    onClick={() => {
+                      if (unlocked) return open(l.id)
+                      play('warn')
+                      setNotice({
+                        kind: 'warn',
+                        text: (t) => t('app.lockedNotice', { name: levelText(t, l, 'name'), needs: needs && levelText(t, needs, 'name') }),
+                      })
+                    }}
                   >
                     <span>
                       {levelName(l)}
@@ -411,7 +411,14 @@ export default function App() {
         open={welcome}
         hasProgress={hasProgress}
         muted={prefs.muted}
-        onToggleMuted={() => togglePref('muted')}
+        onToggleMuted={() => {
+          // The effect that unmutes runs after this render; unmute now so the confirmation plays.
+          if (prefs.muted) {
+            setMuted(false)
+            play('toggleOn')
+          }
+          togglePref('muted')
+        }}
         onClose={closeWelcome}
         onResetAll={resetAll}
         onOpenGuide={() => {
@@ -574,7 +581,11 @@ export default function App() {
           renamePins={!level}
           theory={story ? <RichText text={story} /> : undefined}
           theoryOpen={!!level && !prefs.theoryClosed.includes(level.id)}
-          onTheoryOpenChange={(open) => level && setTheoryOpen(level.id, open)}
+          onTheoryOpenChange={(open) => {
+            if (!level) return
+            play(open ? 'unfold' : 'fold')
+            setTheoryOpen(level.id, open)
+          }}
           refitKey={`${prefs.levelsCollapsed}-${prefs.piecesCollapsed}`}
           paletteCollapsed={prefs.piecesCollapsed}
           onTogglePalette={() => togglePref('piecesCollapsed')}

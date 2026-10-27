@@ -1,4 +1,5 @@
 import { ChevronIcon } from './icons.tsx'
+import { play } from './sound.ts'
 
 interface Props {
   collapsed: boolean
@@ -13,7 +14,10 @@ interface Props {
 export function CollapseToggle({ collapsed, controls, showLabel, hideLabel, onToggle }: Props) {
   const label = collapsed ? showLabel : hideLabel
   return (
-    <button type="button" className="icon-button collapse-toggle" aria-expanded={!collapsed} aria-controls={controls} aria-label={label} title={label} onClick={onToggle}>
+    <button type="button" className="icon-button collapse-toggle" aria-expanded={!collapsed} aria-controls={controls} aria-label={label} title={label} onClick={() => {
+        play(collapsed ? 'unfold' : 'fold')
+        onToggle()
+      }}>
       <ChevronIcon />
     </button>
   )

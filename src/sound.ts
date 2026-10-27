@@ -58,6 +58,11 @@ const RECIPES = {
     { tone: 'square', from: NOTE.G3, at: 0, length: 0.16, gain: 0.25 },
     { tone: 'square', from: NOTE.D3, at: 0.16, length: 0.26, gain: 0.25 },
   ],
+  // A gentle "not yet": two short, equal beeps, softer than a failed test.
+  warn: [
+    { tone: 'triangle', from: NOTE.A4, at: 0, length: 0.07, gain: 0.5 },
+    { tone: 'triangle', from: NOTE.A4, at: 0.11, length: 0.09, gain: 0.5 },
+  ],
   // Starts once the win jingle ends, so both can be asked for at once.
   unlock: after(
     [
@@ -83,6 +88,14 @@ const RECIPES = {
   tick: [{ noise: 'highpass', from: 3500, at: 0, length: 0.015, gain: 0.5 }],
   undo: [{ noise: 'bandpass', from: 2600, to: 700, q: 1.5, at: 0, length: 0.12, gain: 0.5 }],
   redo: [{ noise: 'bandpass', from: 700, to: 2600, q: 1.5, at: 0, length: 0.12, gain: 0.5 }],
+  // A finger snap: a sharp, bright crack over a tiny body.
+  snap: [
+    { noise: 'bandpass', from: 2800, to: 1800, q: 1.2, at: 0, length: 0.05, gain: 0.9, attack: 0.001 },
+    { tone: 'sine', from: 320, to: 180, at: 0, length: 0.04, gain: 0.2, attack: 0.001 },
+  ],
+  // A soft swoosh as a column folds away or opens; lower and gentler than undo/redo.
+  fold: [{ noise: 'lowpass', from: 1600, to: 400, at: 0, length: 0.18, gain: 0.35, attack: PUFF_ATTACK }],
+  unfold: [{ noise: 'lowpass', from: 400, to: 1600, at: 0, length: 0.18, gain: 0.35, attack: PUFF_ATTACK }],
 } satisfies Record<string, Layer[]>
 
 export type SoundName = keyof typeof RECIPES
