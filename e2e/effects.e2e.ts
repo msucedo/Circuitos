@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { SHOTS, addPiece, freezeHalfway, levelsBefore, node, restart, resumeAnimations, seedSolved, start, watchErrors, wire } from './helpers.ts'
+import { SHOTS, addPiece, freezeHalfway, levelButton, levelsBefore, node, restart, resumeAnimations, seedSolved, start, watchErrors, wire } from './helpers.ts'
 
 type SoundLog = { __sounds: string[] }
 
@@ -63,6 +63,30 @@ test('the main actions make their sound, and Probar sounds different when it pas
   await page.getByRole('button', { name: 'Reiniciar' }).click()
   expect(await sounds(page)).toEqual(['triangle', 'triangle'])
   expect(errors).toEqual([])
+})
+
+test('changing level deals a card: from the levels column, Siguiente and Modo libre, not the level already open', async ({ page }) => {
+  await recordSounds(page)
+  await start(page)
+  const deal = ['triangle', 'triangle']
+
+  await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
+  await wire(page, ['a', 'out'], ['nand1', 'a'])
+  await wire(page, ['a', 'out'], ['nand1', 'b'])
+  await wire(page, ['nand1', 'out'], ['out', 'in'])
+  await page.getByRole('button', { name: 'Probar' }).click()
+  await expect(page.locator('.result.pass')).toBeVisible()
+  await sounds(page)
+  await page.locator('.result').getByRole('button', { name: /^Siguiente/ }).click()
+  await expect(levelButton(page, 'AND')).toHaveAttribute('aria-current', 'true')
+  expect(await sounds(page)).toEqual(deal)
+
+  await levelButton(page, 'AND').click()
+  expect(await sounds(page)).toEqual([])
+  await levelButton(page, 'NOT').click()
+  expect(await sounds(page)).toEqual(deal)
+  await page.getByRole('button', { name: 'Modo libre' }).click()
+  expect(await sounds(page)).toEqual(deal)
 })
 
 test('the welcome mutes the sounds, and the choice survives a reload', async ({ page }) => {

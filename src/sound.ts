@@ -30,7 +30,7 @@ const PUFF_ATTACK = 0.04
 const NOISE_SECONDS = 1
 
 /** Note frequencies in Hz. */
-const NOTE = { G3: 196, D3: 146.83, A4: 440, E5: 659.25, C5: 523.25, G5: 783.99, C6: 1046.5, D6: 1174.66 }
+const NOTE = { G3: 196, D3: 146.83, D4: 293.66, A4: 440, E5: 659.25, C5: 523.25, G5: 783.99, C6: 1046.5, D6: 1174.66 }
 
 const WIN: Layer[] = [
   { tone: 'triangle', from: NOTE.C5, at: 0, length: 0.12, gain: 0.7 },
@@ -93,9 +93,15 @@ const RECIPES = {
     { noise: 'bandpass', from: 2800, to: 1800, q: 1.2, at: 0, length: 0.05, gain: 0.9, attack: 0.001 },
     { tone: 'sine', from: 320, to: 180, at: 0, length: 0.04, gain: 0.2, attack: 0.001 },
   ],
-  // A soft swoosh as a column folds away or opens; lower and gentler than undo/redo.
-  fold: [{ noise: 'lowpass', from: 1600, to: 400, at: 0, length: 0.18, gain: 0.35, attack: PUFF_ATTACK }],
-  unfold: [{ noise: 'lowpass', from: 400, to: 1600, at: 0, length: 0.18, gain: 0.35, attack: PUFF_ATTACK }],
+  // A slot machine credit as another level opens, kept to its bones: a low leap up a fifth.
+  // Far lower than the win jingle, so it never reads as a win.
+  deal: [
+    { tone: 'triangle', from: NOTE.D4, at: 0, length: 0.06, gain: 0.7 },
+    { tone: 'triangle', from: NOTE.A4, at: 0.06, length: 0.22, gain: 0.7 },
+  ],
+  // A swoosh as a column, the table or the theory folds away or opens; lower than undo/redo.
+  fold: [{ noise: 'lowpass', from: 2400, to: 500, at: 0, length: 0.2, gain: 0.9, attack: PUFF_ATTACK }],
+  unfold: [{ noise: 'lowpass', from: 500, to: 2400, at: 0, length: 0.2, gain: 0.9, attack: PUFF_ATTACK }],
 } satisfies Record<string, Layer[]>
 
 export type SoundName = keyof typeof RECIPES

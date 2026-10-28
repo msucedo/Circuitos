@@ -167,7 +167,9 @@ export default function App() {
     [workspace],
   )
 
+  /** Every level change the player makes goes through here; loading or wiping progress does not, and stays quiet. */
   const open = (id: string) => {
+    if (id !== workspace) play('deal')
     setWorkspace(id)
     setConfirmReset(false)
     closeNaming()
