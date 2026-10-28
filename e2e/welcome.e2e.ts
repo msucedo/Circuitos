@@ -16,6 +16,9 @@ test('the welcome shows on every load', async ({ page }) => {
   await expect(welcome).toBeVisible()
   await expect(welcome).toContainText('No necesitas cuenta')
   await expect(welcome.getByRole('link', { name: 'msucedo' })).toHaveAttribute('href', 'https://github.com/msucedo')
+  await expect(welcome.getByRole('link', { name: 'Reportar un problema' })).toHaveAttribute('href', 'https://github.com/msucedo/Circuitos/issues')
+  await expect(welcome).toContainText('no hay cookies ni analítica')
+  await expect(welcome.locator('.credit .version')).toHaveText(/^v\d+\.\d+\.\d+$/)
   await page.screenshot({ path: `${SHOTS}/welcome.png`, animations: 'disabled' })
   // On a laptop screen everything fits without scrolling, with the shortcuts in columns.
   expect(await fitsWithoutScroll(welcome)).toBe(true)

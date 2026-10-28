@@ -27,6 +27,12 @@ Niveles: compuertas (NOT a XOR), sumadores, memoria (latches y flip-flop D) y el
 
 No hay cuentas: el progreso vive solo en el localStorage del navegador (`circuitos:v1`). La bienvenida sale en cada carga y se reabre con "?". Desde ahí, "Borrar mi progreso" deja una copia en `circuitos:v1:respaldo` antes de empezar de cero.
 
+## Publicar (Cloudflare Pages)
+
+Conecta el repo en Cloudflare Pages con build `npm run build`, salida `dist` y la variable `NODE_VERSION` en la versión de Node que usas. El build genera `dist/_headers` con la misma CSP que la página más `frame-ancestors`, HSTS y caché larga para `assets/` (ver `vite.config.ts`). Después del primer deploy, `curl -I https://<dominio>` debe mostrar esos headers.
+
+Licencia MIT (`LICENSE`).
+
 ## Editor
 
 - Buses de 1 a 16 bits: elige "Bits" en la paleta antes de agregar Entrada, Salida, Separar o Juntar. Un cable solo conecta pines del mismo ancho.

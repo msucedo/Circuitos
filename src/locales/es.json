@@ -81,7 +81,7 @@
     "step3": "Si pasa, el chip queda en tu paleta para los siguientes niveles.",
     "sandbox": "En Modo libre puedes armar lo que quieras con lo que ya desbloqueaste.",
     "progress": "Tu progreso",
-    "progressText": "No necesitas cuenta. Todo se guarda solo en este navegador. Si borras los datos del sitio o cambias de navegador o de equipo, empiezas de cero. Para llevarte un circuito usa Exportar.",
+    "progressText": "No necesitas cuenta, y no hay cookies ni analítica. Todo se guarda solo en este navegador. Si borras los datos del sitio o cambias de navegador o de equipo, empiezas de cero. Para llevarte un circuito usa Exportar.",
     "shortcuts": "Atajos",
     "start": "Empezar",
     "continue": "Continuar",
@@ -112,7 +112,8 @@
       "pan": "Mover el lienzo",
       "zoom": "Acercar o alejar",
       "rename": "Renombrar un pin"
-    }
+    },
+    "report": "Reportar un problema"
   },
   "guide": {
     "open": "Guía",
@@ -488,5 +489,10 @@
     "saveTooBig": "Tu progreso pasa de {{mb}} MB y ya no se guarda. Borra circuitos grandes.",
     "saveFailed": "No se pudo guardar tu progreso en el navegador.",
     "backupFailed": "No se pudo guardar una copia de tu progreso, así que no se borró."
+  },
+  "crash": {
+    "title": "Algo salió mal",
+    "body": "El juego tuvo un error. Tu progreso sigue guardado en este navegador: recarga la página para seguir.",
+    "reload": "Recargar"
   }
 }

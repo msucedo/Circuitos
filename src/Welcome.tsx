@@ -11,15 +11,22 @@ import { useDialog } from './useDialog.ts'
 const LANGUAGE_NAMES: Record<Language, string> = { es: 'Español', en: 'English' }
 
 export const AUTHOR_URL = 'https://github.com/msucedo'
+export const REPO_URL = `${AUTHOR_URL}/Circuitos`
 
 export function Credit({ className }: { className?: string }) {
   const { t } = useTranslation()
   return (
     <p className={className}>
-      {t('welcome.credit')}{' '}
-      <a href={AUTHOR_URL} target="_blank" rel="noopener noreferrer">
-        msucedo
+      <span className="author">
+        {t('welcome.credit')}{' '}
+        <a href={AUTHOR_URL} target="_blank" rel="noopener noreferrer">
+          msucedo
+        </a>
+      </span>
+      <a className="report" href={`${REPO_URL}/issues`} target="_blank" rel="noopener noreferrer">
+        {t('welcome.report')}
       </a>
+      <span className="version">v{__APP_VERSION__}</span>
     </p>
   )
 }

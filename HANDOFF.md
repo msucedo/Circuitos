@@ -45,6 +45,7 @@ Es el último nivel del bloque 3. **Antes de escribir código hay que decidir co
 2. **Cómo llega el programa.** ¿Una ROM como entrada del nivel (bus de instrucción), o memoria compartida? Lo más simple para probar es que la instrucción entre por un pin y que el PC salga por otro.
 3. **Uno o varios niveles.** Por ejemplo, primero el "decodificador de instrucciones" o el "camino de datos" y después la CPU completa.
 4. **Cómo se prueba.** Con `sequentialSpec` y un modelo de la CPU (`next`/`read`) que ejecuta un programa corto. Lo esperado se calcula, no se escribe a mano.
+5. **Guardado.** Si la CPU guarda algo nuevo (por ejemplo el programa), primero la migración del guardado (ver Reglas del usuario).
 
 Puede hacer falta que la RAM tenga más de 4 palabras o que la palabra sea más ancha. `WORD` y `SELECTOR` están en `src/sim/types.ts`, pero ADDER4 tiene sus pines fijos a 4 bits.
 
@@ -62,6 +63,7 @@ Puede hacer falta que la RAM tenga más de 4 palabras o que la palabra sea más 
 - Nada hardcodeado en el diseño (layout adaptable), y respetar `prefers-reduced-motion`.
 - Nada de emojis en la UI.
 - **No hacer commits ni push**: los hace el usuario.
+- **Formato del guardado:** `parseSave` en `src/sim/schema.ts` rechaza todo lo que no sea `version: 1` (`loadSave` deja la copia en `circuitos:v1:corrupto` y el jugador empieza de cero). Antes de cambiar la forma de lo guardado (el programa de la mini CPU, RAM más grande, renombrar niveles), primero hay que escribir la migración `v1 → v2`, con pruebas, y dejar un respaldo del guardado viejo. Agregar un nivel nuevo no cambia el formato.
 - Antes de dar algo por terminado: `npx tsc -b`, `npx vitest run`, `npm run lint`, `npm run build`, `npx playwright test`, `npm audit --audit-level=high`.
 
 ## Pendiente menor

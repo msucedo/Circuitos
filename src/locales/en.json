@@ -81,7 +81,7 @@
     "step3": "If it passes, the chip joins your palette for the next levels.",
     "sandbox": "In Sandbox you can build anything with what you have unlocked.",
     "progress": "Your progress",
-    "progressText": "No account needed. Everything is saved only in this browser. If you clear the site data or switch browser or device, you start over. To take a circuit with you, use Export.",
+    "progressText": "No account needed, and no cookies or analytics. Everything is saved only in this browser. If you clear the site data or switch browser or device, you start over. To take a circuit with you, use Export.",
     "shortcuts": "Shortcuts",
     "start": "Start",
     "continue": "Continue",
@@ -112,7 +112,8 @@
       "pan": "Move the canvas",
       "zoom": "Zoom in or out",
       "rename": "Rename a pin"
-    }
+    },
+    "report": "Report a problem"
   },
   "guide": {
     "open": "Guide",
@@ -488,5 +489,10 @@
     "saveTooBig": "Your progress is over {{mb}} MB and is no longer saved. Delete large circuits.",
     "saveFailed": "Your progress couldn't be saved in the browser.",
     "backupFailed": "A copy of your progress couldn't be saved, so it wasn't deleted."
+  },
+  "crash": {
+    "title": "Something went wrong",
+    "body": "The game hit an error. Your progress is still saved in this browser: reload the page to continue.",
+    "reload": "Reload"
   }
 }
