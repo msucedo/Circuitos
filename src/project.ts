@@ -1,8 +1,14 @@
 import { checkLibrary } from './sim/flatten.ts'
-import { parseProject } from './sim/schema.ts'
+import { LIMITS, parseProject } from './sim/schema.ts'
 import type { Project } from './sim/schema.ts'
 import { CircuitError, isPrimitive, toLibrary } from './sim/types.ts'
 import type { ChipDef, ChipLibrary, Circuit } from './sim/types.ts'
+
+/** Reads a picked file as text, refusing one over the size limit before reading it. */
+export async function readJsonFile(file: Blob): Promise<string> {
+  if (file.size > LIMITS.bytes) throw new CircuitError('fileTooBig', { mb: LIMITS.bytes / 1024 / 1024 })
+  return file.text()
+}
 
 /** The circuit plus every chip it uses, directly or inside other chips. */
 export function exportProject(circuit: Circuit, library: ChipLibrary): Project {

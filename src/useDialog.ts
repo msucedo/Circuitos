@@ -21,6 +21,8 @@ export function useDialog(open: boolean, onClose: () => void, focus?: RefObject<
     const el = dialog.current
     if (!el) return
     const cancel = (event: Event) => {
+      // A file input inside fires its own `cancel` when its picker closes, and it bubbles up here.
+      if (event.target !== el) return
       event.preventDefault()
       onCloseRef.current()
     }

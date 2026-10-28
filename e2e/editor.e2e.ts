@@ -46,7 +46,7 @@ test('a 4-bit bus split and joined again keeps its value', async ({ page }) => {
 
 test('importing an invalid file shows an error; exporting downloads valid JSON', async ({ page }) => {
   await sandbox(page)
-  await page.locator('input[type=file]').setInputFiles({ name: 'malo.json', mimeType: 'application/json', buffer: Buffer.from('{"version":1,') })
+  await page.getByRole('main').locator('input[type=file]').setInputFiles({ name: 'malo.json', mimeType: 'application/json', buffer: Buffer.from('{"version":1,') })
   await expect(page.getByRole('alert')).toContainText('No se pudo importar')
 
   const download = page.waitForEvent('download')

@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { chipIdFor, chipUsers, exportProject, importProject } from './project.ts'
+import { describe, expect, it, vi } from 'vitest'
+import { chipIdFor, chipUsers, exportProject, importProject, readJsonFile } from './project.ts'
+import { LIMITS } from './sim/schema.ts'
 import { FULL_ADDER, LIBRARY, XOR } from './sim/examples.ts'
 
 describe('export / import', () => {
@@ -24,6 +25,19 @@ describe('export / import', () => {
 
   it('rejects invalid files through the schema', () => {
     expect(() => importProject('{"version":1}', [])).toThrow(/notList \{"path":"chips"\}/)
+  })
+})
+
+describe('readJsonFile', () => {
+  it('reads a file within the limit', async () => {
+    await expect(readJsonFile(new Blob(['{"a":1}']))).resolves.toBe('{"a":1}')
+  })
+
+  it('refuses a bigger file before reading it', async () => {
+    const big = new Blob([new Uint8Array(LIMITS.bytes + 1)])
+    const text = vi.spyOn(big, 'text')
+    await expect(readJsonFile(big)).rejects.toMatchObject({ code: 'fileTooBig' })
+    expect(text).not.toHaveBeenCalled()
   })
 })
 

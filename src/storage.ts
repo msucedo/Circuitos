@@ -6,6 +6,9 @@ import type { Problem } from './sim/types.ts'
 
 export const STORAGE_KEY = 'circuitos:v1'
 
+/** The downloaded progress file: same format as the save, named by the day it was taken. */
+const SAVE_FILE_PREFIX = 'circuitos-progreso'
+
 /** localStorage can be missing or throw (private mode, blocked site data). */
 function browserStorage(): Storage | undefined {
   try {
@@ -54,6 +57,34 @@ export function backupSave(data: SaveData, store = browserStorage()): Problem | 
     store?.setItem(`${STORAGE_KEY}:respaldo`, serializeSave(data))
   } catch {
     return problem('backupFailed')
+  }
+}
+
+/**
+ * A progress file may come from anyone: `parseSave` checks every field and limit,
+ * and only levels that exist count as solved.
+ */
+export function parseSaveFile(json: string): SaveData {
+  const data = parseSave(json)
+  return { ...data, solved: data.solved.filter((id) => levelById(id) !== undefined) }
+}
+
+const pad = (n: number) => String(n).padStart(2, '0')
+
+export const saveFileName = (date: Date) =>
+  `${SAVE_FILE_PREFIX}-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.json`
+
+type Persistence = Pick<StorageManager, 'persisted' | 'persist'>
+
+/**
+ * Asks the browser not to evict the progress (Safari clears unvisited sites after a week).
+ * Only a hint: browsers may say no, and nothing changes if they do.
+ */
+export async function requestPersistence(manager: Persistence | undefined = globalThis.navigator?.storage) {
+  try {
+    if (manager && !(await manager.persisted())) await manager.persist()
+  } catch {
+    /* refused or unsupported: localStorage still works */
   }
 }
 

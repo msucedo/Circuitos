@@ -16,15 +16,15 @@ import {
   unlockedBy,
 } from './levels/levels.ts'
 import type { Level } from './levels/levels.ts'
-import { chipIdFor, chipUsers, exportProject, importProject } from './project.ts'
+import { chipIdFor, chipUsers, exportProject, importProject, readJsonFile } from './project.ts'
 import { flatten } from './sim/flatten.ts'
-import { LIMITS, emptySave } from './sim/schema.ts'
+import { LIMITS, emptySave, serializeSave } from './sim/schema.ts'
 import type { SaveData } from './sim/schema.ts'
 import { CircuitError, problem, toLibrary } from './sim/types.ts'
 import type { ChipDef, Circuit, Problem } from './sim/types.ts'
 import { verify } from './sim/verify.ts'
 import type { VerifyResult } from './sim/verify.ts'
-import { backupSave, loadPrefs, loadSave, writePrefs, writeSave } from './storage.ts'
+import { backupSave, loadPrefs, loadSave, parseSaveFile, requestPersistence, saveFileName, writePrefs, writeSave } from './storage.ts'
 import type { Prefs } from './storage.ts'
 import { CollapseToggle } from './CollapseToggle.tsx'
 import { BookIcon, CheckIcon, HelpIcon, LockIcon, Logo } from './icons.tsx'
@@ -186,6 +186,8 @@ export default function App() {
     const after = new Set([...solved, lvl.id])
     const unlocked = LEVELS.filter((l) => !isUnlocked(l, solved) && isUnlocked(l, after)).map((l) => l.id)
     if (unlocked.length > 0) play('unlock')
+    // Asked once there is something worth keeping, not on the first visit.
+    if (solved.size === 0) void requestPersistence()
     setFresh(new Set(unlocked))
     setSave((s) => ({
       ...s,
@@ -264,9 +266,8 @@ export default function App() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (file.size > LIMITS.bytes) return setNotice(problemNotice(problem('fileTooBig', { mb: LIMITS.bytes / 1024 / 1024 })))
     try {
-      const { circuit: imported, added } = importProject(await file.text(), save.chips)
+      const { circuit: imported, added } = importProject(await readJsonFile(file), save.chips)
       setSave((s) => ({ ...s, sandbox: imported, chips: [...s.chips, ...added] }))
       setWorkspace(SANDBOX)
       setResult(undefined)
@@ -283,6 +284,27 @@ export default function App() {
   }
 
   const closeWelcome = () => setWelcome(false)
+
+  const exportSave = () => download(saveFileName(new Date()), serializeSave(save))
+
+  /** Replaces the progress with a downloaded one, after keeping a copy of the current one. */
+  const importSave = async (file: File) => {
+    closeWelcome()
+    let loadedSave: SaveData
+    try {
+      loadedSave = parseSaveFile(await readJsonFile(file))
+    } catch (error) {
+      if (!(error instanceof CircuitError)) throw error
+      return setNotice({ kind: 'error', text: (t) => t('app.importFailed', { reason: problemText(t, error) }) })
+    }
+    const failed = backupSave(save)
+    if (failed) return setNotice(problemNotice(failed))
+    setSave(loadedSave)
+    setWorkspace(firstOpenLevel(new Set(loadedSave.solved)))
+    setResult(undefined)
+    setGeneration((g) => g + 1)
+    setNotice({ kind: 'info', text: (t) => t('app.saveImported') })
+  }
 
   const resetAll = () => {
     const failed = backupSave(save)
@@ -421,6 +443,8 @@ export default function App() {
         }}
         onClose={closeWelcome}
         onResetAll={resetAll}
+        onExportSave={exportSave}
+        onImportSave={importSave}
         onOpenGuide={() => {
           closeWelcome()
           setGuide(true)

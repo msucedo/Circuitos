@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { SHOTS, addPiece, levelsBefore, node, restart, seedSolved, start, watchErrors, wire } from './helpers.ts'
+import { SHOTS, addPiece, freezeHalfway, levelsBefore, node, restart, resumeAnimations, seedSolved, start, watchErrors, wire } from './helpers.ts'
 
 type SoundLog = { __sounds: string[] }
 
@@ -158,10 +158,10 @@ test('the theory slides to its new place when the table opens or closes above it
   const table = page.getByRole('toolbar', { name: 'Herramientas' }).getByRole('button', { name: 'Tabla' })
 
   await table.click()
-  await page.waitForTimeout(100)
+  await freezeHalfway(page, '.panel-slot')
   const opening = await top()
+  await resumeAnimations(page)
   await expect(page.locator('.panel-slot.closing')).toHaveCount(0)
-  await page.waitForTimeout(500)
   const below = await top()
   expect(below).toBeGreaterThan(alone + 20)
   // Halfway through it is somewhere between, not already at either end.
@@ -170,8 +170,9 @@ test('the theory slides to its new place when the table opens or closes above it
   await page.screenshot({ path: `${SHOTS}/panels-both.png` })
 
   await table.click()
-  await page.waitForTimeout(100)
+  await freezeHalfway(page, '.panel-slot.closing')
   const closing = await top()
+  await resumeAnimations(page)
   expect(closing).toBeGreaterThan(alone + 1)
   expect(closing).toBeLessThan(below - 1)
   await expect(page.locator('.panel-slot')).toHaveCount(1)

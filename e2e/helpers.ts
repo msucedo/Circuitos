@@ -131,3 +131,31 @@ export async function seedSolved(page: Page, ids: string[]) {
     }
   }, [STORAGE_KEY, raw] as const)
 }
+
+/**
+ * Waits for the animations inside `selector` to start and freezes them at half their duration.
+ * Sampling after a fixed wait instead lands anywhere on a slow machine. `resume` lets them finish.
+ */
+export async function freezeHalfway(page: Page, selector: string) {
+  await page.evaluate(async (sel) => {
+    const inside = () =>
+      document.getAnimations().filter((a) => {
+        const target = (a.effect as KeyframeEffect | null)?.target
+        return target instanceof Element && target.closest(sel) !== null
+      })
+    while (inside().length === 0) await new Promise(requestAnimationFrame)
+    for (const a of inside()) {
+      a.pause()
+      const duration = a.effect?.getComputedTiming().duration
+      if (typeof duration === 'number') a.currentTime = duration / 2
+    }
+  }, selector)
+}
+
+/** Lets the frozen animations go on and waits until they end. */
+export const resumeAnimations = (page: Page) =>
+  page.evaluate(async () => {
+    const paused = document.getAnimations().filter((a) => a.playState === 'paused')
+    paused.forEach((a) => a.play())
+    await Promise.all(paused.map((a) => a.finished.catch(() => undefined)))
+  })

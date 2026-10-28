@@ -1,7 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { emptySave, serializeSave } from './sim/schema.ts'
 import { LIBRARY, NOT } from './sim/examples.ts'
-import { DEFAULT_PREFS, PREFS_KEY, STORAGE_KEY, backupSave, loadPrefs, loadSave, writePrefs, writeSave } from './storage.ts'
+import { CircuitError } from './sim/types.ts'
+import {
+  DEFAULT_PREFS,
+  PREFS_KEY,
+  STORAGE_KEY,
+  backupSave,
+  loadPrefs,
+  loadSave,
+  parseSaveFile,
+  requestPersistence,
+  saveFileName,
+  writePrefs,
+  writeSave,
+} from './storage.ts'
 
 class MemoryStorage {
   items = new Map<string, string>()
@@ -68,6 +81,39 @@ describe('storage', () => {
     const big = { ...emptySave(), sandbox: { nodes: [{ id: 'a', kind: 'INPUT', label: 'x'.repeat(40) }], wires: [] } }
     big.sandbox.nodes = Array.from({ length: 30_000 }, (_, i) => ({ id: `n${i}`, kind: 'NAND', label: 'x'.repeat(40) }))
     expect(writeSave(big, memory())?.code).toBe('saveTooBig')
+  })
+})
+
+describe('progress file', () => {
+  it('loads a downloaded progress file, keeping only levels that exist', () => {
+    const data = { ...emptySave(), solved: ['NOT', 'HACK', 'AND'], chips: [...LIBRARY.values()], sandbox: NOT }
+    expect(parseSaveFile(serializeSave(data))).toEqual({ ...data, solved: ['NOT', 'AND'] })
+  })
+
+  it('refuses a file that is not a valid save', () => {
+    expect(() => parseSaveFile('{nope')).toThrow(CircuitError)
+    expect(() => parseSaveFile('{"version":1,"solved":"nope"}')).toThrow(CircuitError)
+    expect(() => parseSaveFile('{"version":2,"solved":[],"chips":[],"drafts":[],"sandbox":{"nodes":[],"wires":[]}}')).toThrow(CircuitError)
+  })
+
+  it('names the file after the local date', () => {
+    expect(saveFileName(new Date(2026, 0, 5, 23, 59))).toBe('circuitos-progreso-2026-01-05.json')
+  })
+})
+
+describe('persistent storage', () => {
+  it('asks for it only when the browser has not granted it yet', async () => {
+    const persist = vi.fn(async () => true)
+    await requestPersistence({ persisted: async () => false, persist })
+    expect(persist).toHaveBeenCalledOnce()
+    persist.mockClear()
+    await requestPersistence({ persisted: async () => true, persist })
+    expect(persist).not.toHaveBeenCalled()
+  })
+
+  it('never fails: missing API or a refusal are fine', async () => {
+    await expect(requestPersistence(undefined)).resolves.toBeUndefined()
+    await expect(requestPersistence({ persisted: async () => false, persist: async () => Promise.reject(new Error('no')) })).resolves.toBeUndefined()
   })
 })
 
