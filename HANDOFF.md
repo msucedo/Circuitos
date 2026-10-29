@@ -1,7 +1,8 @@
 # Handoff: Circuitos (2026-10-27)
 
 ## Dónde quedamos
-- El código está listo para producción en **Vercel** (el 2026-10-28 el usuario dejó Cloudflare porque le resultó complicado). Falta publicarlo y conectar el dominio `circuitos.io` (Namecheap); ver "Publicar en producción". El cambio a Vercel está sin commit.
+- **En producción en https://circuitos.io** (Vercel, desde el 2026-10-28; el usuario dejó Cloudflare porque le resultó complicado). Dominio en Namecheap con BasicDNS. `www.circuitos.io` redirige a `circuitos.io`, que es la dirección principal; no cambiarla, porque el progreso vive en el localStorage de esa dirección. Verificado en producción: CSP con `frame-ancestors`, HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y `assets/` `immutable`.
+- **Imagen para compartir:** `public/og.png` (1200×630), con las etiquetas `og:*` y `twitter:card` en `index.html`. Se hizo renderizando una plantilla HTML (logo, texto y recorte de `docs/img/nivel.webp`) con Playwright; si cambia el diseño del juego, se regenera.
 - Verificado: `tsc`, 174 pruebas unitarias, lint sin avisos, build, 42 e2e en Chrome real (con CSP) y `npm audit` en 0.
 - 21 niveles (20 principales y el 0 opcional de relés): compuertas → sumadores → latches y flip-flop → bloque 3 combinacional (MUX, DMUX, NOT4, MUX4, DECODER, INC4, ALU4) → bloque 3 memoria (BIT, REGISTER4, COUNTER4, RAM4).
 
@@ -118,7 +119,6 @@ Puede hacer falta que la RAM tenga más de 4 palabras o que la palabra sea más 
 - Antes de dar algo por terminado: `npx tsc -b`, `npx vitest run`, `npm run lint`, `npm run build`, `npx playwright test`, `npm audit --audit-level=high`.
 
 ## Pendiente menor
-- `og:image` en `index.html` cuando haya dominio final.
 - La tabla en vivo en niveles con memoria (Bit, Registro, Contador, RAM, Flip-flop D) muestra combinaciones partiendo de la memoria en cero, lo que dice poco en un circuito con reloj. Opción: en esos niveles mostrar una nota en lugar de la tabla, o una tabla de los ciclos del spec.
 - Las traducciones al inglés las escribió Claude: el usuario no las ha revisado.
 
