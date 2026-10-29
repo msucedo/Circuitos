@@ -1,0 +1,39 @@
+# The game opens this form with the fields filled in (`galleryIssueUrl` in src/share.ts):
+# the ids nombre, descripcion and link must match the names used there.
+name: Enviar a la galería
+description: Propón un circuito de Modo libre para la galería de Circuitos.
+title: 'Galería: '
+labels: [galeria]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por compartir. Revisamos cada circuito a mano antes de publicarlo; si no entra, te decimos por qué aquí mismo.
+  - type: input
+    id: nombre
+    attributes:
+      label: Nombre
+      description: Como aparecerá en la galería (hasta 40 caracteres).
+    validations:
+      required: true
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Qué hace
+      description: Una o dos frases (hasta 200 caracteres).
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link del circuito
+      description: El link que da Compartir en Modo libre (empieza con https://circuitos.io/#c=).
+    validations:
+      required: true
+  - type: checkboxes
+    id: licencia
+    attributes:
+      label: Licencia
+      options:
+        - label: Acepto que mi circuito se publique en la galería bajo la licencia MIT del proyecto.
+          required: true

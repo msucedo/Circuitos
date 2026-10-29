@@ -17,23 +17,42 @@ import {
 } from './levels/levels.ts'
 import type { Level } from './levels/levels.ts'
 import { chipIdFor, chipUsers, exportProject, importProject, readJsonFile } from './project.ts'
+import { decodeShare, sharedTarget } from './share.ts'
+import type { SharedTarget } from './share.ts'
+import { loadGalleryEntry } from './gallery/gallery.ts'
 import { flatten } from './sim/flatten.ts'
-import { LIMITS, emptySave, serializeSave } from './sim/schema.ts'
-import type { SaveData } from './sim/schema.ts'
+import { LIMITS, emptySave, parseProject, serializeSave } from './sim/schema.ts'
+import type { Project, SaveData } from './sim/schema.ts'
 import { CircuitError, problem, toLibrary } from './sim/types.ts'
 import type { ChipDef, Circuit, Problem } from './sim/types.ts'
 import { verify } from './sim/verify.ts'
 import type { VerifyResult } from './sim/verify.ts'
-import { backupSave, loadPrefs, loadSave, parseSaveFile, requestPersistence, saveFileName, writePrefs, writeSave } from './storage.ts'
+import {
+  backupSave,
+  clearSavedSandbox,
+  loadPrefs,
+  loadSave,
+  loadSavedSandbox,
+  parseSaveFile,
+  requestPersistence,
+  saveFileName,
+  writePrefs,
+  writeSave,
+  writeSavedSandbox,
+} from './storage.ts'
 import type { Prefs } from './storage.ts'
 import { CollapseToggle } from './CollapseToggle.tsx'
 import { BookIcon, CheckIcon, HelpIcon, LockIcon, Logo } from './icons.tsx'
+import { GalleryDialog } from './GalleryDialog.tsx'
 import { Guide } from './Guide.tsx'
+import { PreviewDialog } from './PreviewDialog.tsx'
+import type { Incoming } from './PreviewDialog.tsx'
 import { ResultPanel } from './ResultPanel.tsx'
+import { ShareDialog } from './ShareDialog.tsx'
 import { play, setMuted } from './sound.ts'
 import { usePresence } from './usePresence.ts'
 import { Credit, Welcome } from './Welcome.tsx'
-import { levelText, problemText } from './i18n.ts'
+import { chipLabel, levelText, problemText } from './i18n.ts'
 import { RichText } from './RichText.tsx'
 import './app.css'
 
@@ -57,6 +76,21 @@ function download(name: string, text: string) {
   a.download = name
   a.click()
   URL.revokeObjectURL(url)
+}
+
+let incomingId = 0
+
+/** Reads the shared target once and removes it, so a reload does not open it again. */
+function takeSharedTarget(): SharedTarget | undefined {
+  const target = sharedTarget(location.hash)
+  if (target) history.replaceState(null, '', `${location.pathname}${location.search}`)
+  return target
+}
+
+async function loadShared(target: SharedTarget): Promise<Incoming> {
+  if (target.kind === 'link') return { project: await decodeShare(target.data), id: ++incomingId }
+  const { entry, project } = await loadGalleryEntry(target.slug)
+  return { project, id: ++incomingId, title: entry.name, description: entry.description, author: entry.author }
 }
 
 function Pins({ label, ids, widths }: { label: string; ids: string[]; widths?: Record<string, number> }) {
@@ -99,8 +133,14 @@ export default function App() {
     if (wasNaming.current && !chipForm.shown) saveChipButton.current?.focus()
     wasNaming.current = !!chipForm.shown
   }, [chipForm.shown])
-  const [welcome, setWelcome] = useState(true)
+  // A shared link opens its preview instead of the welcome.
+  const [welcome, setWelcome] = useState(() => !sharedTarget(location.hash))
   const [guide, setGuide] = useState(false)
+  const [gallery, setGallery] = useState(false)
+  const [incoming, setIncoming] = useState<Incoming>()
+  const [sharing, setSharing] = useState<Project>()
+  // The sandbox kept before opening a shared circuit; "Restaurar mi Modo libre" brings it back.
+  const [savedSandbox, setSavedSandbox] = useState(() => loadSavedSandbox())
   // Bumped on every Probar so the result panel animates again.
   const [attempt, setAttempt] = useState(0)
   // Levels the last Probar unlocked, so their buttons can celebrate once.
@@ -108,10 +148,7 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null)
   const levelName = (l: Pick<Level, 'id'>) => levelText(t, l, 'name')
   // A level chip is always shown with its level's name in the current language, never the saved one.
-  const chips = useMemo(
-    () => save.chips.map((c): ChipDef => (levelById(c.id) ? { ...c, name: levelText(t, c, 'name') } : c)),
-    [save.chips, t],
-  )
+  const chips = useMemo(() => save.chips.map((c): ChipDef => ({ ...c, name: chipLabel(t, c) })), [save.chips, t])
   const customChips = chips.filter((c) => !levelById(c.id))
 
   const level = workspace === SANDBOX ? undefined : levelById(workspace)
@@ -145,6 +182,21 @@ export default function App() {
       window.removeEventListener('pagehide', flush)
     }
   }, [save])
+
+  // A link pasted while the game is open changes only the hash.
+  useEffect(() => {
+    const read = () => {
+      const target = takeSharedTarget()
+      if (!target) return
+      loadShared(target).then(setIncoming, (error: unknown) => {
+        if (!(error instanceof CircuitError)) throw error
+        setNotice({ kind: 'error', text: (t) => t('share.openFailed', { reason: problemText(t, error) }) })
+      })
+    }
+    read()
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [])
 
   useEffect(() => writePrefs(prefs), [prefs])
   useEffect(() => setMuted(prefs.muted), [prefs.muted])
@@ -269,20 +321,53 @@ export default function App() {
     event.target.value = ''
     if (!file) return
     try {
-      const { circuit: imported, added } = importProject(await readJsonFile(file), save.chips)
-      setSave((s) => ({ ...s, sandbox: imported, chips: [...s.chips, ...added] }))
-      setWorkspace(SANDBOX)
-      setResult(undefined)
-      setGeneration((g) => g + 1)
-      setNotice({
-        kind: 'info',
-        text: (t) =>
-          added.length ? t('app.imported', { file: file.name, count: added.length }) : t('app.importedNoChips', { file: file.name }),
-      })
+      setIncoming({ project: parseProject(await readJsonFile(file)), id: ++incomingId, title: file.name })
     } catch (error) {
       if (!(error instanceof CircuitError)) throw error
       setNotice({ kind: 'error', text: (t) => t('app.importFailed', { reason: problemText(t, error) }) })
     }
+  }
+
+  /** The only way a file, a link or the gallery replaces the sandbox: confirmed, and after a backup. */
+  const openIncoming = (project: Project, keep: boolean): Problem | undefined => {
+    let imported: ReturnType<typeof importProject>
+    try {
+      imported = importProject(project, save.chips)
+    } catch (error) {
+      if (!(error instanceof CircuitError)) throw error
+      return error
+    }
+    const failed = backupSave(save)
+    if (failed) return failed
+    // Kept before replacing it, or used up when it is the kept one coming back; if that fails, nothing is opened.
+    const restoring = !!incoming?.restore
+    const kept = keep ? exportProject(save.sandbox, fullLibrary) : undefined
+    const notStored = kept ? writeSavedSandbox(kept) : restoring ? clearSavedSandbox() : undefined
+    if (notStored) return notStored
+    if (kept || restoring) setSavedSandbox(kept)
+    const name = incoming?.title
+    const added = imported.added.length
+    setIncoming(undefined)
+    open(SANDBOX)
+    setSave((s) => ({ ...s, sandbox: imported.circuit, chips: [...s.chips, ...imported.added] }))
+    setGeneration((g) => g + 1)
+    setNotice({
+      kind: 'info',
+      text: (t) => {
+        if (restoring) return t('app.sandboxRestored')
+        const shown = name ?? t('share.linkTitle')
+        const opened = added ? t('app.imported', { name: shown, count: added }) : t('app.importedNoChips', { name: shown })
+        return kept ? `${opened} ${t('app.sandboxKept')}` : opened
+      },
+    })
+  }
+
+  const openGalleryEntry = (slug: string) => {
+    setGallery(false)
+    void loadShared({ kind: 'gallery', slug }).then(setIncoming, (error: unknown) => {
+      if (!(error instanceof CircuitError)) throw error
+      setNotice({ kind: 'error', text: (t) => t('share.openFailed', { reason: problemText(t, error) }) })
+    })
   }
 
   const closeWelcome = () => setWelcome(false)
@@ -309,8 +394,10 @@ export default function App() {
   }
 
   const resetAll = () => {
-    const failed = backupSave(save)
+    // Starting over also drops the kept sandbox; both keep a copy first.
+    const failed = backupSave(save) ?? clearSavedSandbox()
     if (failed) return setNotice(problemNotice(failed))
+    setSavedSandbox(undefined)
     setSave(emptySave())
     setWorkspace(firstOpenLevel(new Set()))
     setResult(undefined)
@@ -367,6 +454,9 @@ export default function App() {
           </button>
           <button type="button" className={`sandbox${workspace === SANDBOX ? ' current' : ''}`} onClick={() => open(SANDBOX)}>
             {t('app.sandbox')}
+          </button>
+          <button type="button" className="gallery-button" onClick={() => setGallery(true)}>
+            {t('gallery.title')}
           </button>
           {/* Shown instead of the list on a phone. */}
           <div className="level-picker">
@@ -453,6 +543,15 @@ export default function App() {
         }}
       />
       <Guide open={guide} onClose={() => setGuide(false)} />
+      <GalleryDialog open={gallery} onClose={() => setGallery(false)} onOpenEntry={openGalleryEntry} />
+      <PreviewDialog
+        incoming={incoming}
+        mine={chips}
+        keepCurrent={hasWork(save.sandbox) ? { replaces: !!savedSandbox } : undefined}
+        onCancel={() => setIncoming(undefined)}
+        onOpen={openIncoming}
+      />
+      <ShareDialog project={sharing} onClose={() => setSharing(undefined)} />
 
       <main>
         <section className="brief">
@@ -538,6 +637,14 @@ export default function App() {
                     {t('app.saveChip')}
                   </button>
                 )}
+                {savedSandbox && (
+                  <button type="button" onClick={() => setIncoming({ project: savedSandbox, id: ++incomingId, restore: true })}>
+                    {t('app.restoreSandbox')}
+                  </button>
+                )}
+                <button type="button" disabled={circuit.nodes.length === 0} onClick={() => setSharing(exportProject(circuit, library))}>
+                  {t('share.open')}
+                </button>
                 <button type="button" onClick={exportCurrent}>
                   {t('app.export')}
                 </button>

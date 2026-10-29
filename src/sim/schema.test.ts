@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FULL_ADDER, LIBRARY } from './examples.ts'
-import { LIMITS, parseProject } from './schema.ts'
+import { LIMITS, parseGallery, parseProject } from './schema.ts'
 import type { Project } from './schema.ts'
 
 const project: Project = { version: 1, circuit: FULL_ADDER, chips: [...LIBRARY.values()] }
@@ -54,5 +54,22 @@ describe('parseProject', () => {
     bad({ ...project, chips: [{ id: 'NAND', name: 'x', circuit: { nodes: [], wires: [] } }] }, /duplicate .*"id":"NAND"/)
     const loop = { id: 'LOOP', name: 'Bucle', circuit: { nodes: [{ id: 'x', kind: 'LOOP' }], wires: [] } }
     bad({ ...project, chips: [loop] }, /selfContaining \{"name":"Bucle"\}/)
+  })
+})
+
+describe('parseGallery', () => {
+  const entry = { slug: 'mi-chip', name: 'Mi chip', description: 'Hace algo.', author: 'msucedo' }
+
+  it('keeps only known fields of valid entries', () => {
+    expect(parseGallery([{ ...entry, extra: 1 }])).toEqual([entry])
+    const { author: _, ...anonymous } = entry
+    expect(parseGallery([anonymous])).toEqual([anonymous])
+  })
+
+  it('rejects bad slugs, repeated slugs, long texts and bad authors', () => {
+    expect(() => parseGallery([{ ...entry, slug: '../x' }])).toThrow(/badId/)
+    expect(() => parseGallery([entry, entry])).toThrow(/duplicate/)
+    expect(() => parseGallery([{ ...entry, description: 'x'.repeat(LIMITS.description + 1) }])).toThrow(/textLength/)
+    expect(() => parseGallery([{ ...entry, author: 'a b' }])).toThrow(/badId/)
   })
 })

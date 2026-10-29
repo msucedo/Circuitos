@@ -104,6 +104,8 @@ export type ProblemCode =
   | 'fileTooBig'
   | 'notJson'
   | 'chipConflict'
+  | 'shareTooLong'
+  | 'shareCorrupt'
   // Building and simulating a circuit
   | 'unknownKind'
   | 'selfContaining'

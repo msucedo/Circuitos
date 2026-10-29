@@ -67,6 +67,56 @@ Verificado al final: `tsc`, 172 unitarias, lint sin avisos, build, 42 e2e y `npm
   - Sin `eval` ni `new Function`, porque la CSP los bloquea dentro de la página.
   - Los tiempos agotados a 30 s no se reprodujeron en más de 300 pruebas, ni con 8 workers. Coincidieron con la máquina ocupada. No se cambiaron `workers`, timeouts ni `retries`.
 
+## Compartir y galería (2026-10-28, sin subir)
+Verificado: `tsc`, 191 unitarias, lint sin avisos, build, 47 e2e (5 nuevas en `e2e/share.e2e.ts`) y `npm audit` en 0.
+- **Link:** Modo libre → **Compartir**. El circuito y sus chips van comprimidos en el fragmento: `#c=1.<deflate-raw base64url>` (`src/share.ts`). El fragmento no llega al servidor y no hay backend.
+  - Al leerlo, el hash se borra (`takeSharedTarget` en `App.tsx`) y también se atiende `hashchange`.
+  - El diálogo muestra el porcentaje que usa del máximo. Si se pasa, dice cuántas piezas tiene y cuántas caben (más de 200, calculado, no escrito a mano) y manda a Exportar.
+- **Límites** en `LIMITS` (`src/sim/schema.ts`):
+  - `shareChars` 5000 (los datos del link).
+  - `description` 200.
+  - `issueUrl` 8000 (el máximo práctico de GitHub). Una prueba asegura que el peor caso cabe.
+  - El mismo límite aplica a la galería.
+- **Seguridad del link:**
+  - Se revisa el largo antes de decodificar.
+  - La descompresión se corta al pasar `LIMITS.bytes` (contra bombas de descompresión).
+  - Después todo pasa por `parseProject`.
+  - Errores nuevos: `shareTooLong` y `shareCorrupt`.
+  - La CSP no cambió.
+- **Vista previa** (`src/PreviewDialog.tsx`): es el único camino que reemplaza el sandbox, y ahora también la usa **Importar**.
+  - Muestra las piezas y los chips: nuevo, ya lo tienes o choca.
+  - Un chip que choca (mismo id con otro circuito) se sigue rechazando, pero se puede **renombrar** ahí mismo (`renameChip` en `project.ts`, decisión del usuario).
+  - Abrir hace `backupSave` antes; si el respaldo falla, no hace nada.
+  - Con un link en la URL, la bienvenida no se abre.
+- **Guardar y restaurar mi Modo libre (2026-10-29):** si Modo libre tiene trabajo, la vista previa trae la casilla "Guardar mi Modo libre actual…", **marcada** por defecto (decisión del usuario).
+  - Se guarda como `Project` (el circuito más los chips que usa) en la clave aparte `circuitos:modo-libre` (`SAVED_SANDBOX_KEY`, `loadSavedSandbox`/`writeSavedSandbox` en `storage.ts`). Es un solo lugar y avisa si reemplaza.
+  - No está en `circuitos:v1` (no hubo migración) ni en Descargar mi progreso.
+  - Se guarda **antes** de reemplazar; si falla, no se abre nada.
+  - Al leerlo pasa por `parseProject`; si está dañado se borra.
+  - El botón **Restaurar mi Modo libre** (junto a Guardar como chip) es un **deshacer de un uso** (decisión del usuario): usa la misma vista previa con `restore: true`, sin casilla, con el título "¿Restaurar tu Modo libre guardado?" y el botón "Sí, restaurar".
+  - Al restaurar, `clearSavedSandbox` copia lo guardado a `circuitos:modo-libre:respaldo`, lo quita y el botón desaparece. Si la copia falla, no restaura.
+  - **Borrar mi progreso también lo borra**, con la misma copia.
+  - Un chip no se puede abrir para editarlo, y por eso existe esto.
+  - Hay 200 unitarias y 50 e2e. La e2e "4-bit bus" falla a veces con la máquina cargada; sola pasa 5 de 5.
+- **Galería:** botón debajo de Modo libre (`src/GalleryDialog.tsx`).
+  - La lista está en `src/gallery/gallery.json` (validada con `parseGallery`) y cada circuito va en `src/gallery/circuits/<slug>.json`, cargado como su propio chunk (`?raw`) y validado como un link.
+  - El link de una entrada es `#g=<slug>`.
+  - Los textos de la comunidad se muestran como texto plano.
+  - Semilla: "Mayoría de 3" (6 NAND, no es solución de ningún nivel; tiene su prueba).
+- **Envío:** "Enviar a la galería" (con nombre y qué hace) abre un issue prellenado con `.github/ISSUE_TEMPLATE/galeria.yml` (los campos `nombre`, `descripcion` y `link`, la etiqueta `galeria` y la casilla de licencia MIT).
+- **Aprobar un envío (usuario):**
+  1. Revisar el issue.
+  2. `npm run gallery:add -- "<link>" --name "..." --description "..." --author <usuario-github>`. Valida igual que el juego, prueba que el circuito arma y escribe los dos archivos.
+  3. `npm run dev` para verlo.
+  4. Commit y push.
+  5. Cerrar el issue.
+- **Pendiente del usuario:**
+  - Crear la etiqueta `galeria` en GitHub (si no existe, el issue se crea sin etiqueta).
+  - Revisar los textos `share.*` y `gallery.*`.
+  - Probar en Safari después del deploy.
+- **Guía:** comandos Compartir y Galería. `chipLabel` (`i18n.ts`) da el nombre de un chip de nivel en el idioma actual. `AUTHOR_URL`/`REPO_URL` viven en `src/links.ts`.
+- **Riesgo conocido (ya existía):** un link puede traer un chip de nivel que el jugador no ha resuelto (por ejemplo `XOR`). Entra a su paleta del Modo libre con ese nombre sin verificarse contra la spec. Los niveles no lo usan hasta resolverlo (`levelLibrary` pide `solved`).
+
 ## Publicar en producción (pasos del usuario)
 1. **Deshacer Cloudflare:**
    - En Namecheap → Domain List → Manage `circuitos.io` → Nameservers → volver a **Namecheap BasicDNS** y guardar.

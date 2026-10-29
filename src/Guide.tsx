@@ -29,7 +29,10 @@ const COMMANDS: [command: Command, label: string, Icon?: ComponentType][] = [
   ['pauseClock', 'editor.pauseClock'],
   ['bits', 'editor.bits'],
   ['export', 'app.export'],
+  ['share', 'share.open'],
+  ['gallery', 'gallery.title'],
   ['saveChip', 'app.saveChip'],
+  ['restoreSandbox', 'app.restoreSandbox'],
   ['fold', 'guide.foldLabel', ChevronIcon],
 ]
 

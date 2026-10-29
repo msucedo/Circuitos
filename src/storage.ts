@@ -1,6 +1,6 @@
 import { levelById } from './levels/levels.ts'
-import { LIMITS, byteLength, emptySave, parseSave, serializeSave } from './sim/schema.ts'
-import type { SaveData } from './sim/schema.ts'
+import { LIMITS, byteLength, emptySave, parseProject, parseSave, serializeSave } from './sim/schema.ts'
+import type { Project, SaveData } from './sim/schema.ts'
 import { problem } from './sim/types.ts'
 import type { Problem } from './sim/types.ts'
 
@@ -55,6 +55,50 @@ export function writeSave(data: SaveData, store = browserStorage()): Problem | u
 export function backupSave(data: SaveData, store = browserStorage()): Problem | undefined {
   try {
     store?.setItem(`${STORAGE_KEY}:respaldo`, serializeSave(data))
+  } catch {
+    return problem('backupFailed')
+  }
+}
+
+/**
+ * The sandbox the player chose to keep before opening a shared circuit, with the
+ * chips it uses, so it restores even after one of them is deleted. Apart from the
+ * progress: one slot, not part of the progress file, and no change to its format.
+ */
+export const SAVED_SANDBOX_KEY = 'circuitos:modo-libre'
+
+export function loadSavedSandbox(store = browserStorage()): Project | undefined {
+  try {
+    const raw = store?.getItem(SAVED_SANDBOX_KEY)
+    if (raw == null) return undefined
+    try {
+      return parseProject(raw)
+    } catch (error) {
+      console.warn('Unreadable saved sandbox', error)
+      store?.removeItem(SAVED_SANDBOX_KEY)
+    }
+  } catch {
+    /* storage blocked: nothing to restore */
+  }
+}
+
+export function writeSavedSandbox(project: Project, store = browserStorage()): Problem | undefined {
+  const json = JSON.stringify(project)
+  if (byteLength(json) > LIMITS.bytes) return problem('saveTooBig', { mb: LIMITS.bytes / 1024 / 1024 })
+  try {
+    store?.setItem(SAVED_SANDBOX_KEY, json)
+  } catch {
+    return problem('saveFailed')
+  }
+}
+
+/** Removes the kept sandbox (restored, or the progress wiped), keeping a copy first; nothing is removed if that fails. */
+export function clearSavedSandbox(store = browserStorage()): Problem | undefined {
+  try {
+    const raw = store?.getItem(SAVED_SANDBOX_KEY)
+    if (raw == null) return undefined
+    store?.setItem(`${SAVED_SANDBOX_KEY}:respaldo`, raw)
+    store?.removeItem(SAVED_SANDBOX_KEY)
   } catch {
     return problem('backupFailed')
   }

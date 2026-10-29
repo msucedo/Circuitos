@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "circuit": {
+    "nodes": [
+      {
+        "id": "a",
+        "kind": "INPUT",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": "b",
+        "kind": "INPUT",
+        "x": 0,
+        "y": 90
+      },
+      {
+        "id": "c",
+        "kind": "INPUT",
+        "x": 0,
+        "y": 180
+      },
+      {
+        "id": "ab",
+        "kind": "NAND",
+        "x": 180,
+        "y": 0
+      },
+      {
+        "id": "bc",
+        "kind": "NAND",
+        "x": 180,
+        "y": 90
+      },
+      {
+        "id": "ac",
+        "kind": "NAND",
+        "x": 180,
+        "y": 180
+      },
+      {
+        "id": "w",
+        "kind": "NAND",
+        "x": 360,
+        "y": 40
+      },
+      {
+        "id": "nw",
+        "kind": "NAND",
+        "x": 520,
+        "y": 40
+      },
+      {
+        "id": "mayoria",
+        "kind": "NAND",
+        "x": 680,
+        "y": 110
+      },
+      {
+        "id": "out",
+        "kind": "OUTPUT",
+        "x": 840,
+        "y": 110
+      }
+    ],
+    "wires": [
+      {
+        "from": {
+          "node": "a",
+          "pin": "out"
+        },
+        "to": {
+          "node": "ab",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "b",
+          "pin": "out"
+        },
+        "to": {
+          "node": "ab",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "b",
+          "pin": "out"
+        },
+        "to": {
+          "node": "bc",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "c",
+          "pin": "out"
+        },
+        "to": {
+          "node": "bc",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "a",
+          "pin": "out"
+        },
+        "to": {
+          "node": "ac",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "c",
+          "pin": "out"
+        },
+        "to": {
+          "node": "ac",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "ab",
+          "pin": "out"
+        },
+        "to": {
+          "node": "w",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "bc",
+          "pin": "out"
+        },
+        "to": {
+          "node": "w",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "w",
+          "pin": "out"
+        },
+        "to": {
+          "node": "nw",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "w",
+          "pin": "out"
+        },
+        "to": {
+          "node": "nw",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "nw",
+          "pin": "out"
+        },
+        "to": {
+          "node": "mayoria",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "ac",
+          "pin": "out"
+        },
+        "to": {
+          "node": "mayoria",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "mayoria",
+          "pin": "out"
+        },
+        "to": {
+          "node": "out",
+          "pin": "in"
+        }
+      }
+    ]
+  },
+  "chips": []
+}

@@ -7,7 +7,23 @@ import type { ChipDef, Circuit, CircuitNode, Endpoint, ProblemCode, ProblemParam
  * here. Returns fresh objects with only known fields, or throws CircuitError.
  */
 
-export const LIMITS = { bytes: 2 * 1024 * 1024, nodes: 5000, wires: 20_000, chips: 200, text: 40, levels: 100 }
+export const LIMITS = {
+  bytes: 2 * 1024 * 1024,
+  nodes: 5000,
+  wires: 20_000,
+  chips: 200,
+  text: 40,
+  levels: 100,
+  /** A gallery entry's description. */
+  description: 200,
+  /**
+   * The data of a share link, already compressed. The issue that sends it to the gallery
+   * carries it plus the name and the description, and must stay under `issueUrl`.
+   */
+  shareChars: 5000,
+  /** About the longest URL GitHub accepts to open a prefilled issue. */
+  issueUrl: 8000,
+}
 
 export const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
 
@@ -38,10 +54,10 @@ function id(value: unknown, path: string): string {
   return value as string
 }
 
-function text(value: unknown, path: string): string {
+function text(value: unknown, path: string, max = LIMITS.text): string {
   if (typeof value !== 'string') fail(path, 'notText')
   const s = value as string
-  if (s.length === 0 || s.length > LIMITS.text) fail(path, 'textLength', { max: LIMITS.text })
+  if (s.length === 0 || s.length > max) fail(path, 'textLength', { max })
   return s
 }
 
@@ -170,4 +186,38 @@ export function parseSave(json: string): SaveData {
 export function serializeSave(save: SaveData): string {
   const drafts = [...save.drafts].map(([level, circuit]) => ({ level, circuit }))
   return JSON.stringify({ version: 1, solved: save.solved, chips: save.chips, drafts, sandbox: save.sandbox })
+}
+
+/** A circuit in the gallery; its project lives in `src/gallery/circuits/<slug>.json`. */
+export interface GalleryEntry {
+  slug: string
+  name: string
+  description: string
+  /** The GitHub user who sent it, if any. */
+  author?: string
+}
+
+export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/
+const GITHUB_USER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/
+
+export function parseGallery(value: unknown): GalleryEntry[] {
+  const slugs = new Set<string>()
+  return array(value, 'gallery', LIMITS.chips).map((raw, i): GalleryEntry => {
+    const at = `gallery[${i}]`
+    const o = object(raw, at)
+    if (typeof o.slug !== 'string' || !SLUG_PATTERN.test(o.slug)) fail(`${at}.slug`, 'badId')
+    const slug = o.slug as string
+    if (slugs.has(slug)) fail(`${at}.slug`, 'duplicate', { id: slug })
+    slugs.add(slug)
+    const entry: GalleryEntry = {
+      slug,
+      name: text(o.name, `${at}.name`),
+      description: text(o.description, `${at}.description`, LIMITS.description),
+    }
+    if (o.author !== undefined) {
+      if (typeof o.author !== 'string' || !GITHUB_USER.test(o.author)) fail(`${at}.author`, 'badId')
+      entry.author = o.author as string
+    }
+    return entry
+  })
 }

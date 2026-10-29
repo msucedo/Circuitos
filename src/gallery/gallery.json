@@ -1,0 +1,8 @@
+[
+  {
+    "slug": "mayoria-de-3",
+    "name": "Mayoría de 3",
+    "description": "Tres jueces votan con a, b y c; la salida es 1 cuando al menos dos dicen que sí. Seis NAND, sin chips.",
+    "author": "msucedo"
+  }
+]

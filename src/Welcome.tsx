@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { LANGUAGES, chooseLanguage, currentLanguage } from './i18n.ts'
 import type { Language } from './i18n.ts'
 import { BookIcon, Logo, MutedIcon, SoundIcon } from './icons.tsx'
+import { AUTHOR_URL, REPO_URL } from './links.ts'
 import { Shortcuts } from './Shortcuts.tsx'
 import { play } from './sound.ts'
 import { useDialog } from './useDialog.ts'
@@ -10,8 +11,6 @@ import { useDialog } from './useDialog.ts'
 /** Each language is named in itself, so anyone can find theirs. */
 const LANGUAGE_NAMES: Record<Language, string> = { es: 'Español', en: 'English' }
 
-export const AUTHOR_URL = 'https://github.com/msucedo'
-export const REPO_URL = `${AUTHOR_URL}/Circuitos`
 
 export function Credit({ className }: { className?: string }) {
   const { t } = useTranslation()

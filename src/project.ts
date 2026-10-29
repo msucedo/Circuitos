@@ -1,5 +1,5 @@
 import { checkLibrary } from './sim/flatten.ts'
-import { LIMITS, parseProject } from './sim/schema.ts'
+import { LIMITS } from './sim/schema.ts'
 import type { Project } from './sim/schema.ts'
 import { CircuitError, isPrimitive, toLibrary } from './sim/types.ts'
 import type { ChipDef, ChipLibrary, Circuit } from './sim/types.ts'
@@ -28,23 +28,40 @@ export function exportProject(circuit: Circuit, library: ChipLibrary): Project {
 
 const sameCircuit = (a: Circuit, b: Circuit) => JSON.stringify(a) === JSON.stringify(b)
 
+/** Chips in the project whose id the user already has with a different circuit. */
+export const chipConflicts = (project: Project, mine: ChipDef[]): ChipDef[] => {
+  const existing = toLibrary(mine)
+  return project.chips.filter((chip) => {
+    const current = existing.get(chip.id)
+    return current !== undefined && !sameCircuit(current.circuit, chip.circuit)
+  })
+}
+
 /**
- * Validates an imported file and returns the chips to add. A chip whose id the
+ * Returns the chips to add from an already validated project. A chip whose id the
  * user already has with a different circuit is refused rather than overwritten.
  */
-export function importProject(json: string, mine: ChipDef[]): { circuit: Circuit; added: ChipDef[] } {
-  const project = parseProject(json)
+export function importProject(project: Project, mine: ChipDef[]): { circuit: Circuit; added: ChipDef[] } {
+  const [conflict] = chipConflicts(project, mine)
+  if (conflict) throw new CircuitError('chipConflict', { id: conflict.id })
   const existing = toLibrary(mine)
-  const added: ChipDef[] = []
-  for (const chip of project.chips) {
-    const current = existing.get(chip.id)
-    if (!current) added.push(chip)
-    else if (!sameCircuit(current.circuit, chip.circuit)) {
-      throw new CircuitError('chipConflict', { id: chip.id })
-    }
-  }
+  const added = project.chips.filter((chip) => !existing.has(chip.id))
   checkLibrary(toLibrary([...mine, ...added]))
   return { circuit: project.circuit, added }
+}
+
+/**
+ * Gives a project's chip a new name and an id derived from it that neither the
+ * project nor `taken` uses, and points every piece that used the chip to the new id.
+ */
+export function renameChip(project: Project, id: string, name: string, taken: ReadonlySet<string>): Project {
+  const newId = chipIdFor(name, new Set([...taken, ...project.chips.map((c) => c.id)]))
+  const repoint = (c: Circuit): Circuit => ({ ...c, nodes: c.nodes.map((n) => (n.kind === id ? { ...n, kind: newId } : n)) })
+  return {
+    ...project,
+    circuit: repoint(project.circuit),
+    chips: project.chips.map((c) => ({ ...(c.id === id ? { id: newId, name } : c), circuit: repoint(c.circuit) })),
+  }
 }
 
 /** A schema-valid, unused id derived from the chip name: "Mi sumador" → "U_MI_SUMADOR". */

@@ -1,25 +1,31 @@
 import { describe, expect, it, vi } from 'vitest'
-import { emptySave, serializeSave } from './sim/schema.ts'
+import { LIMITS, emptySave, serializeSave } from './sim/schema.ts'
+import type { Project } from './sim/schema.ts'
 import { LIBRARY, NOT } from './sim/examples.ts'
 import { CircuitError } from './sim/types.ts'
 import {
   DEFAULT_PREFS,
   PREFS_KEY,
+  SAVED_SANDBOX_KEY,
   STORAGE_KEY,
   backupSave,
+  clearSavedSandbox,
   loadPrefs,
   loadSave,
+  loadSavedSandbox,
   parseSaveFile,
   requestPersistence,
   saveFileName,
   writePrefs,
   writeSave,
+  writeSavedSandbox,
 } from './storage.ts'
 
 class MemoryStorage {
   items = new Map<string, string>()
   getItem = (key: string) => this.items.get(key) ?? null
   setItem = (key: string, value: string) => void this.items.set(key, value)
+  removeItem = (key: string) => void this.items.delete(key)
 }
 const memory = () => new MemoryStorage() as unknown as Storage & MemoryStorage
 
@@ -153,5 +159,58 @@ describe('interface preferences', () => {
     expect(loadPrefs(store)).toEqual({ ...DEFAULT_PREFS, levelsCollapsed: true, muted: false })
     store.items.set(PREFS_KEY, JSON.stringify(['not', 'an', 'object']))
     expect(loadPrefs(store)).toEqual(DEFAULT_PREFS)
+  })
+})
+
+describe('saved sandbox', () => {
+  const project: Project = { version: 1, circuit: NOT, chips: [] }
+
+  it('keeps the sandbox apart from the progress and reads it back', () => {
+    const store = memory()
+    expect(writeSavedSandbox(project, store)).toBeUndefined()
+    expect(store.items.has(STORAGE_KEY)).toBe(false)
+    expect(loadSavedSandbox(store)).toEqual(project)
+  })
+
+  it('has nothing to restore without storage or without a saved one', () => {
+    expect(loadSavedSandbox(undefined)).toBeUndefined()
+    expect(loadSavedSandbox(memory())).toBeUndefined()
+  })
+
+  it('drops a damaged copy instead of failing', () => {
+    const store = memory()
+    store.setItem(SAVED_SANDBOX_KEY, '{"version":1,"chips":[],"circuit":{"nodes":[{"id":"a","kind":"NOPE"}],"wires":[]}}')
+    expect(loadSavedSandbox(store)).toBeUndefined()
+    expect(store.items.has(SAVED_SANDBOX_KEY)).toBe(false)
+  })
+
+  it('clears it only after keeping a copy, and not at all if the copy fails', () => {
+    const store = memory()
+    expect(clearSavedSandbox(store)).toBeUndefined()
+    expect(store.items.size).toBe(0)
+
+    writeSavedSandbox(project, store)
+    const json = store.getItem(SAVED_SANDBOX_KEY)
+    expect(clearSavedSandbox(store)).toBeUndefined()
+    expect(store.items.has(SAVED_SANDBOX_KEY)).toBe(false)
+    expect(store.getItem(`${SAVED_SANDBOX_KEY}:respaldo`)).toBe(json)
+
+    const full = memory()
+    writeSavedSandbox(project, full)
+    full.setItem = () => {
+      throw new Error('QuotaExceededError')
+    }
+    expect(clearSavedSandbox(full)).toMatchObject({ code: 'backupFailed' })
+    expect(full.items.has(SAVED_SANDBOX_KEY)).toBe(true)
+  })
+
+  it('refuses one over the size limit, and says when the browser refuses to store it', () => {
+    const big: Project = { ...project, circuit: { ...NOT, nodes: NOT.nodes.map((n) => ({ ...n, label: 'x'.repeat(LIMITS.bytes) })) } }
+    expect(writeSavedSandbox(big, memory())).toMatchObject({ code: 'saveTooBig' })
+    const full = memory()
+    full.setItem = () => {
+      throw new Error('QuotaExceededError')
+    }
+    expect(writeSavedSandbox(project, full)).toMatchObject({ code: 'saveFailed' })
   })
 })

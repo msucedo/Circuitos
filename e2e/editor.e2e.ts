@@ -244,9 +244,9 @@ test('the levels and pieces columns fold on their own and stay folded after a re
   const levelsGap = await gap(levels, 'Ocultar niveles')
   expect(levelsGap).toBeGreaterThanOrEqual(8)
   expect(Math.abs(levelsGap - (await gap(pieces, 'Ocultar piezas')))).toBeLessThanOrEqual(3)
-  // Free mode sits right under the guide, above every level.
+  // Free mode and the gallery sit right under the guide, above every level.
   const order = await levels.locator('.levels-body button:visible').allTextContents()
-  expect(order.slice(0, 3).map((t) => t.trim())).toEqual(['Guía', 'Modo libre', 'Relés opcional'])
+  expect(order.slice(0, 4).map((t) => t.trim())).toEqual(['Guía', 'Modo libre', 'Galería', 'Relés opcional'])
   await page.screenshot({ path: `${SHOTS}/expanded.png` })
 })
 

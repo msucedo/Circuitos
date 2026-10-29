@@ -3,7 +3,7 @@ import type { InitOptions, TFunction } from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 import type { Level } from './levels/levels.ts'
-import type { Problem } from './sim/types.ts'
+import type { ChipDef, Problem } from './sim/types.ts'
 import en from './locales/en.json'
 import es from './locales/es.json'
 
@@ -54,5 +54,8 @@ export function levelText(t: TFunction, level: Pick<Level, 'id'>, field: LevelFi
   const key = `levels.${level.id}.${field}`
   return i18n.exists(key) ? t(key as 'levels.NOT.name') : ''
 }
+
+/** A level chip is always shown with its level's name in the current language, never the saved one. */
+export const chipLabel = (t: TFunction, chip: Pick<ChipDef, 'id' | 'name'>) => levelText(t, chip, 'name') || chip.name
 
 export default i18n
