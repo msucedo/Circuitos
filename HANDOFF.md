@@ -1,8 +1,8 @@
-# Handoff: Circuitos (2026-10-26)
+# Handoff: Circuitos (2026-10-27)
 
 ## Dónde quedamos
-- Todo está subido: `main` = `origin/main` en `74e1f6f` ("more general fixes"), con las mejoras de UX de abajo.
-- Verificado en ese estado: `tsc`, 130 pruebas unitarias, lint, build sin aviso de tamaño, 24 e2e en Chrome real (con CSP) y `npm audit` en 0.
+- El código está listo para producción en **Vercel** (el 2026-10-28 el usuario dejó Cloudflare porque le resultó complicado). Falta publicarlo y conectar el dominio `circuitos.io` (Namecheap); ver "Publicar en producción". El cambio a Vercel está sin commit.
+- Verificado: `tsc`, 174 pruebas unitarias, lint sin avisos, build, 42 e2e en Chrome real (con CSP) y `npm audit` en 0.
 - 21 niveles (20 principales y el 0 opcional de relés): compuertas → sumadores → latches y flip-flop → bloque 3 combinacional (MUX, DMUX, NOT4, MUX4, DECODER, INC4, ALU4) → bloque 3 memoria (BIT, REGISTER4, COUNTER4, RAM4).
 
 ## Mejoras de UX (2026-10-26, subidas por el usuario)
@@ -18,7 +18,7 @@ Verificado al final: `tsc`, 146 unitarias, lint sin avisos, build, 31 e2e y `npm
 - **e2e:** `start(page)` abre los niveles con la teoría cerrada para no tapar piezas; `start(page, { theory: true })` prueba la primera visita real.
 - **Pendiente del usuario:** revisar los textos de teoría y guía (los escribió Claude, en es y en). Las historias evitan decir la solución del nivel.
 
-## Iconos, animaciones y sonidos (2026-10-26, sin subir)
+## Iconos, animaciones y sonidos (2026-10-26, subidos)
 Verificado: `tsc`, 158 unitarias, lint sin avisos, build, 36 e2e (5 nuevas en `e2e/effects.e2e.ts`) y `npm audit` en 0.
 - **Iconos en la paleta:** `src/editor/PieceIcon.tsx`. Las compuertas y los relés usan el mismo dibujo que el lienzo (`src/editor/symbols.tsx`, que sale de `ChipNode`); las demás piezas básicas usan `BASIC_SYMBOLS` en `gates.ts`. `gateShape(kind, pins)` es la regla compartida: un chip que solo comparte el nombre no toma el símbolo. Los chips como sumadores o MUX no llevan icono.
 - **Animaciones:**
@@ -31,13 +31,64 @@ Verificado: `tsc`, 158 unitarias, lint sin avisos, build, 36 e2e (5 nuevas en `e
   - El reloj automático no suena.
   - Silencio: `Prefs.muted` en `circuitos:ui`, con un botón solo en la bienvenida.
 
-### Ajustes de la ronda 5 (2026-10-26, sin subir)
+### Ajustes de la ronda 5 (2026-10-26, subidos)
 Verificado: `tsc`, 161 unitarias, lint sin avisos, build, 39 e2e y `npm audit` en 0.
 - **Iconos de chips:** `CHIP_SYMBOLS` en `gates.ts`. Los sumadores son una caja con "+"; MUX y MUX4 un trapecio, DMUX el trapecio al revés. Los buses llevan la rayita diagonal. Los chips de Modo libre tienen id `U_…`, así que nunca toman el símbolo de un nivel. En la paleta, las palabras largas se dividen con guion.
 - **Guía con iconos:** las piezas usan `PieceIcon`; los comandos Tabla, Teoría, Paso a paso y Plegar usan su icono de la barra (como dato en `COMMANDS`); y los conceptos NAND y Reloj usan el de su pieza.
 - **Pista:** el triángulo se dibuja con CSS (`clip-path`) a `0.6em`.
 - **Tabla y Teoría:** cada una va en una `.panel-slot` que crece o se encoge con `grid-template-rows`, así la otra se recorre suave. El espacio entre ellas es el token `--panel-gap`.
 - **Poof:** ahora es ruido pasa-banda con ataque lento más un golpe grave, y suena más bajo. Cada capa acepta su propio `attack`.
+
+## Listo para producción y progreso a salvo (2026-10-27, en commits)
+Verificado al final: `tsc`, 172 unitarias, lint sin avisos, build, 42 e2e y `npm audit` en 0.
+- **Hosting:** Vercel (antes Cloudflare Pages; lo cambió el usuario el 2026-10-28). Sin CI y sin telemetría (decisiones del usuario).
+- **Headers:** viven solo en `vercel.json`: CSP con `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y caché de un año para `/assets/(.*)`. Vercel pone HSTS solo.
+  - `vite.config.ts` lee la CSP de ahí y la mete en un `<meta>` sin `frame-ancestors` (en un `<meta>` se ignora y avisa). Así `vite preview` y las e2e también corren con CSP.
+  - `src/vercel.test.ts` revisa que el JSON no pierda nada.
+  - `package.json` fija `engines.node` en `22.x`.
+- **Error de render:** `src/ErrorBoundary.tsx` envuelve `<App />` en `main.tsx`; muestra `crash.*` y un botón Recargar. El progreso no se toca.
+- **LICENSE** MIT (`Copyright (c) 2026 msucedo`). `package.json` en `1.0.0`. `index.html` con description, Open Graph (sin `og:image`), theme-color y `<noscript>`.
+- **Versión:** `__APP_VERSION__` sale de `package.json` vía `define` en `vite.config.ts` (tipo en `src/vite-env.d.ts`). Para cambiarla basta `package.json`.
+- **Crédito (`Credit` en `Welcome.tsx`):** "Hecho por msucedo", "Reportar un problema" (→ `REPO_URL/issues`) y la versión.
+  - En la bienvenida van en una línea, con la versión a la derecha.
+  - En la columna de niveles, el autor va centrado y debajo el link y la versión, en una rejilla con `gap: 20px 8px`.
+- **Progreso en un archivo:** en la bienvenida, "Tu progreso" tiene Descargar mi progreso, Cargar progreso y Borrar mi progreso.
+  - El archivo usa el mismo formato que `circuitos:v1` (`serializeSave`/`parseSaveFile`) y se llama `circuitos-progreso-AAAA-MM-DD.json`.
+  - Cargar reemplaza (no mezcla) después de `backupSave`; si el respaldo falla, no hace nada.
+  - `parseSaveFile` descarta los niveles que no existen. `readJsonFile` (en `project.ts`) revisa el tamaño antes de leer, y lo usan también Importar y Cargar.
+- **Persistencia:** `requestPersistence()` pide `navigator.storage.persist()` al resolver el **primer** nivel, no al cargar la página (Firefox puede pedir permiso). Es una ayuda: Safari puede no respetarla.
+- **Borrar mi progreso:** pide confirmación ("¿Seguro? Borrar todo"), y un clic fuera o Tab la cancela (`onBlur`), igual que Reiniciar. En Safari un clic no le da foco a un botón, así que ahí la confirmación no se cancela sola.
+- **Bug arreglado:** cancelar el selector de archivos cerraba la bienvenida, porque el `cancel` del `<input type="file">` burbujea hasta el `<dialog>`. Ahora `useDialog` solo atiende el `cancel` del diálogo mismo (`event.target === el`), con su prueba en `src/useDialog.test.tsx`.
+- **Sonidos:**
+  - `deal` es un crédito de tragamonedas minimalista: Re4 → La4, triángulo, gain 0.7. Suena en `open()` de `App.tsx` al cambiar de nivel o de Modo libre, no al reabrir el mismo ni al cargar o borrar progreso.
+  - `fold`/`unfold` subieron a gain 0.9 y llegan a 2400 Hz. Los usan Tabla, Teoría y plegar columnas.
+- **e2e intermitentes:** "the theory slides…" medía la mitad de la animación esperando 100 ms. Ahora `freezeHalfway(page, selector)` y `resumeAnimations(page)` (en `e2e/helpers.ts`) congelan la animación justo a la mitad con la Web Animations API.
+  - Sin `eval` ni `new Function`, porque la CSP los bloquea dentro de la página.
+  - Los tiempos agotados a 30 s no se reprodujeron en más de 300 pruebas, ni con 8 workers. Coincidieron con la máquina ocupada. No se cambiaron `workers`, timeouts ni `retries`.
+
+## Publicar en producción (pasos del usuario)
+1. **Deshacer Cloudflare:**
+   - En Namecheap → Domain List → Manage `circuitos.io` → Nameservers → volver a **Namecheap BasicDNS** y guardar.
+   - En Cloudflare, borrar el sitio `circuitos.io` (en su Overview, abajo: Remove site) y el proyecto de Pages si se creó.
+2. **Vercel:** vercel.com → registrarse con GitHub → **Add New → Project** → importar `msucedo/Circuitos`. El preset **Vite** sale solo; no cambiar nada → **Deploy**. Al terminar da una URL `*.vercel.app` para probar.
+3. **Dominio:** en el proyecto → **Settings → Domains** → agregar `circuitos.io`. Elegir la opción recomendada: `www.circuitos.io` redirige a `circuitos.io`. Así hay una sola dirección y el progreso no se reparte entre dos.
+4. **DNS en Namecheap** → Manage → **Advanced DNS**:
+   - Borrar los registros que trae por defecto (el CNAME `www` → parkingpage y el URL Redirect de `@`).
+   - Agregar **exactamente** los valores que muestra Vercel en Domains: normalmente un registro **A** con Host `@` y la IP que indique, y un **CNAME** con Host `www` y el valor que indique.
+5. **Esperar** de minutos a unas horas. Vercel marca el dominio como válido y pone el certificado SSL solo; no se compra SSL.
+6. **Revisar headers:** `curl -I https://circuitos.io` debe mostrar `content-security-policy` (con `frame-ancestors 'none'`), `strict-transport-security`, `x-content-type-options`, `referrer-policy` y `permissions-policy`. Después, securityheaders.com.
+7. **Probar a mano en el sitio publicado:**
+   - Resolver NOT.
+   - Descargar el progreso, borrarlo y cargarlo.
+   - Abrir Cargar progreso y cancelar: la bienvenida debe seguir abierta.
+   - Revisar la consola sin errores de CSP.
+   - Probarlo también en Safari.
+8. **Correo falso (opcional):** en Advanced DNS, tres registros TXT:
+   - `@` → `v=spf1 -all`
+   - `_dmarc` → `v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s;`
+   - `*._domainkey` → `v=DKIM1; p=`
+9. **Después:** pedirle a Claude `og:image` con `https://circuitos.io`.
+10. **Cada push a `main` publica solo.** Antes, la lista de "Reglas del usuario".
 
 ## Lo siguiente: la mini CPU
 Es el último nivel del bloque 3. **Antes de escribir código hay que decidir con el usuario** (con plan y preguntas):
@@ -67,6 +118,7 @@ Puede hacer falta que la RAM tenga más de 4 palabras o que la palabra sea más 
 - Antes de dar algo por terminado: `npx tsc -b`, `npx vitest run`, `npm run lint`, `npm run build`, `npx playwright test`, `npm audit --audit-level=high`.
 
 ## Pendiente menor
+- `og:image` en `index.html` cuando haya dominio final.
 - La tabla en vivo en niveles con memoria (Bit, Registro, Contador, RAM, Flip-flop D) muestra combinaciones partiendo de la memoria en cero, lo que dice poco en un circuito con reloj. Opción: en esos niveles mostrar una nota en lugar de la tabla, o una tabla de los ciclos del spec.
 - Las traducciones al inglés las escribió Claude: el usuario no las ha revisado.
 

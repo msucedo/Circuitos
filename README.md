@@ -27,9 +27,9 @@ Niveles: compuertas (NOT a XOR), sumadores, memoria (latches y flip-flop D) y el
 
 No hay cuentas: el progreso vive solo en el localStorage del navegador (`circuitos:v1`). La bienvenida sale en cada carga y se reabre con "?". Desde ahí, "Borrar mi progreso" deja una copia en `circuitos:v1:respaldo` antes de empezar de cero. "Descargar mi progreso" baja todo en un archivo (mismo formato que el guardado) y "Cargar progreso" lo restaura en otro navegador o equipo, también dejando antes una copia del actual. Al resolver el primer nivel se pide almacenamiento persistente (`navigator.storage.persist`) para que el navegador no borre el progreso.
 
-## Publicar (Cloudflare Pages)
+## Publicar (Vercel)
 
-Conecta el repo en Cloudflare Pages con build `npm run build`, salida `dist` y la variable `NODE_VERSION` en la versión de Node que usas. El build genera `dist/_headers` con la misma CSP que la página más `frame-ancestors`, HSTS y caché larga para `assets/` (ver `vite.config.ts`). Después del primer deploy, `curl -I https://<dominio>` debe mostrar esos headers.
+Importa el repo en Vercel: detecta Vite solo (`npm run build`, salida `dist`) y usa Node 22 (`engines` en `package.json`). Los headers de seguridad viven en `vercel.json`: CSP con `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y caché larga para `assets/`; Vercel agrega HSTS. El build pone esa misma CSP, sin `frame-ancestors`, en un `<meta>` (ver `vite.config.ts`). Después del primer deploy, `curl -I https://<dominio>` debe mostrar esos headers.
 
 Licencia MIT (`LICENSE`).
 

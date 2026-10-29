@@ -3,43 +3,31 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import pkg from './package.json' with { type: 'json' }
+import vercel from './vercel.json' with { type: 'json' }
 
 /**
- * Strict CSP for the built app only: the dev server injects inline styles and
- * scripts for hot reload. React sets styles through the DOM, which CSP allows.
+ * The security headers live in vercel.json, the one place they are written. Vercel sends
+ * them in production, frame-ancestors included. The built page also carries the CSP in a
+ * <meta>, so `vite preview` and the e2e run under it too; a <meta> ignores frame-ancestors
+ * (and warns), so it is left out there. Only the build gets it: the dev server injects
+ * inline styles and scripts for hot reload. React sets styles through the DOM, which CSP allows.
  */
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self'",
-  "img-src 'self' data:",
-  "connect-src 'self'",
-  "object-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-].join('; ')
-
-/**
- * Cloudflare Pages headers. A <meta> CSP cannot set frame-ancestors, and only a
- * header can turn on HSTS. Hashed assets never change, so they cache for a year.
- */
-const HEADERS = `/*
-  Content-Security-Policy: ${CSP}; frame-ancestors 'none'
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: no-referrer
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Strict-Transport-Security: max-age=31536000
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
-`
+const CSP = (() => {
+  const header = vercel.headers
+    .find((rule) => rule.source === '/(.*)')
+    ?.headers.find((h) => h.key === 'Content-Security-Policy')?.value
+  if (!header) throw new Error('vercel.json has no Content-Security-Policy for "/(.*)"')
+  return header
+    .split(';')
+    .map((directive) => directive.trim())
+    .filter((directive) => directive && !directive.startsWith('frame-ancestors'))
+    .join('; ')
+})()
 
 const csp = (): Plugin => ({
   name: 'csp',
   apply: 'build',
   transformIndexHtml: () => [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP }, injectTo: 'head-prepend' }],
-  generateBundle() {
-    this.emitFile({ type: 'asset', fileName: '_headers', source: HEADERS })
-  },
 })
 
 // https://vite.dev/config/
