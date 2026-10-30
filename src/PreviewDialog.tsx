@@ -110,7 +110,8 @@ function PreviewContent({ incoming, mine, keepCurrent, cancel, onCancel, onOpen 
           </ul>
         </>
       )}
-      <p className="muted">{incoming.restore ? t('share.restoreText') : t('share.replaces')}</p>
+      {/* An empty sandbox has nothing to replace. */}
+      {(incoming.restore || keepCurrent) && <p className="muted">{incoming.restore ? t('share.restoreText') : t('share.replaces')}</p>}
       {offerKeep && (
         <>
           <label className="keep-current">

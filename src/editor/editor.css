@@ -6,6 +6,8 @@
 }
 
 .palette {
+  /* Size of the delete badge on a chip while editing. */
+  --badge: 18px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -51,6 +53,51 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Tus chips: the Editar button sits on the same line as its title. */
+.your-chips { display: flex; flex-direction: column; gap: 6px; }
+.palette-subhead { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 8px; }
+.palette-subhead h3 { min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.palette .edit-chips,
+.palette .remove-chip { flex: none; cursor: pointer; }
+.palette .edit-chips { padding: 0 6px; font-size: 10px; }
+.palette .edit-chips:hover,
+.palette .remove-chip:hover { translate: none; box-shadow: none; }
+/* While editing, each sandbox chip wears a red delete badge on its corner. Asking to confirm, the badge
+   slides in over the chip's place as ¿Borrar? (the same element, so it keeps the focus) and the chip slides out. */
+.removable-piece { position: relative; display: grid; }
+.removable-piece > * { grid-area: 1 / 1; }
+.removable-piece.confirming { overflow: hidden; }
+.removable-piece > .piece { animation: fade-in var(--fade) var(--ease); }
+.removable-piece.confirming > .piece { animation: slide-out-left var(--slide) var(--ease-soft) forwards; }
+.palette .remove-chip {
+  position: absolute;
+  top: calc(var(--badge) / -3);
+  right: calc(var(--badge) / -3);
+  justify-content: center;
+  width: var(--badge);
+  height: var(--badge);
+  padding: 0;
+  border-color: var(--bad);
+  border-radius: 50%;
+  background: var(--bad);
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  animation: pop 0.25s var(--spring);
+}
+.palette .remove-chip.danger {
+  position: static;
+  justify-content: center;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--bad);
+  font-weight: 600;
+  animation: slide-in-right var(--slide) var(--ease-soft);
 }
 
 .tool { display: inline-flex; align-items: center; gap: 6px; }
@@ -182,8 +229,10 @@
   border: 1px solid var(--line-strong);
 }
 .react-flow__handle.on { background: var(--on); }
-/* Handles grow under the pointer and while a wire is being dragged onto them. */
-.react-flow__handle { transition: scale 0.12s var(--ease); }
+/* Handles grow under the pointer and while a wire is being dragged onto them. React Flow centers them
+   with translate(-50%, -50%), which `scale` also scales: growing from the top-left corner of the
+   untransformed box keeps their center still, so a wire keeps meeting its middle. */
+.react-flow__handle { transform-origin: 0 0; transition: scale 0.12s var(--ease); }
 .react-flow__handle:hover, .react-flow__handle.connectingto, .react-flow__handle.valid { scale: 1.5; }
 /* A wire flashes once when it appears; it rests invisible, so reduced motion shows nothing. */
 .wire-flash { fill: none; stroke: var(--on); stroke-width: 5; opacity: 0; pointer-events: none; filter: drop-shadow(0 0 4px var(--on)); animation: flash 0.6s var(--ease); }
@@ -298,6 +347,11 @@
   pointer-events: none;
 }
 
+/* Deleted pieces shrink away, and their wires fade, before they go; out of reach meanwhile. */
+.react-flow__node.leaving { pointer-events: none; }
+.react-flow__node.leaving > * { animation: pop-out var(--fade) var(--ease) forwards; }
+.react-flow__edge.leaving { pointer-events: none; animation: fade-out var(--fade) var(--ease) forwards; }
+
 /* Rename */
 .renamable { cursor: text; }
 .rename { display: flex; flex-direction: column; }
@@ -319,8 +373,8 @@
   border-radius: 6px;
 }
 
-/* Logic gates drawn with their real symbol */
-.gate { display: flex; flex-direction: column; align-items: center; color: var(--text); font-size: 11px; }
+/* Logic gates drawn with their real symbol; they pop in like the other chips. */
+.gate { display: flex; flex-direction: column; align-items: center; color: var(--text); font-size: 11px; animation: pop 0.25s var(--spring); }
 .gate-frame { position: relative; width: 80px; height: 48px; }
 .gate-svg { display: block; overflow: visible; }
 .gate-body { fill: var(--chip); stroke: var(--line-strong); stroke-width: 2; stroke-linejoin: round; }

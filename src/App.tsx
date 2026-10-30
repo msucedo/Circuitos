@@ -143,13 +143,15 @@ export default function App() {
   const [savedSandbox, setSavedSandbox] = useState(() => loadSavedSandbox())
   // Bumped on every Probar so the result panel animates again.
   const [attempt, setAttempt] = useState(0)
+  // Bumped by every error the player causes, so the same one shown again shakes again.
+  const [errorCount, setErrorCount] = useState(0)
   // Levels the last Probar unlocked, so their buttons can celebrate once.
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set())
   const fileInput = useRef<HTMLInputElement>(null)
   const levelName = (l: Pick<Level, 'id'>) => levelText(t, l, 'name')
   // A level chip is always shown with its level's name in the current language, never the saved one.
   const chips = useMemo(() => save.chips.map((c): ChipDef => ({ ...c, name: chipLabel(t, c) })), [save.chips, t])
-  const customChips = chips.filter((c) => !levelById(c.id))
+  const customChipIds = useMemo(() => new Set(save.chips.filter((c) => !levelById(c.id)).map((c) => c.id)), [save.chips])
 
   const level = workspace === SANDBOX ? undefined : levelById(workspace)
   // The notice and the result keep showing what they said while they animate out.
@@ -166,7 +168,7 @@ export default function App() {
   const circuit: Circuit = level ? (save.drafts.get(level.id) ?? levelCircuit(level)) : save.sandbox
   const palette = level
     ? levelPalette(level, library)
-    : ['INPUT', 'OUTPUT', 'SPLIT', 'JOIN', 'CLOCK', 'NAND', 'VCC', 'RELAY', 'RELAY_NC', ...LEVELS.filter((l) => fullLibrary.has(l.id)).map((l) => l.id), ...save.chips.filter((c) => !levelById(c.id)).map((c) => c.id)]
+    : ['INPUT', 'OUTPUT', 'SPLIT', 'JOIN', 'CLOCK', 'NAND', 'VCC', 'RELAY', 'RELAY_NC', ...LEVELS.filter((l) => fullLibrary.has(l.id)).map((l) => l.id), ...customChipIds]
   const locked = useMemo(() => new Set(level ? [...level.spec.inputs, ...level.spec.outputs] : []), [level])
 
   useEffect(() => {
@@ -183,6 +185,14 @@ export default function App() {
     }
   }, [save])
 
+  /** An error from something the player did: it sounds and shakes like a failed Probar. Background ones stay quiet. */
+  const showError = (text: Notice['text']) => {
+    play('fail')
+    setNotice({ kind: 'error', text })
+    setErrorCount((c) => c + 1)
+  }
+  const showProblem = (p: Problem) => showError((t) => problemText(t, p))
+
   // A link pasted while the game is open changes only the hash.
   useEffect(() => {
     const read = () => {
@@ -190,7 +200,7 @@ export default function App() {
       if (!target) return
       loadShared(target).then(setIncoming, (error: unknown) => {
         if (!(error instanceof CircuitError)) throw error
-        setNotice({ kind: 'error', text: (t) => t('share.openFailed', { reason: problemText(t, error) }) })
+        showError((t) => t('share.openFailed', { reason: problemText(t, error) }))
       })
     }
     read()
@@ -224,6 +234,7 @@ export default function App() {
     if (id !== workspace) play('deal')
     setWorkspace(id)
     setConfirmReset(false)
+    setConfirmDelete(undefined)
     closeNaming()
     setResult(undefined)
     setNotice(undefined)
@@ -270,16 +281,16 @@ export default function App() {
   const saveChip = () => {
     const name = chipName.trim()
     if (name.length === 0 || name.length > LIMITS.text) {
-      return setNotice({ kind: 'error', text: (t) => t('app.chipNameLength', { max: LIMITS.text }) })
+      return showError((t) => t('app.chipNameLength', { max: LIMITS.text }))
     }
     if (!circuit.nodes.some((n) => n.kind === 'OUTPUT')) {
-      return setNotice(problemNotice(problem('chipNeedsOutput')))
+      return showProblem(problem('chipNeedsOutput'))
     }
     try {
       flatten(circuit, fullLibrary)
     } catch (error) {
       if (!(error instanceof CircuitError)) throw error
-      return setNotice(problemNotice(error))
+      return showProblem(error)
     }
     const id = chipIdFor(name, new Set(save.chips.map((c) => c.id)))
     setSave((s) => ({ ...s, chips: [...s.chips, { id, name, circuit }] }))
@@ -296,13 +307,11 @@ export default function App() {
     const users = chipUsers(id, chips, save.sandbox)
     if (users.chips.length > 0 || users.sandbox) {
       setConfirmDelete(undefined)
-      return setNotice({
-        kind: 'error',
-        text: (t) =>
-          t('app.chipInUse', {
-            users: [...users.chips.map((c) => `"${c.name}"`), ...(users.sandbox ? [t('app.sandboxCircuit')] : [])],
-          }),
-      })
+      return showError((t) =>
+        t('app.chipInUse', {
+          users: [...users.chips.map((c) => `"${c.name}"`), ...(users.sandbox ? [t('app.sandboxCircuit')] : [])],
+        }),
+      )
     }
     if (confirmDelete !== id) return setConfirmDelete(id)
     play('poof')
@@ -324,7 +333,7 @@ export default function App() {
       setIncoming({ project: parseProject(await readJsonFile(file)), id: ++incomingId, title: file.name })
     } catch (error) {
       if (!(error instanceof CircuitError)) throw error
-      setNotice({ kind: 'error', text: (t) => t('app.importFailed', { reason: problemText(t, error) }) })
+      showError((t) => t('app.importFailed', { reason: problemText(t, error) }))
     }
   }
 
@@ -366,7 +375,7 @@ export default function App() {
     setGallery(false)
     void loadShared({ kind: 'gallery', slug }).then(setIncoming, (error: unknown) => {
       if (!(error instanceof CircuitError)) throw error
-      setNotice({ kind: 'error', text: (t) => t('share.openFailed', { reason: problemText(t, error) }) })
+      showError((t) => t('share.openFailed', { reason: problemText(t, error) }))
     })
   }
 
@@ -382,10 +391,10 @@ export default function App() {
       loadedSave = parseSaveFile(await readJsonFile(file))
     } catch (error) {
       if (!(error instanceof CircuitError)) throw error
-      return setNotice({ kind: 'error', text: (t) => t('app.importFailed', { reason: problemText(t, error) }) })
+      return showError((t) => t('app.importFailed', { reason: problemText(t, error) }))
     }
     const failed = backupSave(save)
-    if (failed) return setNotice(problemNotice(failed))
+    if (failed) return showProblem(failed)
     setSave(loadedSave)
     setWorkspace(firstOpenLevel(new Set(loadedSave.solved)))
     setResult(undefined)
@@ -396,7 +405,7 @@ export default function App() {
   const resetAll = () => {
     // Starting over also drops the kept sandbox; both keep a copy first.
     const failed = backupSave(save) ?? clearSavedSandbox()
-    if (failed) return setNotice(problemNotice(failed))
+    if (failed) return showProblem(failed)
     setSavedSandbox(undefined)
     setSave(emptySave())
     setWorkspace(firstOpenLevel(new Set()))
@@ -653,32 +662,13 @@ export default function App() {
                 </button>
                 <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={importFile} />
               </div>
-              {customChips.length > 0 && (
-                <ul className="my-chips" aria-label={t('app.myChips')}>
-                  {customChips.map((c) => (
-                    <li key={c.id}>
-                      <span>{c.name}</span>
-                      <button
-                        type="button"
-                        className={confirmDelete === c.id ? 'danger' : ''}
-                        aria-label={
-                          confirmDelete === c.id ? t('app.confirmDeleteChip', { name: c.name }) : t('app.deleteChip', { name: c.name })
-                        }
-                        onClick={() => deleteChip(c.id)}
-                      >
-                        {confirmDelete === c.id ? t('app.confirmDeleteShort') : '×'}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </>
           )}
         </section>
 
         {shownNotice.shown && (
           <p
-            key={noticeText}
+            key={`${noticeText}:${errorCount}`}
             ref={noticeRef}
             className={`notice ${shownNotice.shown.kind}${shownNotice.closing ? ' closing' : ''}`}
             inert={shownNotice.closing}
@@ -722,6 +712,11 @@ export default function App() {
           refitKey={`${prefs.levelsCollapsed}-${prefs.piecesCollapsed}`}
           paletteCollapsed={prefs.piecesCollapsed}
           onTogglePalette={() => togglePref('piecesCollapsed')}
+          clearable={!level}
+          customChips={customChipIds}
+          confirmingChip={confirmDelete}
+          onRemoveChip={level ? undefined : deleteChip}
+          onCancelRemove={() => setConfirmDelete(undefined)}
           onChange={onChange}
         />
       </main>

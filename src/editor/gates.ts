@@ -73,3 +73,15 @@ export const CHIP_SYMBOLS: Record<string, string[]> = {
   MUX4: [MUX_BODY, 'M4 16H28', busMark(16, 16), 'M4 32H28', busMark(16, 32), 'M52 24H76', busMark(64, 24), SELECT],
   DMUX: [DMUX_BODY, 'M4 24H28', 'M52 16H76', 'M52 32H76', SELECT],
 }
+
+/** The chips made in the sandbox: a plain IC package with its notch, so they read as the player's own. */
+export const CUSTOM_CHIP_SYMBOL: string[] = [
+  'M28 6H52V42H28Z',
+  'M36 6A4 4 0 0 0 44 6',
+  'M18 14H28',
+  'M18 24H28',
+  'M18 34H28',
+  'M52 14H62',
+  'M52 24H62',
+  'M52 34H62',
+]

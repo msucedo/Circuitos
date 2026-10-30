@@ -1,9 +1,10 @@
-# Handoff: Circuitos (2026-10-27)
+# Handoff: Circuitos (2026-10-29)
 
 ## Dónde quedamos
 - **En producción en https://circuitos.io** (Vercel, desde el 2026-10-28; el usuario dejó Cloudflare porque le resultó complicado). Dominio en Namecheap con BasicDNS. `www.circuitos.io` redirige a `circuitos.io`, que es la dirección principal; no cambiarla, porque el progreso vive en el localStorage de esa dirección. Verificado en producción: CSP con `frame-ancestors`, HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y `assets/` `immutable`.
 - **Imagen para compartir:** `public/og.png` (1200×630), con las etiquetas `og:*` y `twitter:card` en `index.html`. Se hizo renderizando una plantilla HTML (logo, texto y recorte de `docs/img/nivel.webp`) con Playwright; si cambia el diseño del juego, se regenera.
-- Verificado: `tsc`, 174 pruebas unitarias, lint sin avisos, build, 42 e2e en Chrome real (con CSP) y `npm audit` en 0.
+- Verificado el 2026-10-29: `tsc` (app y e2e), 208 pruebas unitarias, lint sin avisos, build, 57 e2e en Chrome real (con CSP) y `npm audit` en 0.
+- **Último commit:** `56045b2` (compartir, galería y restaurar Modo libre). **Listo para subir:** "Mejoras de Modo libre" (abajo).
 - 21 niveles (20 principales y el 0 opcional de relés): compuertas → sumadores → latches y flip-flop → bloque 3 combinacional (MUX, DMUX, NOT4, MUX4, DECODER, INC4, ALU4) → bloque 3 memoria (BIT, REGISTER4, COUNTER4, RAM4).
 
 ## Mejoras de UX (2026-10-26, subidas por el usuario)
@@ -67,7 +68,7 @@ Verificado al final: `tsc`, 172 unitarias, lint sin avisos, build, 42 e2e y `npm
   - Sin `eval` ni `new Function`, porque la CSP los bloquea dentro de la página.
   - Los tiempos agotados a 30 s no se reprodujeron en más de 300 pruebas, ni con 8 workers. Coincidieron con la máquina ocupada. No se cambiaron `workers`, timeouts ni `retries`.
 
-## Compartir y galería (2026-10-28, sin subir)
+## Compartir y galería (2026-10-28, en `56045b2`)
 Verificado: `tsc`, 191 unitarias, lint sin avisos, build, 47 e2e (5 nuevas en `e2e/share.e2e.ts`) y `npm audit` en 0.
 - **Link:** Modo libre → **Compartir**. El circuito y sus chips van comprimidos en el fragmento: `#c=1.<deflate-raw base64url>` (`src/share.ts`). El fragmento no llega al servidor y no hay backend.
   - Al leerlo, el hash se borra (`takeSharedTarget` en `App.tsx`) y también se atiende `hashchange`.
@@ -116,6 +117,25 @@ Verificado: `tsc`, 191 unitarias, lint sin avisos, build, 47 e2e (5 nuevas en `e
   - Probar en Safari después del deploy.
 - **Guía:** comandos Compartir y Galería. `chipLabel` (`i18n.ts`) da el nombre de un chip de nivel en el idioma actual. `AUTHOR_URL`/`REPO_URL` viven en `src/links.ts`.
 - **Riesgo conocido (ya existía):** un link puede traer un chip de nivel que el jugador no ha resuelto (por ejemplo `XOR`). Entra a su paleta del Modo libre con ese nombre sin verificarse contra la spec. Los niveles no lo usan hasta resolverlo (`levelLibrary` pide `solved`).
+
+## Mejoras de Modo libre (2026-10-29, listo para subir)
+Verificado: `tsc` (app y e2e), 208 unitarias, lint sin avisos, build, 57 e2e y `npm audit` en 0. El usuario lo probó a mano y lo aprobó.
+- **Para subir:** son 22 archivos (en `src/`, `e2e/` y este HANDOFF), sin dependencias nuevas, sin cambios de CSP ni del formato del guardado (no hace falta migración). Al hacer push a `main`, Vercel publica solo.
+- **e2e intermitente:** "undo, redo, copy and paste" falló 2 veces por tiempo agotado en la suite completa con la máquina ocupada. Sola pasa 12 de 12 con 6 workers y la suite repetida pasa 57 de 57. No se encontró causa en la app; si vuelve a fallar con la máquina libre, investigarla.
+- **Errores estandarizados:** `showError`/`showProblem` en `App.tsx` suenan `fail` y el `.notice.error` se sacude como un Probar fallido. `errorCount` entra en el `key` del aviso, así que el mismo error repetido se vuelve a sacudir. El error de guardado en segundo plano (`writeSave`) sigue callado para no repetirse.
+- **Borrar chips desde Piezas:** la lista "Mis chips" del header ya no existe.
+  - En la paleta, en la misma línea que "Tus chips" (`role="group"`), hay un botón **Editar / Listo**. Al editar, cada chip propio lleva una insignia × roja (`--bad`) en la esquina.
+  - El primer clic hace que "¿Borrar?" entre deslizándose desde la derecha y ocupe el lugar del chip, que sale por la izquierda y queda `inert` (`slide-in-right`/`slide-out-left`, duran `--slide` 0.6 s con `--ease-soft`; rejilla de una celda en `.removable-piece`). Es el mismo botón, así no pierde el foco. El segundo clic borra.
+  - La edición termina sola (decisión del usuario): con un clic fuera (`pointerdown`), al salir con Tab (`onBlur` del grupo), al agregar un chip, al cambiar de pantalla (remonta) o cuando ya no quedan chips.
+  - La lógica sigue en `deleteChip` (`chipUsers` y la confirmación `confirmDelete`). El Editor recibe `customChips`, `confirmingChip`, `onRemoveChip` y `onCancelRemove`.
+- **Icono de chip propio:** `CUSTOM_CHIP_SYMBOL` (un chip DIP con muesca) en `gates.ts`. Sale de `customChips` (los chips guardados que no son de nivel), no del prefijo `U_`.
+- **Limpiar:** botón de la barra solo en Modo libre (`clearable`), con `ClearIcon`. Pide confirmación ("¿Seguro? Limpiar", y salir del botón la cancela) y usa `deleteElements`, así que se deshace con Ctrl+Z y tiene la animación de salida. Está en la Guía (`guide.commands.items.clear`).
+- **Entrada y salida de piezas:** las compuertas y los relés (`.gate`) ahora hacen `pop` como los chips. Al borrar, `onBeforeDelete` marca los nodos y cables con `.leaving` (`pop-out`/`fade-out`, que duran `--fade`) y espera `afterAnimations`. Con reduced motion se borra al instante. **Borrar ya no es síncrono**: en las pruebas hay que esperar (`waitFor` o `toHaveCount`).
+- **Arreglo de pines desacomodados:** con el `pop` de `.gate`, React Flow medía los pines al montar la pieza, todavía escalada, y los cables llegaban corridos, sobre todo al pin de arriba de las compuertas. Ahora `ChipNode` llama `updateNodeInternals(id)` en `onAnimationEnd` del propio nodo. Además, al pasar el mouse el pin crecía y se movía: el `scale` también agrandaba el `translate(-50%, -50%)` de React Flow. Con `transform-origin: 0 0` en `.react-flow__handle` crece desde su centro. Lo cubre la e2e "after a piece pops in, its wires still meet the middle of its pins".
+- **Zoom:** + y − suenan `zoomIn`/`zoomOut` (recetas nuevas) y centrar suena `tick`, en todo el juego. Dar `onFitView` reemplaza el encuadre de React Flow, así que ahora encuadra con `fitOptions(besideTheory)`, igual que al plegar una columna.
+- **Link compartido con el sandbox vacío:** la vista previa ya no dice "Reemplaza lo que tienes en Modo libre." (solo aparece si hay `keepCurrent`).
+- **e2e:** `recordSounds`/`sounds` pasaron a `e2e/helpers.ts`. Los selectores de "Mis chips" ahora usan `getByRole('group', { name: 'Tus chips' })`. Capturas nuevas: `edit-chips.png` y `confirm-delete-chip.png`.
+- **Pendiente del usuario:** revisar los textos nuevos en inglés (`editor.clear`, `confirmClear`, `editChips`, `doneEditing` y `guide.commands.items.clear`).
 
 ## Publicar en producción (pasos del usuario)
 1. **Deshacer Cloudflare:**

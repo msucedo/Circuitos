@@ -22,6 +22,7 @@ describe('PreviewDialog', () => {
     render(<PreviewDialog incoming={incoming} mine={[]} keepCurrent={{ replaces: false }} onCancel={vi.fn()} onOpen={onOpen} />)
     expect(keepBox()).toBeTruthy()
     expect((keepBox() as HTMLInputElement).checked).toBe(true)
+    expect(screen.getByText('Reemplaza lo que tienes en Modo libre.')).toBeTruthy()
     expect(screen.queryByText('Reemplaza el que ya guardaste.')).toBeNull()
     open()
     expect(onOpen).toHaveBeenCalledWith(incoming.project, true)
@@ -41,6 +42,8 @@ describe('PreviewDialog', () => {
     const onOpen = vi.fn()
     render(<PreviewDialog incoming={incoming} mine={[]} onCancel={vi.fn()} onOpen={onOpen} />)
     expect(keepBox()).toBeNull()
+    // Nothing there to replace, so it does not say it replaces anything.
+    expect(screen.queryByText('Reemplaza lo que tienes en Modo libre.')).toBeNull()
     open()
     expect(onOpen).toHaveBeenCalledWith(incoming.project, false)
   })

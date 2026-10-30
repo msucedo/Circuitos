@@ -1,29 +1,6 @@
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
-import { SHOTS, addPiece, freezeHalfway, levelButton, levelsBefore, node, restart, resumeAnimations, seedSolved, start, watchErrors, wire } from './helpers.ts'
+import { SHOTS, addPiece, freezeHalfway, handle, levelButton, levelsBefore, node, recordSounds, restart, resumeAnimations, seedSolved, sounds, start, watchErrors, wire } from './helpers.ts'
 
-type SoundLog = { __sounds: string[] }
-
-/** Records every sound source the app starts: an oscillator by its wave, or 'noise'. */
-async function recordSounds(page: Page) {
-  await page.addInitScript(() => {
-    const log: string[] = []
-    ;(window as unknown as SoundLog).__sounds = log
-    const tone = OscillatorNode.prototype.start
-    OscillatorNode.prototype.start = function (...args) {
-      log.push(this.type)
-      return tone.apply(this, args)
-    }
-    const noise = AudioBufferSourceNode.prototype.start
-    AudioBufferSourceNode.prototype.start = function (...args) {
-      log.push('noise')
-      return noise.apply(this, args)
-    }
-  })
-}
-
-/** The sources started since the last call. */
-const sounds = (page: Page) => page.evaluate(() => (window as unknown as SoundLog).__sounds.splice(0))
 
 test('the main actions make their sound, and Probar sounds different when it passes or fails', async ({ page }) => {
   const errors = watchErrors(page)
@@ -131,6 +108,66 @@ test('the hint, theory and result fold away instead of vanishing', async ({ page
   await page.getByRole('button', { name: 'Cerrar resultado' }).click()
   await expect(result).toHaveClass(/closing/)
   await expect(result).toHaveCount(0)
+})
+
+test('pieces pop in when added and shrink away when deleted, with their wires', async ({ page }) => {
+  await start(page)
+  await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
+  // Gates pop in like the other chips.
+  expect(await node(page, 'nand1').locator('.gate').evaluate((el) => getComputedStyle(el).animationName)).toBe('pop')
+  await wire(page, ['a', 'out'], ['nand1', 'a'])
+
+  await node(page, 'nand1').click()
+  await page.keyboard.press('Delete')
+  // It stays, out of reach, while it shrinks; its wire fades with it.
+  await freezeHalfway(page, '.react-flow__node.leaving')
+  await expect(node(page, 'nand1')).toHaveClass(/leaving/)
+  await expect(page.locator('.react-flow__edge.leaving')).toHaveCount(1)
+  await resumeAnimations(page)
+  await expect(node(page, 'nand1')).toHaveCount(0)
+  await expect(page.locator('.react-flow__edge')).toHaveCount(0)
+
+  // Undo brings it back without the exit class.
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(node(page, 'nand1')).not.toHaveClass(/leaving/)
+})
+
+test('after a piece pops in, its wires still meet the middle of its pins', async ({ page }) => {
+  await start(page)
+  await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
+  await wire(page, ['a', 'out'], ['nand1', 'a'])
+  await wire(page, ['a', 'out'], ['nand1', 'b'])
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))))
+  for (const pin of ['a', 'b']) {
+    const edge = page.getByTestId(`rf__edge-a.out->nand1.${pin}`).locator('.react-flow__edge-path')
+    // Where the drawn wire starts and ends, on the screen.
+    const ends = await edge.evaluate((el) => {
+      const path = el as SVGPathElement
+      const ctm = path.getScreenCTM()!
+      const at = (length: number) => new DOMPoint(path.getPointAtLength(length).x, path.getPointAtLength(length).y).matrixTransform(ctm)
+      const start = at(0)
+      const end = at(path.getTotalLength())
+      return { start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } }
+    })
+    for (const [point, [nodeId, handleId]] of [
+      [ends.start, ['a', 'out']],
+      [ends.end, ['nand1', pin]],
+    ] as const) {
+      const box = (await handle(page, nodeId, handleId).boundingBox())!
+      expect(Math.abs(point.y - (box.y + box.height / 2))).toBeLessThanOrEqual(1)
+      expect(point.x).toBeGreaterThanOrEqual(box.x - 1)
+      expect(point.x).toBeLessThanOrEqual(box.x + box.width + 1)
+    }
+  }
+})
+
+test('reduced motion: a deleted piece goes at once', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await start(page)
+  await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
+  await node(page, 'nand1').click()
+  await page.keyboard.press('Delete')
+  await expect(node(page, 'nand1')).toHaveCount(0)
 })
 
 test('reduced motion: panels close at once', async ({ page }) => {

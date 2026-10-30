@@ -81,7 +81,7 @@ test('NOT by hand: the LED follows the input, Probar unlocks AND, and progress s
   const palette = page.getByRole('complementary', { name: 'Piezas' })
   await expect(palette.locator('.palette-body').getByRole('button')).toHaveText(['NAND', 'NOT'])
   await expect(palette.getByRole('heading')).toHaveText(['Piezas', 'Básicas', 'Tus chips'])
-  await expect(palette.locator('h3:has-text("Tus chips") ~ button')).toHaveText(['NOT'])
+  await expect(palette.getByRole('group', { name: 'Tus chips' }).getByRole('button')).toHaveText(['NOT'])
   expect(errors).toEqual([])
 })
 

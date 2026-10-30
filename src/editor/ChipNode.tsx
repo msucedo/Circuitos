@@ -1,4 +1,5 @@
-import { Handle, Position } from '@xyflow/react'
+import { Handle, Position, useUpdateNodeInternals } from '@xyflow/react'
+import type { AnimationEvent } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -83,12 +84,18 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
   const width = widthOf(data)
   const locked = deletable === false
   const cls = `chip kind-${known ? data.kind.toLowerCase() : 'missing'}${selected ? ' selected' : ''}`
+  // React Flow measures the pins as the piece mounts, while it is still scaled down by its pop-in;
+  // once that ends, measure again so the wires meet the middle of each pin.
+  const updateNodeInternals = useUpdateNodeInternals()
+  const remeasure = (e: AnimationEvent) => {
+    if (e.target === e.currentTarget) updateNodeInternals(id)
+  }
 
   if (data.kind === 'INPUT') {
     const value = inputs.get(id) ?? 0
     const max = 2 ** width - 1
     return (
-      <div className={cls}>
+      <div className={cls} onAnimationEnd={remeasure}>
         {width === 1 ? (
           <button
             type="button"
@@ -122,7 +129,7 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
   if (data.kind === 'OUTPUT') {
     const value = signals.pin(id, 'in')
     return (
-      <div className={cls}>
+      <div className={cls} onAnimationEnd={remeasure}>
         <Handle type="target" position={Position.Left} id="in" className={handleClass(pins.inputs[0], value > 0)} />
         {width === 1 ? (
           <span className={`led${value ? ' on' : ''}`} role="img" aria-label={t('editor.output', { id, value })} />
@@ -144,7 +151,7 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
     const inputsOn = pins.inputs.map((pin) => incoming(id, pin.name) > 0)
     const outputOn = signals.pin(id, out.name) > 0
     return (
-      <div className={`gate kind-${data.kind.toLowerCase()}${selected ? ' selected' : ''}`} aria-label={t('editor.gate', { name: title })}>
+      <div className={`gate kind-${data.kind.toLowerCase()}${selected ? ' selected' : ''}`} onAnimationEnd={remeasure} aria-label={t('editor.gate', { name: title })}>
         <div className="gate-frame">
           <GateSymbol shape={shape} inputsOn={inputsOn} outputOn={outputOn} />
           {pins.inputs.map((pin, i) => (
@@ -168,7 +175,7 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
     const coilOn = incoming(id, 'c') > 0
     const outOn = signals.pin(id, 'out') > 0
     return (
-      <div className={`gate kind-${data.kind.toLowerCase()}${selected ? ' selected' : ''}`} aria-label={title}>
+      <div className={`gate kind-${data.kind.toLowerCase()}${selected ? ' selected' : ''}`} onAnimationEnd={remeasure} aria-label={title}>
         <div className="gate-frame">
           <RelaySymbol closed={coilOn !== relay.normallyClosed} coilOn={coilOn} inOn={incoming(id, 'in') > 0} outOn={outOn} />
           {pins.inputs.map((pin) => (
@@ -195,7 +202,7 @@ export function ChipNode({ id, data, selected, deletable }: NodeProps<ChipFlowNo
   }
   const showNames = (list: Pin[]) => list.length > 1 && data.kind !== 'NAND'
   return (
-    <div className={cls}>
+    <div className={cls} onAnimationEnd={remeasure}>
       <div className="chip-title">
         {known ? title : `¿${data.kind}?`}
         {width > 1 && <small> {width}</small>}

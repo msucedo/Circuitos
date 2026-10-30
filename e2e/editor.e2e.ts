@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { addPiece, node, restart, seedSolved, SHOTS, start, watchErrors, wire } from './helpers.ts'
+import { addPiece, node, recordSounds, restart, seedSolved, SHOTS, sounds, start, watchErrors, wire } from './helpers.ts'
 
 const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
 
@@ -294,5 +294,106 @@ test('Guardar como chip opens a small name field; Esc closes it and Enter saves'
   await page.keyboard.press('Enter')
   await expect(page.getByRole('status').filter({ hasText: 'Chip "Mi chip" guardado' })).toBeVisible()
   await expect(name).toHaveCount(0)
-  await expect(page.getByRole('list', { name: 'Mis chips' })).toContainText('Mi chip')
+  await expect(page.getByRole('group', { name: 'Tus chips' })).toContainText('Mi chip')
+})
+
+/** Saves what is on the sandbox canvas as a chip with this name. */
+async function saveChip(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Guardar como chip' }).click()
+  await page.getByRole('textbox', { name: 'Nombre del chip' }).fill(name)
+  await page.keyboard.press('Enter')
+  // Once the form rolls up, the focus goes back to its button.
+  await expect(page.getByRole('button', { name: 'Guardar como chip' })).toBeFocused()
+}
+
+test('a sandbox chip is deleted from the pieces column, with Editar and a confirmation', async ({ page }) => {
+  await sandbox(page)
+  await addPiece(page, 'Salida', 'output1', { x: 400, y: 250 })
+  await saveChip(page, 'Mi chip')
+  const yourChips = page.getByRole('group', { name: 'Tus chips' })
+  // The header no longer lists the chips.
+  await expect(page.locator('.brief').getByText('Mi chip')).toHaveCount(0)
+  await expect(yourChips.getByRole('button', { name: 'Borrar Mi chip' })).toHaveCount(0)
+
+  // Editar sits on the same line as its title.
+  const edit = yourChips.getByRole('button', { name: 'Editar' })
+  const middle = (box: { y: number; height: number } | null) => Math.round(box!.y + box!.height / 2)
+  expect(middle(await edit.boundingBox())).toBe(middle(await yourChips.getByRole('heading', { name: 'Tus chips' }).boundingBox()))
+  await edit.click()
+  await page.screenshot({ path: `${SHOTS}/edit-chips.png`, animations: 'disabled' })
+  // The delete badge is red.
+  const badge = yourChips.getByRole('button', { name: 'Borrar Mi chip' })
+  const bad = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bad').trim())
+  const red = await page.evaluate((c) => {
+    const probe = document.createElement('i')
+    probe.style.color = c
+    document.body.append(probe)
+    const rgb = getComputedStyle(probe).color
+    probe.remove()
+    return rgb
+  }, bad)
+  await expect(badge).toHaveCSS('background-color', red)
+  const chipBox = await yourChips.getByRole('button', { name: 'Mi chip', exact: true }).boundingBox()
+  await badge.click()
+  // ¿Borrar? slides into the chip's place, and the chip goes.
+  const confirm = yourChips.getByRole('button', { name: 'Confirmar borrar Mi chip' })
+  const chip = yourChips.locator('.removable-piece .piece')
+  await expect(chip).toHaveAttribute('inert')
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))))
+  await expect(chip).toHaveCSS('opacity', '0')
+  const confirmBox = await confirm.boundingBox()
+  expect(Math.round(confirmBox!.x)).toBe(Math.round(chipBox!.x))
+  expect(Math.round(confirmBox!.y)).toBe(Math.round(chipBox!.y))
+  await page.screenshot({ path: `${SHOTS}/confirm-delete-chip.png`, animations: 'disabled' })
+  await yourChips.getByRole('button', { name: 'Confirmar borrar Mi chip' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Chip borrado.' })).toBeVisible()
+  await expect(yourChips.getByRole('button', { name: 'Mi chip', exact: true })).toHaveCount(0)
+  // With no chips left, there is nothing to edit.
+  await expect(yourChips.getByRole('button', { name: 'Editar' })).toHaveCount(0)
+})
+
+test('a chip in use is not deleted: the error sounds and shakes like a failed Probar', async ({ page }) => {
+  await recordSounds(page)
+  await sandbox(page)
+  await addPiece(page, 'Salida', 'output1', { x: 400, y: 250 })
+  await saveChip(page, 'Mi chip')
+  const yourChips = page.getByRole('group', { name: 'Tus chips' })
+  await yourChips.getByRole('button', { name: 'Mi chip' }).click()
+
+  await yourChips.getByRole('button', { name: 'Editar' }).click()
+  await sounds(page)
+  await yourChips.getByRole('button', { name: 'Borrar Mi chip' }).click()
+  // The fail buzz is the only square wave.
+  expect(await sounds(page)).toContain('square')
+  const error = page.getByRole('alert')
+  await expect(error).toContainText('No se puede borrar')
+  await expect(error).toHaveCSS('animation-name', 'slide-down, shake')
+  await expect(yourChips.getByRole('button', { name: 'Mi chip', exact: true })).toBeVisible()
+
+  // A click outside the chips ends editing.
+  await page.locator('.brief h2').click()
+  await expect(yourChips.getByRole('button', { name: 'Borrar Mi chip' })).toHaveCount(0)
+})
+
+test('Limpiar empties the sandbox after a confirmation, and undo brings it back', async ({ page }) => {
+  await sandbox(page)
+  await addPiece(page, 'NAND', 'nand1', { x: 380, y: 280 })
+  await addPiece(page, 'Salida', 'output1', { x: 520, y: 280 })
+  await wire(page, ['nand1', 'out'], ['output1', 'in'])
+  const toolbar = page.getByRole('toolbar', { name: 'Herramientas' })
+  await toolbar.getByRole('button', { name: 'Limpiar' }).click()
+  await expect(page.locator('.react-flow__node')).toHaveCount(2)
+  await toolbar.getByRole('button', { name: '¿Seguro? Limpiar' }).click()
+  await expect(page.locator('.react-flow__node')).toHaveCount(0)
+  await expect(page.locator('.react-flow__edge')).toHaveCount(0)
+  await expect(toolbar.getByRole('button', { name: 'Limpiar' })).toBeDisabled()
+
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(page.locator('.react-flow__node')).toHaveCount(2)
+  await expect(page.locator('.react-flow__edge')).toHaveCount(1)
+})
+
+test('levels have no Limpiar: Reiniciar does that there', async ({ page }) => {
+  await start(page)
+  await expect(page.getByRole('toolbar', { name: 'Herramientas' }).getByRole('button', { name: 'Limpiar' })).toHaveCount(0)
 })

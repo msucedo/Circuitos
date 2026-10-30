@@ -86,6 +86,9 @@ const RECIPES = {
     { tone: 'sine', from: 600, at: 0, length: 0.03, gain: 0.2 },
   ],
   tick: [{ noise: 'highpass', from: 3500, at: 0, length: 0.015, gain: 0.5 }],
+  // A short glide up or down for the zoom buttons, quieter than dropping a piece.
+  zoomIn: [{ tone: 'sine', from: 500, to: 900, at: 0, length: 0.06, gain: 0.35 }],
+  zoomOut: [{ tone: 'sine', from: 900, to: 500, at: 0, length: 0.06, gain: 0.35 }],
   undo: [{ noise: 'bandpass', from: 2600, to: 700, q: 1.5, at: 0, length: 0.12, gain: 0.5 }],
   redo: [{ noise: 'bandpass', from: 700, to: 2600, q: 1.5, at: 0, length: 0.12, gain: 0.5 }],
   // A finger snap: a sharp, bright crack over a tiny body.

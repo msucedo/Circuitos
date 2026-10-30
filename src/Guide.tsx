@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { kindName } from './editor/context.ts'
 import { PieceIcon } from './editor/PieceIcon.tsx'
-import { BookIcon, ChevronIcon, StepIcon, TableIcon } from './icons.tsx'
+import { BookIcon, ChevronIcon, ClearIcon, StepIcon, TableIcon } from './icons.tsx'
 import es from './locales/es.json'
 import { RichText } from './RichText.tsx'
 import { Shortcuts } from './Shortcuts.tsx'
@@ -23,6 +23,7 @@ const COMMANDS: [command: Command, label: string, Icon?: ComponentType][] = [
   ['test', 'app.test'],
   ['showHint', 'app.showHint'],
   ['reset', 'app.reset'],
+  ['clear', 'editor.clear', ClearIcon],
   ['table', 'editor.table', TableIcon],
   ['theory', 'editor.theory', BookIcon],
   ['stepMode', 'editor.stepMode', StepIcon],

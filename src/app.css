@@ -112,7 +112,8 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
   animation: slide-down var(--fade) var(--ease);
 }
 .notice.closing { animation: slide-up-out var(--fade) var(--ease) forwards; }
-.notice.error { color: var(--bad); }
+/* An error shakes once it is in, like a failed Probar. */
+.notice.error { color: var(--bad); animation: slide-down var(--fade) var(--ease), shake 0.4s var(--ease) var(--fade); }
 .notice.info { color: var(--on); }
 .notice.warn { color: var(--warn); }
 .notice button { padding: 0 8px; }
@@ -235,25 +236,6 @@ button.big { padding: 8px 18px; font-size: 14px; font-weight: 600; }
 .save-chip { animation: fade-in var(--fade) var(--ease); }
 .chip-form input { width: 11rem; min-width: 0; }
 
-.my-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.my-chips li {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 2px 2px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: 13px;
-}
-.my-chips button { padding: 0 8px; }
 button.danger { border-color: var(--bad); color: var(--bad); }
 
 .levels .title { display: flex; align-items: center; gap: 8px; }

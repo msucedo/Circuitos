@@ -159,3 +159,26 @@ export const resumeAnimations = (page: Page) =>
     paused.forEach((a) => a.play())
     await Promise.all(paused.map((a) => a.finished.catch(() => undefined)))
   })
+
+type SoundLog = { __sounds: string[] }
+
+/** Records every sound source the app starts: an oscillator by its wave, or 'noise'. */
+export async function recordSounds(page: Page) {
+  await page.addInitScript(() => {
+    const log: string[] = []
+    ;(window as unknown as SoundLog).__sounds = log
+    const tone = OscillatorNode.prototype.start
+    OscillatorNode.prototype.start = function (...args) {
+      log.push(this.type)
+      return tone.apply(this, args)
+    }
+    const noise = AudioBufferSourceNode.prototype.start
+    AudioBufferSourceNode.prototype.start = function (...args) {
+      log.push('noise')
+      return noise.apply(this, args)
+    }
+  })
+}
+
+/** The sources started since the last call. */
+export const sounds = (page: Page) => page.evaluate(() => (window as unknown as SoundLog).__sounds.splice(0))

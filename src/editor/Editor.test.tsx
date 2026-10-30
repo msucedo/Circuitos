@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { build, nand } from '../sim/build.ts'
 import { LIBRARY, MUX, NOT, SR_LATCH } from '../sim/examples.ts'
@@ -139,6 +139,71 @@ describe('Editor', () => {
     expect(button('MUX').querySelector('svg.piece-icon')).toBeNull()
   })
 
+  it('draws the sandbox chips with the standard chip icon', () => {
+    const library = new Map([['U_MUX', { id: 'U_MUX', name: 'MUX', circuit: MUX }]])
+    setup(NOT, { palette: ['U_MUX'], library, customChips: new Set(['U_MUX']) })
+    expect(button('MUX').querySelector('svg.piece-icon.custom-chip')).toBeTruthy()
+  })
+
+  describe('editing the sandbox chips', () => {
+    const library = new Map([
+      ['U_MUX', { id: 'U_MUX', name: 'Mi mux', circuit: MUX }],
+      ['NOT', { id: 'NOT', name: 'NOT', circuit: NOT }],
+    ])
+    const editable = (props: Partial<EditorProps> = {}) => {
+      const onRemoveChip = vi.fn()
+      const onCancelRemove = vi.fn()
+      setup(NOT, { palette: ['NAND', 'NOT', 'U_MUX'], library, customChips: new Set(['U_MUX']), onRemoveChip, onCancelRemove, ...props })
+      return { onRemoveChip, onCancelRemove }
+    }
+    const remove = () => screen.queryByRole('button', { name: 'Borrar Mi mux' })
+
+    it('shows a delete button only on the sandbox chips while editing', () => {
+      const { onRemoveChip } = editable()
+      expect(remove()).toBeNull()
+      fireEvent.click(button('Editar'))
+      expect(button('Listo').getAttribute('aria-pressed')).toBe('true')
+      expect(remove()).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Borrar NOT' })).toBeNull()
+      fireEvent.click(remove()!)
+      expect(onRemoveChip).toHaveBeenCalledWith('U_MUX')
+    })
+
+    it('asks to confirm on the chip being deleted, and leaving its button gives up', () => {
+      const { onCancelRemove } = editable({ confirmingChip: 'U_MUX' })
+      fireEvent.click(button('Editar'))
+      const confirm = button('Confirmar borrar Mi mux')
+      expect(confirm.textContent).toBe('¿Borrar?')
+      expect(confirm.classList.contains('danger')).toBe(true)
+      // It takes the chip's place: the chip is out of reach meanwhile.
+      expect(document.querySelector('.removable-piece.confirming .piece')?.hasAttribute('inert')).toBe(true)
+      fireEvent.blur(confirm)
+      expect(onCancelRemove).toHaveBeenCalled()
+    })
+
+    it('stops editing on a click outside the chips or when a chip is added', () => {
+      const { onCancelRemove } = editable()
+      fireEvent.click(button('Editar'))
+      fireEvent.pointerDown(document.body)
+      expect(remove()).toBeNull()
+      expect(onCancelRemove).toHaveBeenCalled()
+      fireEvent.click(button('Editar'))
+      fireEvent.click(button('Mi mux'))
+      expect(remove()).toBeNull()
+      // Tabbing out of the chips ends it too; moving between them does not.
+      fireEvent.click(button('Editar'))
+      fireEvent.blur(button('Listo'), { relatedTarget: remove() })
+      expect(remove()).toBeTruthy()
+      fireEvent.blur(remove()!, { relatedTarget: document.body })
+      expect(remove()).toBeNull()
+    })
+
+    it('offers no editing without sandbox chips', () => {
+      editable({ customChips: new Set() })
+      expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    })
+  })
+
   it('plays a sound for adding, toggling, undoing, redoing and stepping', () => {
     setup(NOT, { palette: ['NAND'] })
     fireEvent.click(button('NAND'))
@@ -156,6 +221,16 @@ describe('Editor', () => {
     expect(play).toHaveBeenLastCalledWith('tick')
   })
 
+  it('plays a sound for the zoom and fit buttons', () => {
+    setup(NOT)
+    fireEvent.click(button('Zoom In'))
+    expect(play).toHaveBeenLastCalledWith('zoomIn')
+    fireEvent.click(button('Zoom Out'))
+    expect(play).toHaveBeenLastCalledWith('zoomOut')
+    fireEvent.click(button('Fit View'))
+    expect(play).toHaveBeenLastCalledWith('tick')
+  })
+
   it('stays quiet when there is nothing to undo', () => {
     setup(NOT)
     fireEvent.keyDown(window, { key: 'z', metaKey: true })
@@ -166,8 +241,39 @@ describe('Editor', () => {
     const { last } = setup(NOT)
     fireEvent.click(document.querySelector('.react-flow__node[data-id="n"]')!)
     await act(async () => fireEvent.click(button('Borrar')))
-    expect(nandIds(last())).toEqual([])
     expect(play).toHaveBeenLastCalledWith('poof')
+    // It stays for its exit animation, then goes.
+    expect(document.querySelector('.react-flow__node[data-id="n"]')?.classList.contains('leaving')).toBe(true)
+    await waitFor(() => expect(nandIds(last())).toEqual([]))
+  })
+
+  it('clears the whole sandbox after a confirmation, and undo brings it back', async () => {
+    const { last } = setup(NOT, { clearable: true })
+    fireEvent.click(button('Limpiar'))
+    // The first click only asks; leaving the button gives up.
+    expect(nandIds(last())).toEqual(['n'])
+    fireEvent.blur(button('¿Seguro? Limpiar'))
+    expect(button('Limpiar')).toBeTruthy()
+    fireEvent.click(button('Limpiar'))
+    await act(async () => fireEvent.click(button('¿Seguro? Limpiar')))
+    await waitFor(() => expect(last().nodes).toEqual([]))
+    expect(last().wires).toEqual([])
+    expect(play).toHaveBeenLastCalledWith('poof')
+    expect(button('Limpiar').hasAttribute('disabled')).toBe(true)
+    fireEvent.click(button('Deshacer'))
+    expect(last().nodes.map((n) => n.id)).toEqual(NOT.nodes.map((n) => n.id))
+    expect(last().wires).toHaveLength(NOT.wires.length)
+  })
+
+  it('keeps a level\'s locked pins when clearing, and only offers it when asked', async () => {
+    setup(NOT)
+    expect(screen.queryByRole('button', { name: 'Limpiar' })).toBeNull()
+    cleanup()
+    const { last } = setup(NOT, { clearable: true, locked: new Set(['a', 'out']) })
+    fireEvent.click(button('Limpiar'))
+    await act(async () => fireEvent.click(button('¿Seguro? Limpiar')))
+    await waitFor(() => expect(last().nodes.map((n) => n.id)).toEqual(['a', 'out']))
+    expect(last().wires).toEqual([])
   })
 
   it('shows structural problems in the status bar', () => {

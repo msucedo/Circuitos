@@ -22,11 +22,11 @@ import { canConnect, copySelection, edgeId, nextId, pasteCircuit, pinWidth, rena
 import type { ChipFlowNode } from './convert.ts'
 import { EditorContext, SIZED_KINDS, isBasicKind, kindName } from './context.ts'
 import { CollapseToggle } from '../CollapseToggle.tsx'
-import { BookIcon, CopyIcon, PasteIcon, RedoIcon, StepIcon, TableIcon, TrashIcon, UndoIcon } from '../icons.tsx'
+import { BookIcon, ClearIcon, CopyIcon, PasteIcon, RedoIcon, StepIcon, TableIcon, TrashIcon, UndoIcon } from '../icons.tsx'
 import { History } from './history.ts'
 import { PieceIcon } from './PieceIcon.tsx'
 import { play } from '../sound.ts'
-import { usePresence } from '../usePresence.ts'
+import { afterAnimations, usePresence } from '../usePresence.ts'
 import { TruthTable } from './TruthTable.tsx'
 import { useSimulation } from './useSimulation.ts'
 import { WireEdge } from './WireEdge.tsx'
@@ -87,6 +87,16 @@ export interface EditorProps {
   /** The pieces column is folded; it shows a fold button only when `onTogglePalette` is given. */
   paletteCollapsed?: boolean
   onTogglePalette?: () => void
+  /** Adds a Limpiar button that deletes every piece and wire it can, after a confirmation. */
+  clearable?: boolean
+  /** Chips the player saved in the sandbox: drawn with the chip icon, and deletable with `onRemoveChip`. */
+  customChips?: ReadonlySet<string>
+  /** The chip whose delete button now asks to confirm. */
+  confirmingChip?: string
+  /** Adds an Editar button to the chips; while editing, each sandbox chip shows a delete button. */
+  onRemoveChip?: (id: string) => void
+  /** Drops a pending confirmation: its button lost focus, or editing ended. */
+  onCancelRemove?: () => void
   onChange: (circuit: Circuit) => void
 }
 
@@ -105,18 +115,22 @@ interface ToolButtonProps {
   keys?: string
   disabled?: boolean
   pressed?: boolean
+  /** Asking to confirm something that cannot be taken back with one click. */
+  danger?: boolean
+  onBlur?: () => void
 }
 
 /** Icon plus text; on a phone only the icon shows, and the label stays as the accessible name. */
-function ToolButton({ label, icon, onClick, keys, disabled, pressed }: ToolButtonProps) {
+function ToolButton({ label, icon, onClick, keys, disabled, pressed, danger, onBlur }: ToolButtonProps) {
   return (
     <button
       type="button"
-      className="tool"
+      className={`tool${danger ? ' danger' : ''}`}
       aria-label={label}
       aria-pressed={pressed}
       title={keys ? `${label} (${keys})` : label}
       onClick={onClick}
+      onBlur={onBlur}
       disabled={disabled}
     >
       {icon}
@@ -151,6 +165,11 @@ function Canvas({
   refitKey,
   paletteCollapsed = false,
   onTogglePalette,
+  clearable = false,
+  customChips,
+  confirmingChip,
+  onRemoveChip,
+  onCancelRemove,
   onChange,
 }: EditorProps) {
   const { t } = useTranslation()
@@ -313,10 +332,24 @@ function Canvas({
   }
   const stopDrag = () => setDragging(false)
 
+  /** Marks what is going with `.leaving` and waits for its exit animation; at once without one (reduced motion). */
+  const leave = async (nodeIds: ReadonlySet<string>, edgeIds: ReadonlySet<string>) => {
+    if (nodeIds.size === 0 && edgeIds.size === 0) return
+    const mark = <T extends { id: string; className?: string }>(items: T[], ids: ReadonlySet<string>) =>
+      items.map((item) => (ids.has(item.id) ? { ...item, className: 'leaving' } : item))
+    setNodes((ns) => mark(ns, nodeIds))
+    setEdges((es) => mark(es, edgeIds))
+    // A frame later, so the class is on the page and its animation has started.
+    await new Promise((done) => requestAnimationFrame(done))
+    const els = [...(canvas.current?.querySelectorAll('.react-flow__node.leaving > *, .react-flow__edge.leaving') ?? [])]
+    await Promise.all(els.map((el) => new Promise<void>((done) => afterAnimations(el, done))))
+  }
+
   // React Flow only hands over what can be deleted, so the level's locked pins never make a sound.
-  const onBeforeDelete: OnBeforeDelete<ChipFlowNode> = async ({ nodes: removed }) => {
+  const onBeforeDelete: OnBeforeDelete<ChipFlowNode> = async ({ nodes: removed, edges: cut }) => {
     record()
     if (removed.length > 0) play('poof')
+    await leave(new Set(removed.map((n) => n.id)), new Set(cut.map((e) => e.id)))
     return true
   }
 
@@ -325,6 +358,14 @@ function Canvas({
   const selectedEdges = edges.filter((e) => e.selected)
   const canDelete = selectedNodes.length > 0 || selectedEdges.length > 0
   const deleteSelection = () => void deleteElements({ nodes: selectedNodes, edges: selectedEdges })
+  // Limpiar asks first, like Reiniciar; it goes the same way as Delete, so undo brings everything back.
+  const [confirmClear, setConfirmClear] = useState(false)
+  const deletableNodes = nodes.filter((n) => n.deletable !== false)
+  const clear = () => {
+    if (!confirmClear) return setConfirmClear(true)
+    setConfirmClear(false)
+    void deleteElements({ nodes: deletableNodes, edges })
+  }
 
   const rename = (from: string, to: string) => {
     const result = renameNode(nodes, edges, from, to)
@@ -388,23 +429,45 @@ function Canvas({
           ? { cls: 'ok', text: t('editor.status.clock', { value: clock }), help: t('editor.status.clockHelp') }
           : { cls: 'ok', text: t('editor.status.stable'), help: t('editor.status.stableHelp') }
 
+  // Editing the sandbox chips ends by itself: a click outside them, adding a chip, or another screen (a remount).
+  const yourChips = useRef<HTMLDivElement>(null)
+  const [editingChips, setEditingChips] = useState(false)
+  const stopEditing = useCallback(() => {
+    setEditingChips(false)
+    onCancelRemove?.()
+  }, [onCancelRemove])
+  useEffect(() => {
+    if (!editingChips) return
+    const outside = (e: Event) => {
+      if (!(e.target instanceof Node) || !yourChips.current?.contains(e.target)) stopEditing()
+    }
+    document.addEventListener('pointerdown', outside)
+    return () => document.removeEventListener('pointerdown', outside)
+  }, [editingChips, stopEditing])
+
   const blank = edges.length === 0 && nodes.every((n) => n.data.kind === 'INPUT' || n.data.kind === 'OUTPUT')
-  const pieceButton = (kind: string) => {
+  /** `covered` while its delete confirmation takes its place: out of reach until that ends. */
+  const pieceButton = (kind: string, covered = false) => {
     const needsBus = (kind === 'SPLIT' || kind === 'JOIN') && width < 2
     return (
       <button
         key={kind}
         type="button"
+        className="piece"
+        inert={covered}
         draggable={!needsBus}
         disabled={needsBus}
         onDragStart={(e) => {
           e.dataTransfer.setData(DRAG_TYPE, kind)
           e.dataTransfer.effectAllowed = 'move'
         }}
-        onClick={() => addNode(kind)}
+        onClick={() => {
+          addNode(kind)
+          if (editingChips) stopEditing()
+        }}
         title={needsBus ? t('editor.pickBus') : t('editor.addPiece')}
       >
-        <PieceIcon kind={kind} library={library} />
+        <PieceIcon kind={kind} library={library} custom={customChips?.has(kind)} />
         {kindName(t, kind, library)}
         {SIZED_KINDS.has(kind) && width > 1 ? ` ${width}` : ''}
       </button>
@@ -412,6 +475,29 @@ function Canvas({
   }
   const basics = palette.filter(isBasicKind)
   const chips = palette.filter((k) => !isBasicKind(k))
+  const removable = (kind: string) => !!onRemoveChip && !!customChips?.has(kind)
+  const canEditChips = chips.some(removable)
+  // Deleting the last one ends editing too.
+  const editing = editingChips && canEditChips
+  const chipButton = (kind: string) => {
+    if (!editing || !removable(kind)) return pieceButton(kind)
+    const name = kindName(t, kind, library)
+    const confirming = confirmingChip === kind
+    return (
+      <div key={kind} className={`removable-piece${confirming ? ' confirming' : ''}`}>
+        {pieceButton(kind, confirming)}
+        <button
+          type="button"
+          className={`remove-chip${confirming ? ' danger' : ''}`}
+          aria-label={confirming ? t('app.confirmDeleteChip', { name }) : t('app.deleteChip', { name })}
+          onClick={() => onRemoveChip?.(kind)}
+          onBlur={onCancelRemove}
+        >
+          {confirming ? t('app.confirmDeleteShort') : '×'}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="editor" style={{ '--theory-width': `${THEORY_WIDTH}px`, '--panel-margin': `${PANEL_MARGIN}px` } as CSSProperties}>
@@ -445,9 +531,32 @@ function Canvas({
               </select>
             </label>
           )}
-          {basics.map(pieceButton)}
-          <h3>{t('editor.yourChips')}</h3>
-          {chips.length > 0 ? chips.map(pieceButton) : <p className="palette-help">{t('editor.noChips')}</p>}
+          {basics.map((kind) => pieceButton(kind))}
+          <div
+            ref={yourChips}
+            className="your-chips"
+            role="group"
+            aria-labelledby="your-chips-title"
+            // Keyboard users leave with Tab; focus moved elsewhere by the app, while it was not here, does not count.
+            onBlur={(e) => {
+              if (editing && !e.currentTarget.contains(e.relatedTarget)) stopEditing()
+            }}
+          >
+            <div className="palette-subhead">
+              <h3 id="your-chips-title">{t('editor.yourChips')}</h3>
+              {canEditChips && (
+                <button
+                  type="button"
+                  className="edit-chips"
+                  aria-pressed={editing}
+                  onClick={() => (editing ? stopEditing() : setEditingChips(true))}
+                >
+                  {editing ? t('editor.doneEditing') : t('editor.editChips')}
+                </button>
+              )}
+            </div>
+            {chips.length > 0 ? chips.map(chipButton) : <p className="palette-help">{t('editor.noChips')}</p>}
+          </div>
         </div>
       </aside>
       <div className={`canvas${theoryRoom ? ' theory-room' : ''}`} ref={canvas} onDrop={onDrop} onDragOver={(e) => e.preventDefault()}>
@@ -457,6 +566,16 @@ function Canvas({
           <ToolButton label={t('editor.copy')} icon={<CopyIcon />} keys="Ctrl/⌘ + C" onClick={copy} />
           <ToolButton label={t('editor.paste')} icon={<PasteIcon />} keys="Ctrl/⌘ + V" onClick={paste} />
           <ToolButton label={t('editor.delete')} icon={<TrashIcon />} keys={t('editor.deleteKeys')} onClick={deleteSelection} disabled={!canDelete} />
+          {clearable && (
+            <ToolButton
+              label={confirmClear ? t('editor.confirmClear') : t('editor.clear')}
+              icon={<ClearIcon />}
+              onClick={clear}
+              onBlur={() => setConfirmClear(false)}
+              danger={confirmClear}
+              disabled={deletableNodes.length === 0 && edges.length === 0}
+            />
+          )}
           <span className="separator" />
           <ToolButton label={t('editor.table')} icon={<TableIcon />} pressed={showTable} 
             onClick={() => {
@@ -528,7 +647,16 @@ function Canvas({
             fitViewOptions={mountFit}
           >
             <Background />
-            <Controls showInteractive={false} />
+            {/* Giving onFitView replaces React Flow's own fit, so it fits like a column fold does. */}
+            <Controls
+              showInteractive={false}
+              onZoomIn={() => play('zoomIn')}
+              onZoomOut={() => play('zoomOut')}
+              onFitView={() => {
+                play('tick')
+                void fitView(fitOptions(besideTheory))
+              }}
+            />
           </ReactFlow>
         </EditorContext.Provider>
         <div className="side-panels">

@@ -79,6 +79,13 @@ export const TrashIcon = () => (
   </Icon>
 )
 
+/** An eraser over the floor line: wipes the whole canvas. */
+export const ClearIcon = () => (
+  <Icon>
+    <path d="M9.5 3l3.5 3.5-6 6H4.5L2.5 10.5a1 1 0 0 1 0-1.4zM6 6.5l3.5 3.5M9 13h4.5" />
+  </Icon>
+)
+
 export const TableIcon = () => (
   <Icon>
     <rect x="2.5" y="3" width="11" height="10" rx="1.5" />

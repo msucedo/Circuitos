@@ -128,8 +128,8 @@ test('a chip that clashes with one of yours has to be renamed before opening', a
   await preview(page).getByRole('button', { name: 'Renombrar' }).click()
   await expect(open).toBeEnabled()
   await open.click()
-  await expect(page.getByRole('list', { name: 'Mis chips' })).toContainText('Su chip')
-  await expect(page.getByRole('list', { name: 'Mis chips' })).toContainText('Mi chip')
+  await expect(page.getByRole('group', { name: 'Tus chips' })).toContainText('Su chip')
+  await expect(page.getByRole('group', { name: 'Tus chips' })).toContainText('Mi chip')
 })
 
 test('the sandbox kept before opening comes back once with Restaurar, and keeps the chips saved meanwhile', async ({ page }) => {
@@ -148,7 +148,7 @@ test('the sandbox kept before opening comes back once with Restaurar, and keeps 
   await page.getByRole('button', { name: 'Guardar como chip' }).click()
   await page.getByRole('textbox', { name: 'Nombre del chip' }).fill('Mayoría')
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('list', { name: 'Mis chips' })).toContainText('Mayoría')
+  await expect(page.getByRole('group', { name: 'Tus chips' })).toContainText('Mayoría')
 
   // Still there after a reload.
   await restart(page)
@@ -161,7 +161,7 @@ test('the sandbox kept before opening comes back once with Restaurar, and keeps 
   await expect(node(page, 'nand1')).toBeVisible()
   await expect(node(page, 'mayoria')).toHaveCount(0)
   await expect(page.locator('.notice')).toContainText('Restauraste tu Modo libre.')
-  await expect(page.getByRole('list', { name: 'Mis chips' })).toContainText('Mayoría')
+  await expect(page.getByRole('group', { name: 'Tus chips' })).toContainText('Mayoría')
   // Used up, also after a reload.
   await expect(page.getByRole('button', { name: 'Restaurar mi Modo libre' })).toHaveCount(0)
   await restart(page)
