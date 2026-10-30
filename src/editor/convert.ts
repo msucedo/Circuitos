@@ -3,6 +3,8 @@ import { nodePins } from '../sim/flatten.ts'
 import { ID_PATTERN } from '../sim/schema.ts'
 import { problem } from '../sim/types.ts'
 import type { ChipLibrary, Circuit, Problem } from '../sim/types.ts'
+import type { Signals } from './useSimulation.ts'
+import type { WireFlowEdge } from './WireEdge.tsx'
 
 export interface ChipData extends Record<string, unknown> {
   kind: string
@@ -68,6 +70,29 @@ export function pinWidth(
   } catch {
     return undefined
   }
+}
+
+/**
+ * The wires as drawn: each carries the value and width of its source pin. `stepMode` also marks
+ * the wires the last step changed.
+ */
+export function toWires(
+  edges: Edge[],
+  byId: ReadonlyMap<string, ChipFlowNode>,
+  signals: Signals,
+  library: ChipLibrary,
+  { animate, stepMode }: { animate: boolean; stepMode: boolean },
+): WireFlowEdge[] {
+  return edges.map((e) => ({
+    ...e,
+    type: 'wire',
+    data: {
+      value: signals.pin(e.source, e.sourceHandle ?? 'out'),
+      width: pinWidth(byId.get(e.source), e.sourceHandle, 'outputs', library) ?? 1,
+      animate,
+      changed: stepMode && signals.changed(e.source, e.sourceHandle ?? 'out'),
+    },
+  }))
 }
 
 /** An input pin takes a single wire of its own width; an output can feed any number of inputs. */

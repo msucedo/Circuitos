@@ -5,9 +5,10 @@ import { LEVELS } from '../src/levels/levels.ts'
 /** Screenshots go here so they can be reviewed by hand; set SHOTS to change it. */
 export const SHOTS = process.env.SHOTS ?? 'test-results/shots'
 
-export const node = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"]`)
+// On the editor's canvas: previews draw circuits with the same pieces.
+export const node = (page: Page, id: string) => page.locator(`.canvas .react-flow__node[data-id="${id}"]`)
 export const handle = (page: Page, nodeId: string, pin: string) =>
-  page.locator(`.react-flow__handle[data-nodeid="${nodeId}"][data-handleid="${pin}"]`)
+  page.locator(`.canvas .react-flow__handle[data-nodeid="${nodeId}"][data-handleid="${pin}"]`)
 
 async function center(locator: Locator) {
   const box = await locator.boundingBox()

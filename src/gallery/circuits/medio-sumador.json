@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "circuit": {
+    "nodes": [
+      {
+        "id": "a",
+        "kind": "INPUT",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": "b",
+        "kind": "INPUT",
+        "x": 0,
+        "y": 160
+      },
+      {
+        "id": "n",
+        "kind": "NAND",
+        "x": 180,
+        "y": 80
+      },
+      {
+        "id": "x1",
+        "kind": "NAND",
+        "x": 360,
+        "y": 0
+      },
+      {
+        "id": "x2",
+        "kind": "NAND",
+        "x": 360,
+        "y": 160
+      },
+      {
+        "id": "xor",
+        "kind": "NAND",
+        "x": 540,
+        "y": 80
+      },
+      {
+        "id": "and",
+        "kind": "NAND",
+        "x": 540,
+        "y": 240
+      },
+      {
+        "id": "suma",
+        "kind": "OUTPUT",
+        "x": 720,
+        "y": 80
+      },
+      {
+        "id": "acarreo",
+        "kind": "OUTPUT",
+        "x": 720,
+        "y": 240
+      }
+    ],
+    "wires": [
+      {
+        "from": {
+          "node": "a",
+          "pin": "out"
+        },
+        "to": {
+          "node": "n",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "b",
+          "pin": "out"
+        },
+        "to": {
+          "node": "n",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "a",
+          "pin": "out"
+        },
+        "to": {
+          "node": "x1",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "n",
+          "pin": "out"
+        },
+        "to": {
+          "node": "x1",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "b",
+          "pin": "out"
+        },
+        "to": {
+          "node": "x2",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "n",
+          "pin": "out"
+        },
+        "to": {
+          "node": "x2",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "x1",
+          "pin": "out"
+        },
+        "to": {
+          "node": "xor",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "x2",
+          "pin": "out"
+        },
+        "to": {
+          "node": "xor",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "n",
+          "pin": "out"
+        },
+        "to": {
+          "node": "and",
+          "pin": "a"
+        }
+      },
+      {
+        "from": {
+          "node": "n",
+          "pin": "out"
+        },
+        "to": {
+          "node": "and",
+          "pin": "b"
+        }
+      },
+      {
+        "from": {
+          "node": "xor",
+          "pin": "out"
+        },
+        "to": {
+          "node": "suma",
+          "pin": "in"
+        }
+      },
+      {
+        "from": {
+          "node": "and",
+          "pin": "out"
+        },
+        "to": {
+          "node": "acarreo",
+          "pin": "in"
+        }
+      }
+    ]
+  },
+  "chips": []
+}

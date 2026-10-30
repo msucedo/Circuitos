@@ -4,5 +4,11 @@
     "name": "Mayoría de 3",
     "description": "Tres jueces votan con a, b y c; la salida es 1 cuando al menos dos dicen que sí. Seis NAND, sin chips.",
     "author": "msucedo"
+  },
+  {
+    "slug": "medio-sumador",
+    "name": "Medio sumador",
+    "description": "Suma dos bits: suma es a XOR b y acarreo es a AND b. Cinco NAND, sin chips.",
+    "author": "msucedo"
   }
 ]

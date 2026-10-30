@@ -80,6 +80,13 @@
     "pieces_one": "{{count}} pieza, contando las de adentro de los chips.",
     "pieces_other": "{{count}} piezas, contando las de adentro de los chips.",
     "chips": "Chips que trae",
+    "circuit": "Circuito",
+    "tryIt": "Toca las entradas para probarlo.",
+    "tabs": "Vista del circuito",
+    "diagram": "Diagrama",
+    "parts": "Piezas",
+    "partCount": "× {{count}}",
+    "truthTable": "Tabla de verdad",
     "chipNew": "nuevo",
     "chipKept": "ya lo tienes",
     "chipConflict": "ya tienes uno distinto con este nombre",
@@ -94,7 +101,8 @@
     "keepReplaces": "Reemplaza el que ya guardaste.",
     "restoreTitle": "¿Restaurar tu Modo libre guardado?",
     "restoreText": "Reemplaza lo que tienes ahora en Modo libre. Lo guardado se usa una vez.",
-    "confirmRestore": "Sí, restaurar"
+    "confirmRestore": "Sí, restaurar",
+    "backToGallery": "Volver a la galería"
   },
   "gallery": {
     "title": "Galería",
@@ -103,7 +111,8 @@
     "howToSend": "Para mandar el tuyo: en Modo libre, Compartir y luego Enviar a la galería.",
     "open": "Abrir",
     "openEntry": "Abrir {{name}}",
-    "copyEntry": "Copiar link de {{name}}"
+    "copyEntry": "Copiar link de {{name}}",
+    "close": "Cerrar galería"
   },
   "result": {
     "works": "¡Funciona!",

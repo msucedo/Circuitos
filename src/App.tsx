@@ -373,10 +373,13 @@ export default function App() {
 
   const openGalleryEntry = (slug: string) => {
     setGallery(false)
-    void loadShared({ kind: 'gallery', slug }).then(setIncoming, (error: unknown) => {
-      if (!(error instanceof CircuitError)) throw error
-      showError((t) => t('share.openFailed', { reason: problemText(t, error) }))
-    })
+    void loadShared({ kind: 'gallery', slug }).then(
+      (next) => setIncoming({ ...next, fromGallery: true }),
+      (error: unknown) => {
+        if (!(error instanceof CircuitError)) throw error
+        showError((t) => t('share.openFailed', { reason: problemText(t, error) }))
+      },
+    )
   }
 
   const closeWelcome = () => setWelcome(false)
@@ -464,7 +467,14 @@ export default function App() {
           <button type="button" className={`sandbox${workspace === SANDBOX ? ' current' : ''}`} onClick={() => open(SANDBOX)}>
             {t('app.sandbox')}
           </button>
-          <button type="button" className="gallery-button" onClick={() => setGallery(true)}>
+          <button
+            type="button"
+            className="gallery-button"
+            onClick={() => {
+              play('deal')
+              setGallery(true)
+            }}
+          >
             {t('gallery.title')}
           </button>
           {/* Shown instead of the list on a phone. */}
@@ -557,7 +567,11 @@ export default function App() {
         incoming={incoming}
         mine={chips}
         keepCurrent={hasWork(save.sandbox) ? { replaces: !!savedSandbox } : undefined}
-        onCancel={() => setIncoming(undefined)}
+        onCancel={() => {
+          // Back where it was opened from.
+          if (incoming?.fromGallery) setGallery(true)
+          setIncoming(undefined)
+        }}
         onOpen={openIncoming}
       />
       <ShareDialog project={sharing} onClose={() => setSharing(undefined)} />

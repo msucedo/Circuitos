@@ -28,4 +28,10 @@ describe('gallery', () => {
     const spec = tableSpec(['a', 'b', 'c'], ['out'], (a, b, c) => [a + b + c >= 2 ? 1 : 0])
     expect(verify(project.circuit, toLibrary(project.chips), spec).passed).toBe(true)
   })
+
+  it('the half adder does what its description says', async () => {
+    const { project } = await loadGalleryEntry('medio-sumador')
+    const spec = tableSpec(['a', 'b'], ['suma', 'acarreo'], (a, b) => [a === b ? 0 : 1, a && b])
+    expect(verify(project.circuit, toLibrary(project.chips), spec).passed).toBe(true)
+  })
 })

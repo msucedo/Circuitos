@@ -9,7 +9,7 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react'
-import type { Connection, Edge, EdgeTypes, FitViewOptions, NodeTypes, OnBeforeDelete, XYPosition } from '@xyflow/react'
+import type { Connection, Edge, FitViewOptions, OnBeforeDelete, XYPosition } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, DragEvent, ReactNode } from 'react'
@@ -17,24 +17,20 @@ import { useTranslation } from 'react-i18next'
 import { problemText } from '../i18n.ts'
 import type { Bit, ChipLibrary, Circuit } from '../sim/types.ts'
 import type { Spec } from '../sim/verify.ts'
-import { ChipNode } from './ChipNode.tsx'
-import { canConnect, copySelection, edgeId, nextId, pasteCircuit, pinWidth, renameNode, toCircuit, toFlow } from './convert.ts'
+import { canConnect, copySelection, edgeId, nextId, pasteCircuit, renameNode, toCircuit, toFlow, toWires } from './convert.ts'
 import type { ChipFlowNode } from './convert.ts'
 import { EditorContext, SIZED_KINDS, isBasicKind, kindName } from './context.ts'
 import { CollapseToggle } from '../CollapseToggle.tsx'
 import { BookIcon, ClearIcon, CopyIcon, PasteIcon, RedoIcon, StepIcon, TableIcon, TrashIcon, UndoIcon } from '../icons.tsx'
+import { edgeTypes, nodeTypes } from './flowTypes.ts'
 import { History } from './history.ts'
 import { PieceIcon } from './PieceIcon.tsx'
 import { play } from '../sound.ts'
 import { afterAnimations, usePresence } from '../usePresence.ts'
 import { TruthTable } from './TruthTable.tsx'
 import { useSimulation } from './useSimulation.ts'
-import { WireEdge } from './WireEdge.tsx'
-import type { WireFlowEdge } from './WireEdge.tsx'
 import './editor.css'
 
-const nodeTypes: NodeTypes = { chip: ChipNode }
-const edgeTypes: EdgeTypes = { wire: WireEdge }
 const DRAG_TYPE = 'application/x-circuitos-kind'
 const CLOCK_MS = 500
 /** Theory panel size in px; app.css reads it through --theory-width and --panel-margin. */
@@ -388,16 +384,7 @@ function Canvas({
   }
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
-  const wires: WireFlowEdge[] = edges.map((e) => ({
-    ...e,
-    type: 'wire',
-    data: {
-      value: signals.pin(e.source, e.sourceHandle ?? 'out'),
-      width: pinWidth(byId.get(e.source), e.sourceHandle, 'outputs', library) ?? 1,
-      animate: !dragging,
-      changed: stepMode && signals.changed(e.source, e.sourceHandle ?? 'out'),
-    },
-  }))
+  const wires = toWires(edges, byId, signals, library, { animate: !dragging, stepMode })
 
   const context = useMemo(
     () => ({

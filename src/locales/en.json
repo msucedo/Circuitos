@@ -80,6 +80,13 @@
     "pieces_one": "{{count}} piece, counting the ones inside chips.",
     "pieces_other": "{{count}} pieces, counting the ones inside chips.",
     "chips": "Chips it brings",
+    "circuit": "Circuit",
+    "tryIt": "Tap the inputs to try it.",
+    "tabs": "Circuit view",
+    "diagram": "Diagram",
+    "parts": "Pieces",
+    "partCount": "× {{count}}",
+    "truthTable": "Truth table",
     "chipNew": "new",
     "chipKept": "you have it",
     "chipConflict": "you have a different one with this name",
@@ -94,7 +101,8 @@
     "keepReplaces": "It replaces the one you kept before.",
     "restoreTitle": "Restore your kept Free mode?",
     "restoreText": "It replaces what you have now in Free mode. What you kept is used once.",
-    "confirmRestore": "Yes, restore"
+    "confirmRestore": "Yes, restore",
+    "backToGallery": "Back to the gallery"
   },
   "gallery": {
     "title": "Gallery",
@@ -103,7 +111,8 @@
     "howToSend": "To send yours: in Free mode, Share and then Send to the gallery.",
     "open": "Open",
     "openEntry": "Open {{name}}",
-    "copyEntry": "Copy link to {{name}}"
+    "copyEntry": "Copy link to {{name}}",
+    "close": "Close gallery"
   },
   "result": {
     "works": "It works!",

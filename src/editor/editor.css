@@ -338,6 +338,12 @@
 .truth-table tr.wrong .verdict { color: var(--bad); }
 .table-note { margin: 0; max-width: 220px; color: var(--muted); font-size: 13px; }
 
+/* A read-only circuit: a gallery thumbnail, or the live one in a preview. */
+.circuit-view { height: 140px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); }
+.circuit-view.live { height: 240px; }
+/* React Flow lets clicks through pieces that cannot be selected or dragged; the inputs still take them. */
+.circuit-view.live .switch, .circuit-view.live .bus-value input { pointer-events: all; }
+
 /* Buses */
 .bus-value { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
 .bus-value input { width: 64px; padding: 2px 4px; }
