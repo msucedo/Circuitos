@@ -305,9 +305,10 @@
         "pauseClock": "Detiene el reloj; con Tic lo cambias a mano, un medio ciclo a la vez.",
         "bits": "Elige el ancho (1, 2, 4, 8 o 16 bits) de las Entradas, Salidas, Separar y Juntar que agregues.",
         "export": "Descarga el circuito como archivo JSON. Importar (en Modo libre) lo abre otra vez.",
-        "share": "En Modo libre, crea un link con tu circuito y sus chips; quien lo abre ve qué trae antes de cargarlo. Un link aguanta más de 200 piezas, contando las de adentro de los chips; para algo más grande usa Exportar. Desde ahí también puedes enviarlo a la galería.",
-        "gallery": "Circuitos de la comunidad, revisados a mano, para abrir en Modo libre.",
+        "share": "En Modo libre, crea un link con tu circuito y sus chips; quien lo abre puede probarlo y ver qué trae antes de cargarlo. Un link aguanta más de 200 piezas, contando las de adentro de los chips; para algo más grande usa Exportar. Desde ahí también puedes enviarlo a la galería.",
+        "gallery": "Circuitos de la comunidad, revisados a mano. Al elegir uno puedes probarlo, ver sus piezas y su tabla de verdad antes de abrirlo en Modo libre, o volver a la lista.",
         "saveChip": "En Modo libre, guarda tu circuito como chip para usarlo dentro de otros.",
+        "editChips": "En Tus chips, muestra una × en cada chip que guardaste. La × pide confirmación antes de borrarlo, y un chip que estás usando en el lienzo no se borra. Listo, o un clic fuera, termina.",
         "restoreSandbox": "En Modo libre, vuelve una vez al circuito que guardaste antes de abrir uno compartido; reemplaza lo que tienes ahora, así que si quieres conservarlo guárdalo antes como chip. Solo se guarda uno, no va en Descargar mi progreso y Borrar mi progreso también lo borra.",
         "fold": "Las flechas junto a Circuitos y a Piezas pliegan cada columna para dar más espacio al lienzo."
       }

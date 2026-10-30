@@ -305,9 +305,10 @@
         "pauseClock": "Stops the clock; with Tick you switch it by hand, half a cycle at a time.",
         "bits": "Picks the width (1, 2, 4, 8 or 16 bits) of the Inputs, Outputs, Split and Join you add.",
         "export": "Downloads the circuit as a JSON file. Import (in the Sandbox) opens it again.",
-        "share": "In Free mode, makes a link with your circuit and its chips; whoever opens it sees what it brings before loading it. A link holds more than 200 pieces, counting the ones inside chips; for something bigger use Export. From there you can also send it to the gallery.",
-        "gallery": "Community circuits, reviewed by hand, to open in Free mode.",
-        "saveChip": "In the Sandbox, saves your circuit as a chip to use inside others.",
+        "share": "In Free mode, makes a link with your circuit and its chips; whoever opens it can try it and see what it brings before loading it. A link holds more than 200 pieces, counting the ones inside chips; for something bigger use Export. From there you can also send it to the gallery.",
+        "gallery": "Community circuits, reviewed by hand. When you pick one you can try it and see its pieces and truth table before opening it in Free mode, or go back to the list.",
+        "saveChip": "In Free mode, saves your circuit as a chip to use inside others.",
+        "editChips": "In Your chips, shows a × on each chip you saved. The × asks before deleting it, and a chip in use on the canvas is not deleted. Done, or a click outside, ends it.",
         "restoreSandbox": "In Free mode, goes back once to the circuit you kept before opening a shared one; it replaces what you have now, so save that as a chip first if you want it. Only one is kept, it is not in Download my progress, and Delete my progress deletes it too.",
         "fold": "The arrows next to Circuitos and Pieces fold each column to give the canvas more room."
       }

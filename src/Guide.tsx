@@ -33,6 +33,7 @@ const COMMANDS: [command: Command, label: string, Icon?: ComponentType][] = [
   ['share', 'share.open'],
   ['gallery', 'gallery.title'],
   ['saveChip', 'app.saveChip'],
+  ['editChips', 'editor.editChips'],
   ['restoreSandbox', 'app.restoreSandbox'],
   ['fold', 'guide.foldLabel', ChevronIcon],
 ]
