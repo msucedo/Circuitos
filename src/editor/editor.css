@@ -69,8 +69,16 @@
 .removable-piece { position: relative; display: grid; }
 .removable-piece > * { grid-area: 1 / 1; }
 .removable-piece.confirming { overflow: hidden; }
-.removable-piece > .piece { animation: fade-in var(--fade) var(--ease); }
-.removable-piece.confirming > .piece { animation: slide-out-left var(--slide) var(--ease-soft) forwards; }
+/* Transitions, not animations: they run on a state change only, never when the chip mounts. */
+.removable-piece > .piece { transition: opacity var(--fade) var(--ease), translate var(--fade) var(--ease); }
+/* Entering editing, the chips that can go pulse twice in the badge's red. */
+.removable-piece.editing > .piece { animation: pulse-bad 0.5s var(--ease) 2; }
+.removable-piece.confirming > .piece {
+  opacity: 0;
+  translate: -100% 0;
+  transition-duration: var(--slide);
+  transition-timing-function: var(--ease-soft);
+}
 .palette .remove-chip {
   position: absolute;
   top: calc(var(--badge) / -3);

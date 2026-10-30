@@ -102,6 +102,11 @@ const RECIPES = {
     { tone: 'triangle', from: NOTE.D4, at: 0, length: 0.06, gain: 0.7 },
     { tone: 'triangle', from: NOTE.A4, at: 0.06, length: 0.22, gain: 0.7 },
   ],
+  // Two light taps as Editar gets the sandbox chips ready to be deleted.
+  edit: [
+    { tone: 'triangle', from: NOTE.E5, at: 0, length: 0.05, gain: 0.4 },
+    { tone: 'triangle', from: NOTE.E5, at: 0.1, length: 0.05, gain: 0.4 },
+  ],
   // A swoosh as a column, the table or the theory folds away or opens; lower than undo/redo.
   fold: [{ noise: 'lowpass', from: 2400, to: 500, at: 0, length: 0.2, gain: 0.9, attack: PUFF_ATTACK }],
   unfold: [{ noise: 'lowpass', from: 500, to: 2400, at: 0, length: 0.2, gain: 0.9, attack: PUFF_ATTACK }],

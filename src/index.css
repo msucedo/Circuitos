@@ -99,6 +99,9 @@ input[type='text'], textarea {
 @keyframes glow {
   30% { box-shadow: 0 0 0 3px rgb(74 222 128 / 0.5), 0 0 16px rgb(74 222 128 / 0.6); }
 }
+@keyframes pulse-bad {
+  40% { scale: 1.04; box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 45%, transparent); }
+}
 @keyframes unlock {
   from { opacity: 1; }
   40% { translate: 0 -3px; rotate: -12deg; }

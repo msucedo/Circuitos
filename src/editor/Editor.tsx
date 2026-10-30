@@ -480,21 +480,24 @@ function Canvas({
   // Deleting the last one ends editing too.
   const editing = editingChips && canEditChips
   const chipButton = (kind: string) => {
-    if (!editing || !removable(kind)) return pieceButton(kind)
+    if (!removable(kind)) return pieceButton(kind)
     const name = kindName(t, kind, library)
-    const confirming = confirmingChip === kind
+    const confirming = editing && confirmingChip === kind
+    // Wrapped even when not editing, so entering or leaving editing never remounts the chip (it would blink).
     return (
-      <div key={kind} className={`removable-piece${confirming ? ' confirming' : ''}`}>
+      <div key={kind} className={`removable-piece${editing ? ' editing' : ''}${confirming ? ' confirming' : ''}`}>
         {pieceButton(kind, confirming)}
-        <button
-          type="button"
-          className={`remove-chip${confirming ? ' danger' : ''}`}
-          aria-label={confirming ? t('app.confirmDeleteChip', { name }) : t('app.deleteChip', { name })}
-          onClick={() => onRemoveChip?.(kind)}
-          onBlur={onCancelRemove}
-        >
-          {confirming ? t('app.confirmDeleteShort') : '×'}
-        </button>
+        {editing && (
+          <button
+            type="button"
+            className={`remove-chip${confirming ? ' danger' : ''}`}
+            aria-label={confirming ? t('app.confirmDeleteChip', { name }) : t('app.deleteChip', { name })}
+            onClick={() => onRemoveChip?.(kind)}
+            onBlur={onCancelRemove}
+          >
+            {confirming ? t('app.confirmDeleteShort') : '×'}
+          </button>
+        )}
       </div>
     )
   }
@@ -549,7 +552,11 @@ function Canvas({
                   type="button"
                   className="edit-chips"
                   aria-pressed={editing}
-                  onClick={() => (editing ? stopEditing() : setEditingChips(true))}
+                  onClick={() => {
+                    if (editing) return stopEditing()
+                    setEditingChips(true)
+                    play('edit')
+                  }}
                 >
                   {editing ? t('editor.doneEditing') : t('editor.editChips')}
                 </button>

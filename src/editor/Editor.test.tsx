@@ -163,6 +163,9 @@ describe('Editor', () => {
       expect(remove()).toBeNull()
       fireEvent.click(button('Editar'))
       expect(button('Listo').getAttribute('aria-pressed')).toBe('true')
+      expect(play).toHaveBeenLastCalledWith('edit')
+      // The chips that can go pulse.
+      expect(document.querySelector('.removable-piece.editing .piece')).toBe(button('Mi mux'))
       expect(remove()).toBeTruthy()
       expect(screen.queryByRole('button', { name: 'Borrar NOT' })).toBeNull()
       fireEvent.click(remove()!)
@@ -196,6 +199,16 @@ describe('Editor', () => {
       expect(remove()).toBeTruthy()
       fireEvent.blur(remove()!, { relatedTarget: document.body })
       expect(remove()).toBeNull()
+    })
+
+    it('keeps the same chip element in and out of editing, so it does not blink', () => {
+      editable({ confirmingChip: 'U_MUX' })
+      const chip = button('Mi mux')
+      fireEvent.click(button('Editar'))
+      expect(document.querySelector('.removable-piece .piece')).toBe(chip)
+      fireEvent.click(button('Listo'))
+      expect(button('Mi mux')).toBe(chip)
+      expect(chip.hasAttribute('inert')).toBe(false)
     })
 
     it('offers no editing without sandbox chips', () => {
