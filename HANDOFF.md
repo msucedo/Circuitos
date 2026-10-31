@@ -1,10 +1,10 @@
-# Handoff: Circuitos (2026-10-29)
+# Handoff: Circuitos (2026-10-30)
 
 ## Dónde quedamos
 - **En producción en https://circuitos.io** (Vercel, desde el 2026-10-28; el usuario dejó Cloudflare porque le resultó complicado). Dominio en Namecheap con BasicDNS. `www.circuitos.io` redirige a `circuitos.io`, que es la dirección principal; no cambiarla, porque el progreso vive en el localStorage de esa dirección. Verificado en producción: CSP con `frame-ancestors`, HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y `assets/` `immutable`.
 - **Imagen para compartir:** `public/og.png` (1200×630), con las etiquetas `og:*` y `twitter:card` en `index.html`. Se hizo renderizando una plantilla HTML (logo, texto y recorte de `docs/img/nivel.webp`) con Playwright; si cambia el diseño del juego, se regenera.
-- Verificado el 2026-10-29: `tsc` (app y e2e), 208 pruebas unitarias, lint sin avisos, build, 57 e2e en Chrome real (con CSP) y `npm audit` en 0.
-- **Último commit:** `56045b2` (compartir, galería y restaurar Modo libre). **Listo para subir:** "Mejoras de Modo libre" (abajo).
+- Verificado el 2026-10-30: `tsc` (app y e2e), 213 pruebas unitarias, lint sin avisos, build, 57 e2e en Chrome real (con CSP) y `npm audit` en 0.
+- **Último commit:** `273e6f9` (guía al día). Todo está en commits; no queda nada sin subir.
 - 21 niveles (20 principales y el 0 opcional de relés): compuertas → sumadores → latches y flip-flop → bloque 3 combinacional (MUX, DMUX, NOT4, MUX4, DECODER, INC4, ALU4) → bloque 3 memoria (BIT, REGISTER4, COUNTER4, RAM4).
 
 ## Mejoras de UX (2026-10-26, subidas por el usuario)
@@ -118,9 +118,8 @@ Verificado: `tsc`, 191 unitarias, lint sin avisos, build, 47 e2e (5 nuevas en `e
 - **Guía:** comandos Compartir y Galería. `chipLabel` (`i18n.ts`) da el nombre de un chip de nivel en el idioma actual. `AUTHOR_URL`/`REPO_URL` viven en `src/links.ts`.
 - **Riesgo conocido (ya existía):** un link puede traer un chip de nivel que el jugador no ha resuelto (por ejemplo `XOR`). Entra a su paleta del Modo libre con ese nombre sin verificarse contra la spec. Los niveles no lo usan hasta resolverlo (`levelLibrary` pide `solved`).
 
-## Mejoras de Modo libre (2026-10-29, listo para subir)
-Verificado: `tsc` (app y e2e), 208 unitarias, lint sin avisos, build, 57 e2e y `npm audit` en 0. El usuario lo probó a mano y lo aprobó.
-- **Para subir:** son 22 archivos (en `src/`, `e2e/` y este HANDOFF), sin dependencias nuevas, sin cambios de CSP ni del formato del guardado (no hace falta migración). Al hacer push a `main`, Vercel publica solo.
+## Mejoras de Modo libre (2026-10-29, en `de9c2e1`)
+Verificado: `tsc` (app y e2e), 208 unitarias, lint sin avisos, build, 57 e2e y `npm audit` en 0. El usuario lo probó a mano y lo aprobó. Sin dependencias nuevas, sin cambios de CSP ni del formato del guardado.
 - **e2e intermitente:** "undo, redo, copy and paste" falló 2 veces por tiempo agotado en la suite completa con la máquina ocupada. Sola pasa 12 de 12 con 6 workers y la suite repetida pasa 57 de 57. No se encontró causa en la app; si vuelve a fallar con la máquina libre, investigarla.
 - **Errores estandarizados:** `showError`/`showProblem` en `App.tsx` suenan `fail` y el `.notice.error` se sacude como un Probar fallido. `errorCount` entra en el `key` del aviso, así que el mismo error repetido se vuelve a sacudir. El error de guardado en segundo plano (`writeSave`) sigue callado para no repetirse.
 - **Borrar chips desde Piezas:** la lista "Mis chips" del header ya no existe.
@@ -136,6 +135,37 @@ Verificado: `tsc` (app y e2e), 208 unitarias, lint sin avisos, build, 57 e2e y `
 - **Link compartido con el sandbox vacío:** la vista previa ya no dice "Reemplaza lo que tienes en Modo libre." (solo aparece si hay `keepCurrent`).
 - **e2e:** `recordSounds`/`sounds` pasaron a `e2e/helpers.ts`. Los selectores de "Mis chips" ahora usan `getByRole('group', { name: 'Tus chips' })`. Capturas nuevas: `edit-chips.png` y `confirm-delete-chip.png`.
 - **Pendiente del usuario:** revisar los textos nuevos en inglés (`editor.clear`, `confirmClear`, `editChips`, `doneEditing` y `guide.commands.items.clear`).
+
+## Editar chips, galería y guía (2026-10-30, en `1e86cb5`, `6379edd` y `273e6f9`)
+Verificado al final: `tsc` (app y e2e), 213 unitarias, lint sin avisos, build, 57 e2e y `npm audit` en 0. Sin dependencias nuevas, sin cambios de CSP ni del formato del guardado.
+- **Parpadeo al editar chips, arreglado:** al entrar a Editar, o al darle Listo con "¿Borrar?" a la vista, los chips propios se remontaban y sus animaciones volvían a correr.
+  - Ahora `chipButton` (`Editor.tsx`) siempre envuelve un chip borrable en `.removable-piece`, con las clases `editing` y `confirming`. El DOM no cambia y la × solo se pinta al editar.
+  - El cambio a "¿Borrar?" usa **transiciones** (opacity/translate con `--slide` y `--ease-soft`), no animaciones, porque las transiciones no corren al montar.
+  - Lo cubre una prueba en `Editor.test.tsx` que revisa que el chip no se remonte.
+- **Al entrar a Editar:** los chips con × hacen `pulse-bad` dos veces (keyframe en `index.css`, con un halo `--bad`) y suena `edit` (receta nueva: dos golpes de triángulo en Mi5). Con reduced motion no hay pulso.
+- **Galería (`GalleryDialog.tsx`):**
+  - El botón suena `deal`, como los niveles y Modo libre.
+  - Cerrar es una × arriba a la derecha (`.sheet-head`, `gallery.close`); ya no hay botón abajo.
+  - Cada entrada trae una **miniatura estática** del circuito. `useThumbnails(open)` carga los circuitos la primera vez que se abre la galería (no al cargar la página), y se cancela si el diálogo se desmonta.
+  - Segunda entrada: "Medio sumador" (`medio-sumador`, 5 NAND, salidas `suma`/`acarreo`), agregada con `npm run gallery:add` y con su prueba en `gallery.test.ts`.
+- **`CircuitView` (`src/editor/CircuitView.tsx`, nuevo):** dibuja un circuito con las piezas del editor, sin mover, conectar ni borrar nada. El reloj se queda en 0.
+  - Con `live` las entradas se pueden tocar (y suenan). Sin `live` es una imagen: `inert` y `aria-hidden`, sin paquetes en los cables.
+  - Los nodos van en `useNodesState`: si son controlados sin `onNodesChange`, React Flow nunca los mide y no se puede encuadrar.
+  - `FitOnResize` vuelve a encuadrar cuando cambia el tamaño, porque dentro de un `<dialog>` cerrado la vista se arma a 0×0.
+  - `ariaLabelConfig` vacía las pistas de React Flow sobre mover y borrar, que aquí no aplican.
+  - `toWires` (en `convert.ts`) y `nodeTypes`/`edgeTypes` (`flowTypes.ts`) ahora los comparten el Editor y la vista.
+- **Vista previa (`PreviewDialog.tsx`):** tiene pestañas **Diagrama / Piezas / Tabla de verdad** (patrón de pestañas de WAI-ARIA: flechas, Home y End; cambiar de pestaña suena `tick`).
+  - Solo se monta la pestaña abierta, así que el diagrama deja de simular al cambiar de pestaña. Al volver, las entradas regresan a 0.
+  - Diagrama: el circuito vivo y "Toca las entradas para probarlo." Piezas: cada pieza con su icono y su cantidad (sin entradas ni salidas), más el total. Tabla: `TruthTable`.
+  - Un diálogo cerrado no deja nada montado (usa el `shown` de `useDialog`).
+  - Abierta desde la galería (`fromGallery`), Cancelar dice "Volver a la galería" y la reabre.
+- **Guía:** comando nuevo **Editar** (`editChips`, después de Guardar como chip). Galería y Compartir ahora dicen que se puede probar el circuito antes de abrirlo. En inglés, Guardar como chip decía "In the Sandbox" y ahora dice "In Free mode".
+- **e2e:** `node` y `handle` (`e2e/helpers.ts`) buscan solo dentro de `.canvas`, porque las vistas previas también tienen nodos de React Flow. Hay capturas nuevas: `gallery.png`, `gallery-preview.png` y `gallery-preview-table.png`.
+- **Detalles conocidos:**
+  - En circuitos anchos los interruptores del diagrama vivo se ven chicos.
+  - La miniatura muestra el crédito de React Flow.
+  - El reloj no corre en las vistas previas.
+- **Pendiente del usuario:** revisar los textos nuevos (`share.tryIt`, `tabs`, `diagram`, `parts`, `truthTable`, `backToGallery`, `gallery.close` y `guide.commands.items.editChips`), sobre todo en inglés.
 
 ## Publicar en producción (pasos del usuario)
 1. **Deshacer Cloudflare:**

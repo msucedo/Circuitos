@@ -98,6 +98,8 @@ test('the gallery opens an entry in the sandbox', async ({ page }) => {
   // Each entry shows its circuit, a picture that takes no focus.
   await expect(gallery.locator('.circuit-view')).toHaveCount(2)
   await expect(gallery.locator('.circuit-view').first().locator('.react-flow__node')).toHaveCount(10)
+  // Its pieces do not pop in, so the wires never shift once they are drawn.
+  await expect(gallery.locator('.circuit-view .gate').first()).toHaveCSS('animation-name', 'none')
   await settled(gallery)
   await page.screenshot({ path: `${SHOTS}/gallery.png` })
   // The × at the top right closes it.

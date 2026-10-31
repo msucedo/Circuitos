@@ -343,6 +343,8 @@
 .circuit-view.live { height: 240px; }
 /* React Flow lets clicks through pieces that cannot be selected or dragged; the inputs still take them. */
 .circuit-view.live .switch, .circuit-view.live .bus-value input { pointer-events: all; }
+/* Its pieces show up still: no pop, so their pins are measured at full size and the wires never shift. */
+.circuit-view .chip, .circuit-view .gate { animation: none; }
 
 /* Buses */
 .bus-value { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
