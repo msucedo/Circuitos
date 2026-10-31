@@ -27,7 +27,7 @@ export interface Incoming {
   restore?: true
   description?: string
   author?: string
-  /** Opened from the gallery's list: going back returns there. */
+  /** Opened from the gallery's list: it comes in once the gallery has zoomed into the card, and going back returns there. */
   fromGallery?: true
 }
 
@@ -51,7 +51,7 @@ export function PreviewDialog({ incoming, mine, keepCurrent, onCancel, onOpen }:
   if (incoming && incoming !== shown) setShown(incoming)
 
   return (
-    <dialog ref={dialog} className="sheet preview" aria-labelledby="preview-title" onClose={onCancel}>
+    <dialog ref={dialog} className={`sheet preview${shown?.fromGallery ? ' from-gallery' : ''}`} aria-labelledby="preview-title" onClose={onCancel}>
       {visible && shown && <PreviewContent key={shown.id} incoming={shown} mine={mine} keepCurrent={keepCurrent} cancel={cancel} onCancel={onCancel} onOpen={onOpen} />}
     </dialog>
   )
@@ -79,8 +79,8 @@ function PreviewContent({ incoming, mine, keepCurrent, cancel, onCancel, onOpen 
   return (
     <>
       <h2 id="preview-title">{incoming.restore ? t('share.restoreTitle') : (incoming.title ?? t('share.linkTitle'))}</h2>
-      {incoming.description && <p>{incoming.description}</p>}
-      {incoming.author && <p className="muted">{t('share.by', { author: incoming.author })}</p>}
+      {incoming.description && <p className="entry-description">{incoming.description}</p>}
+      {incoming.author && <p className="muted entry-author">{t('share.by', { author: incoming.author })}</p>}
       <PreviewTabs
         diagram={
           <>
@@ -182,7 +182,7 @@ function PreviewContent({ incoming, mine, keepCurrent, cancel, onCancel, onOpen 
           {problemText(t, failed)}
         </p>
       )}
-      <div className="actions">
+      <div className="actions entry-actions">
         <button
           type="button"
           className="primary"

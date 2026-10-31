@@ -1,6 +1,6 @@
 import { ReactFlow, ReactFlowProvider, useNodesInitialized, useNodesState, useReactFlow, useStore } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChipLibrary, Circuit } from '../sim/types.ts'
 import { play } from '../sound.ts'
 import { EditorContext } from './context.ts'
@@ -38,6 +38,8 @@ export function CircuitView({ circuit, library, live = false, label }: Props) {
   useEffect(() => setNodes(flow.nodes), [flow, setNodes])
   const byId = useMemo(() => new Map(flow.nodes.map((n) => [n.id, n])), [flow])
   const [inputs, setInputs] = useState(NO_INPUTS)
+  // Hidden until the first fit, so the circuit is never seen jumping into frame.
+  const [fitted, setFitted] = useState(false)
   const { signals } = useSimulation(circuit, library, inputs, 0, false)
   // A picture keeps still: no packets travelling on its wires.
   const wires = toWires(flow.edges, byId, signals, library, { animate: live, stepMode: false })
@@ -59,7 +61,7 @@ export function CircuitView({ circuit, library, live = false, label }: Props) {
 
   return (
     <div
-      className={`circuit-view${live ? ' live' : ''}`}
+      className={`circuit-view${live ? ' live' : ''}${fitted ? ' fitted' : ''}`}
       role={live ? 'group' : undefined}
       aria-label={live ? label : undefined}
       aria-hidden={live ? undefined : true}
@@ -89,7 +91,7 @@ export function CircuitView({ circuit, library, live = false, label }: Props) {
             minZoom={FIT.minZoom}
             ariaLabelConfig={NO_HINTS}
           >
-            <FitOnResize />
+            <FitOnResize onFit={() => setFitted(true)} />
           </ReactFlow>
         </EditorContext.Provider>
       </ReactFlowProvider>
@@ -98,12 +100,16 @@ export function CircuitView({ circuit, library, live = false, label }: Props) {
 }
 
 /** Fits the circuit whenever the view changes size: a dialog lays it out at 0×0 before it shows. */
-function FitOnResize() {
+function FitOnResize({ onFit }: { onFit: () => void }) {
   const { fitView } = useReactFlow()
   const ready = useNodesInitialized()
   const size = useStore((s) => `${s.width}x${s.height}`)
+  const onFitRef = useRef(onFit)
   useEffect(() => {
-    if (ready) void fitView(FIT)
+    onFitRef.current = onFit
+  })
+  useEffect(() => {
+    if (ready) void fitView(FIT).then(() => onFitRef.current())
   }, [ready, size, fitView])
   return null
 }

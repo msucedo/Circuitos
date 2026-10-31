@@ -45,6 +45,7 @@ import { CollapseToggle } from './CollapseToggle.tsx'
 import { BookIcon, CheckIcon, HelpIcon, LockIcon, Logo } from './icons.tsx'
 import { GalleryDialog } from './GalleryDialog.tsx'
 import { Guide } from './Guide.tsx'
+import { morph } from './morph.ts'
 import { PreviewDialog } from './PreviewDialog.tsx'
 import type { Incoming } from './PreviewDialog.tsx'
 import { ResultPanel } from './ResultPanel.tsx'
@@ -357,6 +358,7 @@ export default function App() {
     const name = incoming?.title
     const added = imported.added.length
     setIncoming(undefined)
+    setGallery(false)
     open(SANDBOX)
     setSave((s) => ({ ...s, sandbox: imported.circuit, chips: [...s.chips, ...imported.added] }))
     setGeneration((g) => g + 1)
@@ -371,12 +373,15 @@ export default function App() {
     })
   }
 
+  /** The preview opens on top of the gallery, which stays open under it until the entry is opened in the sandbox. */
   const openGalleryEntry = (slug: string) => {
-    setGallery(false)
     void loadShared({ kind: 'gallery', slug }).then(
-      (next) => setIncoming({ ...next, fromGallery: true }),
+      // The entry's card turns into its preview.
+      (next) => morph(() => setIncoming({ ...next, fromGallery: true })),
       (error: unknown) => {
         if (!(error instanceof CircuitError)) throw error
+        // Out of the way, so the error shows.
+        setGallery(false)
         showError((t) => t('share.openFailed', { reason: problemText(t, error) }))
       },
     )
@@ -562,16 +567,13 @@ export default function App() {
         }}
       />
       <Guide open={guide} onClose={() => setGuide(false)} />
-      <GalleryDialog open={gallery} onClose={() => setGallery(false)} onOpenEntry={openGalleryEntry} />
+      <GalleryDialog open={gallery} covered={!!incoming?.fromGallery} onClose={() => setGallery(false)} onOpenEntry={openGalleryEntry} />
       <PreviewDialog
         incoming={incoming}
         mine={chips}
         keepCurrent={hasWork(save.sandbox) ? { replaces: !!savedSandbox } : undefined}
-        onCancel={() => {
-          // Back where it was opened from.
-          if (incoming?.fromGallery) setGallery(true)
-          setIncoming(undefined)
-        }}
+        // From the gallery, this goes back to it, still open underneath: the preview shrinks back into its card.
+        onCancel={() => (incoming?.fromGallery ? morph(() => setIncoming(undefined)) : setIncoming(undefined))}
         onOpen={openIncoming}
       />
       <ShareDialog project={sharing} onClose={() => setSharing(undefined)} />

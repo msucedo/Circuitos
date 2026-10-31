@@ -343,6 +343,9 @@
 .circuit-view.live { height: 240px; }
 /* React Flow lets clicks through pieces that cannot be selected or dragged; the inputs still take them. */
 .circuit-view.live .switch, .circuit-view.live .bus-value input { pointer-events: all; }
+/* The circuit shows once it is framed: no jump into place. The box (and a gallery card's placeholder) shows from the start. */
+.circuit-view .react-flow { opacity: 0; transition: opacity var(--fade) var(--ease); }
+.circuit-view.fitted .react-flow { opacity: 1; }
 /* Its pieces show up still: no pop, so their pins are measured at full size and the wires never shift. */
 .circuit-view .chip, .circuit-view .gate { animation: none; }
 

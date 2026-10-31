@@ -3,8 +3,8 @@
 ## Dónde quedamos
 - **En producción en https://circuitos.io** (Vercel, desde el 2026-10-28; el usuario dejó Cloudflare porque le resultó complicado). Dominio en Namecheap con BasicDNS. `www.circuitos.io` redirige a `circuitos.io`, que es la dirección principal; no cambiarla, porque el progreso vive en el localStorage de esa dirección. Verificado en producción: CSP con `frame-ancestors`, HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y `assets/` `immutable`.
 - **Imagen para compartir:** `public/og.png` (1200×630), con las etiquetas `og:*` y `twitter:card` en `index.html`. Se hizo renderizando una plantilla HTML (logo, texto y recorte de `docs/img/nivel.webp`) con Playwright; si cambia el diseño del juego, se regenera.
-- Verificado el 2026-10-30: `tsc` (app y e2e), 213 pruebas unitarias, lint sin avisos, build, 57 e2e en Chrome real (con CSP) y `npm audit` en 0.
-- **Último commit:** `273e6f9` (guía al día). Todo está en commits; no queda nada sin subir.
+- Verificado el 2026-10-30: `tsc` (app y e2e), 214 pruebas unitarias, lint sin avisos, build, 57 e2e en Chrome real (con CSP) y `npm audit` en 0.
+- **Último commit:** `273e6f9` (guía al día). **Sin subir:** las miniaturas sin `pop`, la galería → vista previa sin parpadeo (en "Editar chips, galería y guía") y este HANDOFF.
 - 21 niveles (20 principales y el 0 opcional de relés): compuertas → sumadores → latches y flip-flop → bloque 3 combinacional (MUX, DMUX, NOT4, MUX4, DECODER, INC4, ALU4) → bloque 3 memoria (BIT, REGISTER4, COUNTER4, RAM4).
 
 ## Mejoras de UX (2026-10-26, subidas por el usuario)
@@ -137,7 +137,7 @@ Verificado: `tsc` (app y e2e), 208 unitarias, lint sin avisos, build, 57 e2e y `
 - **Pendiente del usuario:** revisar los textos nuevos en inglés (`editor.clear`, `confirmClear`, `editChips`, `doneEditing` y `guide.commands.items.clear`).
 
 ## Editar chips, galería y guía (2026-10-30, en `1e86cb5`, `6379edd` y `273e6f9`)
-Verificado al final: `tsc` (app y e2e), 213 unitarias, lint sin avisos, build, 57 e2e y `npm audit` en 0. Sin dependencias nuevas, sin cambios de CSP ni del formato del guardado.
+Verificado al final: `tsc` (app y e2e), 214 unitarias, lint sin avisos, build, 57 e2e y `npm audit` en 0. Sin dependencias nuevas, sin cambios de CSP ni del formato del guardado.
 - **Parpadeo al editar chips, arreglado:** al entrar a Editar, o al darle Listo con "¿Borrar?" a la vista, los chips propios se remontaban y sus animaciones volvían a correr.
   - Ahora `chipButton` (`Editor.tsx`) siempre envuelve un chip borrable en `.removable-piece`, con las clases `editing` y `confirming`. El DOM no cambia y la × solo se pinta al editar.
   - El cambio a "¿Borrar?" usa **transiciones** (opacity/translate con `--slide` y `--ease-soft`), no animaciones, porque las transiciones no corren al montar.
@@ -159,6 +159,20 @@ Verificado al final: `tsc` (app y e2e), 213 unitarias, lint sin avisos, build, 5
   - Diagrama: el circuito vivo y "Toca las entradas para probarlo." Piezas: cada pieza con su icono y su cantidad (sin entradas ni salidas), más el total. Tabla: `TruthTable`.
   - Un diálogo cerrado no deja nada montado (usa el `shown` de `useDialog`).
   - Abierta desde la galería (`fromGallery`), Cancelar dice "Volver a la galería" y la reabre.
+- **Galería → vista previa sin parpadeo (sin subir):** antes la galería se cerraba y la vista previa se abría, y el fondo oscuro se iba y volvía.
+  - Ahora la vista previa se abre **encima** de la galería, que sigue abierta. La galería queda oculta (`.covered`, opacidad 0) y su fondo se queda; la vista previa no pinta su propio `::backdrop`.
+  - **La tarjeta se transforma en la vista previa** (opción A del usuario, estilo tarjetas de la App Store). Antes probó un recorte desde la tarjeta y un zoom de cámara, y no le gustaron.
+    - Usa View Transitions: `morph(update)` en `src/morph.ts` envuelve el cambio de estado en `document.startViewTransition` con `flushSync`, y pone `html.morphing` mientras corre. Sin la API, o con reduced motion, el cambio pasa sin animación.
+    - Nombres compartidos en `app.css`: `entry-card` (la tarjeta `.morph-source` ↔ la hoja `.preview.from-gallery`), `entry-diagram` (la miniatura ↔ el diagrama vivo), `entry-title`, `entry-description`, `entry-author` y `entry-actions` (clases `entry-*` en los dos componentes). La tarjeta lleva los nombres solo mientras se ve (`chosen` en `GalleryDialog`, y sin `covered`), para que no se repitan.
+    - Abrir (`openGalleryEntry`) y Volver (`onCancel` con `fromGallery`) pasan por `morph`. Durante la transición, la vista previa cierra sin su `sheet-out` (`.morphing .preview.closing`), así `useDialog` la cierra en el mismo paso.
+    - Duración en el token `--morph` (0.5 s) con `--ease-soft`.
+    - Capturas `gallery-morph-start.png`, `gallery-morph.png` y `gallery-morph-back.png`: la e2e pausa y adelanta las animaciones `::view-transition`.
+  - Volver solo cierra la vista previa: la galería conserva su scroll y el foco regresa al botón Abrir. Abrir en Modo libre cierra las dos. Si la carga falla, se cierra la galería para que el error se vea.
+  - Las piezas de las miniaturas y de la vista previa ya no hacen `pop` (`.circuit-view .chip, .circuit-view .gate`), así que los cables no se reacomodan.
+  - **Primera apertura sin brincos:** las miniaturas cargan al abrir la galería por primera vez, y al llegar empujaban el texto de las tarjetas. Ahora:
+    - Mientras cargan hay una caja vacía `.circuit-view` del mismo tamaño.
+    - `CircuitView` se muestra (`.fitted`, con un fundido) solo después del primer `fitView`, así no se ve el encuadre.
+    - La e2e de la galería retiene el chunk `mayoria-de-3-*.js` con `page.route` y revisa que la tarjeta no cambie de alto. Se comprobó que falla sin la caja.
 - **Guía:** comando nuevo **Editar** (`editChips`, después de Guardar como chip). Galería y Compartir ahora dicen que se puede probar el circuito antes de abrirlo. En inglés, Guardar como chip decía "In the Sandbox" y ahora dice "In Free mode".
 - **e2e:** `node` y `handle` (`e2e/helpers.ts`) buscan solo dentro de `.canvas`, porque las vistas previas también tienen nodos de React Flow. Hay capturas nuevas: `gallery.png`, `gallery-preview.png` y `gallery-preview-table.png`.
 - **Detalles conocidos:**

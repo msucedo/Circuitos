@@ -4,7 +4,21 @@ import { encodeShare, shareUrl } from '../src/share.ts'
 import { emptySave, serializeSave } from '../src/sim/schema.ts'
 import type { Project } from '../src/sim/schema.ts'
 import { STORAGE_KEY } from '../src/storage.ts'
-import { SHOTS, addPiece, node, restart, start, watchErrors } from './helpers.ts'
+import { SHOTS, addPiece, node, restart, resumeAnimations, start, watchErrors } from './helpers.ts'
+
+/** Pauses a view transition (the card turning into its preview) as soon as it starts; called before the click that starts it. */
+const pauseMorph = (page: Page) =>
+  page.evaluate(async () => {
+    const morphing = () => document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.pseudoElement?.startsWith('::view-transition'))
+    while (morphing().length === 0) await new Promise(requestAnimationFrame)
+    for (const a of morphing()) a.pause()
+  })
+
+/** Puts the paused view transition at `ms` from its start. */
+const seekMorph = (page: Page, ms: number) =>
+  page.evaluate((at) => {
+    for (const a of document.getAnimations()) if ((a.effect as KeyframeEffect | null)?.pseudoElement?.startsWith('::view-transition')) a.currentTime = at
+  }, ms)
 
 async function sandbox(page: Page) {
   await start(page)
@@ -92,12 +106,27 @@ test('a damaged link says so and the game goes on', async ({ page }) => {
 test('the gallery opens an entry in the sandbox', async ({ page }) => {
   const errors = watchErrors(page)
   await start(page)
+  // The first circuit is held back: its card keeps its size while it loads and when it arrives.
+  let release!: () => void
+  const held = new Promise<void>((resolve) => (release = resolve))
+  await page.route(/\/assets\/mayoria-de-3-[^/]*\.js$/, async (route) => {
+    await held
+    await route.continue()
+  })
   await page.getByRole('button', { name: 'Galería' }).click()
   const gallery = page.getByRole('dialog', { name: 'Galería' })
   await expect(gallery.getByRole('heading', { name: 'Mayoría de 3' })).toBeVisible()
+  const card = gallery.getByRole('listitem').first()
+  await expect(card.locator('.circuit-view')).toHaveCount(1)
+  await expect(card.locator('.react-flow')).toHaveCount(0)
+  await settled(gallery)
+  const loading = await card.boundingBox()
+  release()
   // Each entry shows its circuit, a picture that takes no focus.
   await expect(gallery.locator('.circuit-view')).toHaveCount(2)
   await expect(gallery.locator('.circuit-view').first().locator('.react-flow__node')).toHaveCount(10)
+  await expect(gallery.locator('.circuit-view.fitted')).toHaveCount(2)
+  expect((await card.boundingBox())?.height).toBe(loading?.height)
   // Its pieces do not pop in, so the wires never shift once they are drawn.
   await expect(gallery.locator('.circuit-view .gate').first()).toHaveCSS('animation-name', 'none')
   await settled(gallery)
@@ -107,8 +136,18 @@ test('the gallery opens an entry in the sandbox', async ({ page }) => {
   await expect(gallery).toBeHidden()
   await page.getByRole('button', { name: 'Galería' }).click()
   await expect(gallery.getByRole('heading', { level: 3 })).toHaveText(['Mayoría de 3', 'Medio sumador'])
+  // The card turns into the preview; the gallery stays open under it.
+  let paused = pauseMorph(page)
   await gallery.getByRole('button', { name: 'Abrir Mayoría de 3' }).click()
+  await paused
+  await seekMorph(page, 100)
+  await page.screenshot({ path: `${SHOTS}/gallery-morph-start.png` })
+  await seekMorph(page, 200)
+  await page.screenshot({ path: `${SHOTS}/gallery-morph.png` })
+  await resumeAnimations(page)
   await expect(preview(page)).toContainText('de msucedo')
+  await expect(page.locator('dialog.gallery')).toHaveClass(/covered/)
+  await expect(page.locator('dialog.gallery')).toHaveJSProperty('open', true)
   // The diagram tab runs the circuit: two votes make it 1.
   const live = preview(page).getByRole('group', { name: 'Circuito' })
   await expect(live.getByLabel('salida out: 0')).toBeVisible()
@@ -125,11 +164,22 @@ test('the gallery opens an entry in the sandbox', async ({ page }) => {
   await expect(preview(page).locator('.truth-table tbody tr')).toHaveCount(8)
   await page.screenshot({ path: `${SHOTS}/gallery-preview-table.png` })
   // Going back returns to the gallery, and an entry still opens from there.
+  // The preview shrinks back into its card.
+  paused = pauseMorph(page)
   await preview(page).getByRole('button', { name: 'Volver a la galería' }).click()
+  await paused
+  await seekMorph(page, 150)
+  await page.screenshot({ path: `${SHOTS}/gallery-morph-back.png` })
+  await resumeAnimations(page)
   await expect(gallery).toBeVisible()
   await expect(preview(page)).toBeHidden()
+  await expect(page.locator('dialog.gallery')).not.toHaveClass(/covered/)
+  // Focus goes back to the button that opened it.
+  await expect(gallery.getByRole('button', { name: 'Abrir Mayoría de 3' })).toBeFocused()
   await gallery.getByRole('button', { name: 'Abrir Mayoría de 3' }).click()
   await preview(page).getByRole('button', { name: 'Abrir en Modo libre' }).click()
+  // Opening it closes both.
+  await expect(page.locator('dialog.gallery')).toHaveJSProperty('open', false)
   await expect(node(page, 'mayoria')).toBeVisible()
   await expect(page.locator('.notice')).toContainText('"Mayoría de 3" está en Modo libre')
   expect(errors).toEqual([])

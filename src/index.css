@@ -26,6 +26,8 @@
   --fade: 0.25s;
   /* A button sliding into another's place, slow enough to follow (¿Borrar? over a chip). */
   --slide: 0.6s;
+  /* A gallery card turning into its preview and back. */
+  --morph: 0.5s;
   /* Space between the stacked side panels. */
   --panel-gap: 8px;
   /* Text size of buttons and fields, so both read the same. */

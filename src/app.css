@@ -386,6 +386,33 @@ a.button-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 .gallery-list li { padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
 .gallery-list h3 { margin: 0 0 4px; color: var(--text); }
 .gallery-list .circuit-view { margin-bottom: 10px; }
+/*
+ * An entry's card turns into its preview (morph in src/morph.ts): the card into the sheet, its picture into
+ * the live diagram, its name into the title. The gallery stays open under the preview, out of sight, and
+ * its backdrop is the only one.
+ */
+.sheet.gallery.covered { opacity: 0; }
+.preview.from-gallery::backdrop { background: none; backdrop-filter: none; }
+.gallery-list .morph-source, .preview.from-gallery { view-transition-name: entry-card; }
+.gallery-list .morph-source .circuit-view, .preview.from-gallery .circuit-view { view-transition-name: entry-diagram; }
+.gallery-list .morph-source h3, .preview.from-gallery h2 { view-transition-name: entry-title; }
+/* The rest travels too, so the card's text and the sheet's never show one over the other. */
+.morph-source .entry-description, .preview.from-gallery .entry-description { view-transition-name: entry-description; }
+.morph-source .entry-author, .preview.from-gallery .entry-author { view-transition-name: entry-author; }
+.morph-source .entry-actions, .preview.from-gallery .entry-actions { view-transition-name: entry-actions; }
+/* The transition is the entrance and the way back; the sheet's own would play over it. */
+@supports (view-transition-name: none) {
+  .preview.from-gallery[open]:not(.closing) { animation: none; }
+}
+.morphing .preview.closing { animation: none; }
+::view-transition-group(entry-card),
+::view-transition-group(entry-diagram),
+::view-transition-group(entry-title),
+::view-transition-group(entry-description),
+::view-transition-group(entry-author),
+::view-transition-group(entry-actions),
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: var(--morph); animation-timing-function: var(--ease-soft); }
 /* A sheet's title with its × on the right, like the guide. */
 .sheet-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .sheet-head button { flex: none; padding: 0 10px; font-size: 16px; }

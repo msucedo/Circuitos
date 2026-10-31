@@ -12,18 +12,22 @@ interface Props {
   open: boolean
   onClose: () => void
   onOpenEntry: (slug: string) => void
+  /** An entry's preview is open on top: its card turned into it, and the gallery stays under it to come back to. */
+  covered?: boolean
 }
 
 /** The approved community circuits. Their texts are shown as plain text, never as markup. */
-export function GalleryDialog({ open, onClose, onOpenEntry }: Props) {
+export function GalleryDialog({ open, onClose, onOpenEntry, covered = false }: Props) {
   const { t } = useTranslation()
   const close = useRef<HTMLButtonElement>(null)
   const { dialog, shown } = useDialog(open, onClose, close)
   const [copied, setCopied] = useState<{ slug: string; ok: boolean }>()
   const thumbnails = useThumbnails(open)
+  // The entry last opened: its card turns into the preview and back, so it carries the shared names (`.morph-source`).
+  const [chosen, setChosen] = useState<string>()
 
   return (
-    <dialog ref={dialog} className="sheet gallery" aria-labelledby="gallery-title" onClose={onClose}>
+    <dialog ref={dialog} className={`sheet gallery${covered ? ' covered' : ''}`} aria-labelledby="gallery-title" onClose={onClose}>
       <header className="sheet-head">
         <h2 id="gallery-title">{t('gallery.title')}</h2>
         <button ref={close} type="button" aria-label={t('gallery.close')} onClick={onClose}>
@@ -38,13 +42,23 @@ export function GalleryDialog({ open, onClose, onOpenEntry }: Props) {
           {GALLERY.map((entry) => {
             const thumbnail = thumbnails.get(entry.slug)
             return (
-              <li key={entry.slug}>
-                {shown && thumbnail && <CircuitView circuit={thumbnail.circuit} library={thumbnail.library} />}
+              // Only while it shows: the preview carries the same names on top of it.
+              <li key={entry.slug} className={entry.slug === chosen && !covered ? 'morph-source' : undefined}>
+                {/* Its box is there while the circuit loads, so the card does not grow when it arrives. */}
+                {shown && (thumbnail ? <CircuitView circuit={thumbnail.circuit} library={thumbnail.library} /> : <div className="circuit-view" aria-hidden />)}
                 <h3>{entry.name}</h3>
-                <p>{entry.description}</p>
-                {entry.author && <p className="muted">{t('share.by', { author: entry.author })}</p>}
-                <div className="actions">
-                  <button type="button" className="primary" aria-label={t('gallery.openEntry', { name: entry.name })} onClick={() => onOpenEntry(entry.slug)}>
+                <p className="entry-description">{entry.description}</p>
+                {entry.author && <p className="muted entry-author">{t('share.by', { author: entry.author })}</p>}
+                <div className="actions entry-actions">
+                  <button
+                    type="button"
+                    className="primary"
+                    aria-label={t('gallery.openEntry', { name: entry.name })}
+                    onClick={() => {
+                      setChosen(entry.slug)
+                      onOpenEntry(entry.slug)
+                    }}
+                  >
                     {t('gallery.open')}
                   </button>
                   <button
@@ -68,7 +82,7 @@ export function GalleryDialog({ open, onClose, onOpenEntry }: Props) {
   )
 }
 
-type Thumbnail = { circuit: Circuit; library: ChipLibrary }
+type Thumbnail ={ circuit: Circuit; library: ChipLibrary }
 
 /**
  * The entries' projects, loaded (and validated, like any link) the first time the gallery opens,

@@ -67,6 +67,13 @@ describe('PreviewDialog', () => {
     expect(screen.getByRole('button', { name: 'Cancelar', hidden: true })).toBeTruthy()
   })
 
+  it('comes in after the gallery zoom only when it comes from the gallery', () => {
+    const { container, rerender } = render(<PreviewDialog incoming={{ ...incoming, fromGallery: true }} mine={[]} onCancel={vi.fn()} onOpen={vi.fn()} />)
+    expect(container.querySelector('dialog')?.classList.contains('from-gallery')).toBe(true)
+    rerender(<PreviewDialog incoming={{ ...incoming, id: 2 }} mine={[]} onCancel={vi.fn()} onOpen={vi.fn()} />)
+    expect(container.querySelector('dialog')?.classList.contains('from-gallery')).toBe(false)
+  })
+
   it('offers to keep the current sandbox, checked by default', () => {
     const onOpen = vi.fn()
     render(<PreviewDialog incoming={incoming} mine={[]} keepCurrent={{ replaces: false }} onCancel={vi.fn()} onOpen={onOpen} />)
